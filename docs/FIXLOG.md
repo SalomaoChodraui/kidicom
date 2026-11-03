@@ -27,3 +27,10 @@ Symptom: opening 8,671 files with Kidicom (Dock, Finder, `open -a`) made the wor
 Cause: SwiftUI's app delegate adaptor routes Open Documents through its window controller, which activates and orders a window once per file. The importer also ignored requests while busy.
 Fix: Kidicom installs its own Open Documents Apple event handler (before and after SwiftUI sets up), gathers bursts for half a second into one import, and queues requests that arrive during an import.
 Rule: file-open events go straight to the importer, never through SwiftUI's window routing; imports queue, never drop.
+
+## 2026-11-03 The DMG lost its disk icon
+
+Symptom: the mounted Kidicom disk showed the generic disk icon.
+Cause: hdiutil drops hidden files given with -srcfolder, and on macOS 26 the Finder deletes `.VolumeIcon.icns` when the layout script opens the disk; the volume could also mount as "Kidicom 1" next to an older copy.
+Fix: tools/dmg/make_dmg.sh detaches any disk with the same name, reads the mount point from `hdiutil attach -plist`, runs the Finder layout, and only then copies `.VolumeIcon.icns` and sets the custom icon flag.
+Rule: anything the Finder must not touch goes into the disk after the Finder step.

@@ -33,13 +33,9 @@ fi
 codesign --verify --strict --verbose=2 "$app"
 
 mkdir -p dist
-stage=$(mktemp -d)
-trap 'rm -rf "$stage"' EXIT
-cp -R "$app" "$stage/"
-ln -s /Applications "$stage/Applications"
 dmg="dist/Kidicom-$version.dmg"
 rm -f "$dmg"
-hdiutil create -volname "Kidicom $version" -srcfolder "$stage" -format UDZO -ov "$dmg" >/dev/null
+"$here/dmg/make_dmg.sh" "$app" "$dmg" "Kidicom"
 if [[ "$identity" == Developer\ ID* ]]; then
   codesign --force --timestamp --sign "$identity" "$dmg"
 elif [[ "$identity" != "-" ]]; then
