@@ -91,10 +91,11 @@ struct ViewerView: View {
                     Toggle("Sync Zoom", isOn: Bindable(viewer).syncZoom)
                     Toggle("Sync Window/Level", isOn: Bindable(viewer).syncWindowLevel)
                 } label: {
-                    Label("Compare", systemImage: "clock.arrow.circlepath")
+                    // No badge: a toolbar menu shows only its icon; the priors are listed inside and in the strip.
+                    Image(systemName: "clock.arrow.circlepath")
+                    .accessibilityLabel(Text("Compare"))
                 }
                 .help("Open a prior study of this patient beside the current one, and set what scrolls together")
-                .badge(others.count)
             }
             ToolbarItem {
                 Picker("Tool", selection: Bindable(viewer).tool) {
