@@ -38,6 +38,10 @@ struct ViewerView: View {
             Divider()
             ViewportGrid(viewer: viewer, study: study)
         }
+        .inspector(isPresented: Bindable(viewer).showsTags) {
+            TagInspector(viewport: viewer.active)
+                .inspectorColumnWidth(min: 400, ideal: 600, max: 1000)
+        }
         .toolbar {
             ToolbarItem {
                 Picker("Tool", selection: Bindable(viewer).tool) {
@@ -70,6 +74,11 @@ struct ViewerView: View {
                     Label("Orientation", systemImage: "rotate.right")
                 }
                 .help("Rotate or flip the active viewport (R, Shift-R, H, V)")
+            }
+            ToolbarItem {
+                Button("DICOM Tags", systemImage: "info.circle") { viewer.showsTags.toggle() }
+                    .keyboardShortcut("i")
+                    .help("Show the DICOM tags of the image (⌘I)")
             }
             ToolbarItem(placement: .principal) {
                 Picker("Layout", selection: Bindable(viewer).layout) {

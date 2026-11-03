@@ -145,25 +145,29 @@ struct MeasurementOverlay: View {
                             path.move(to: points[0])
                             for point in points.dropFirst() { path.addLine(to: point) }
                         }
-                        .stroke(color, lineWidth: 1.5)
+                        .stroke(color, lineWidth: 1.5)  // grid: ok drawn in image coordinates
                         ForEach(Array(points.enumerated()), id: \.offset) { _, point in
                             Circle()
-                                .stroke(color, lineWidth: 1.5)
+                                .stroke(color, lineWidth: 1.5)  // grid: ok drawn in image coordinates
                                 .frame(width: 8, height: 8)
-                                .position(point)
+                                .position(point)  // grid: ok drawn in image coordinates
                         }
                         Text(viewport.label(for: measurement))
                             .font(.system(size: 12, weight: .semibold).monospacedDigit())
                             .foregroundStyle(color)
                             .shadow(color: .black, radius: 1, x: 0, y: 1)
                             .fixedSize()
-                            .position(x: points[measurement.kind == .angle ? 1 : points.count - 1].x + 12,
-                                      y: points[measurement.kind == .angle ? 1 : points.count - 1].y - 12)
-                            .offset(x: 24)
+                            .position(labelPoint(points, kind: measurement.kind))  // grid: ok drawn in image coordinates
                     }
                 }
             }
         }
         .allowsHitTesting(false)
+    }
+
+    /// The label sits up and to the right of the end point (distance) or the vertex (angle).
+    private func labelPoint(_ points: [CGPoint], kind: Measurement.Kind) -> CGPoint {
+        let anchor = points[kind == .angle ? 1 : points.count - 1]
+        return CGPoint(x: anchor.x + Space.xxl + Space.xl, y: anchor.y - Space.md)
     }
 }

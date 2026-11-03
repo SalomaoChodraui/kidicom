@@ -56,7 +56,7 @@ enum Snapshot {
             // Viewer windows: one per sample modality.
             let studies = (try? model.container.mainContext.fetch(FetchDescriptor<Study>(sortBy: [SortDescriptor(\.studyDate, order: .reverse)]))) ?? []
             let pages: [(String, String, ViewerLayout)] = [
-                ("viewer-ct", "CT", .single), ("viewer-ct-turned", "CT", .single), ("viewer-ct-measure", "CT", .single), ("viewer-ct-2x2", "CT", .grid), ("viewer-mr", "MR", .single),
+                ("viewer-ct", "CT", .single), ("viewer-ct-turned", "CT", .single), ("viewer-ct-measure", "CT", .single), ("viewer-ct-tags", "CT", .single), ("viewer-ct-2x2", "CT", .grid), ("viewer-mr", "MR", .single),
                 ("viewer-mr-1x2", "MR", .sideBySide), ("viewer-us", "US", .single), ("viewer-cr", "CR", .single),
             ]
             for (name, modality, layout) in pages where only == nil || only?.contains(name) == true {
@@ -64,6 +64,7 @@ enum Snapshot {
                 ViewerModel.nextLayout = layout
                 ViewerModel.nextTransformed = name.hasSuffix("turned")
                 ViewerModel.nextMeasured = name.hasSuffix("measure")
+                ViewerModel.nextShowsTags = name.hasSuffix("tags")
                 let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet && $0.isVisible }
                 openWindow(id: "viewer", value: study.uid)
                 try? await Task.sleep(for: .seconds(2))

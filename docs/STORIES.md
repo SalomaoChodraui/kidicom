@@ -192,7 +192,12 @@ Screens: viewer-1x1
 Depends: S-006
 Acceptance:
 - [snap] Lista tag, nome, VR e valor, com busca.
-Status: todo
+UX:
+- Flow: toolbar ⓘ or ⌘I opens the DICOM Tags inspector for the image in the active viewport; it follows scrolling; type to filter by tag, name, or value
+- Surface: inspector (details of the selection while people keep working)
+- Words: "DICOM Tags", columns "Tag", "Name", "VR", "Value"; search prompt "Search tag, name, or value"; sequences show "n items" with indented items
+- Access: values are selectable for copying
+Status: done
 
 ## M3 Reformatação
 

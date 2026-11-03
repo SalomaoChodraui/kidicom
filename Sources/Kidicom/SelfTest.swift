@@ -154,6 +154,12 @@ enum SelfTest {
                 viewport?.reset()
                 check("reset clears rotation and flips", viewport?.quarterTurns == 0 && viewport?.flipHorizontal == false && viewport?.flipVertical == false)
 
+                // S-015: the tag list of the current image.
+                if let url = viewport?.stack?.slices.first?.url {
+                    let rows = await TagInspector.load(url)
+                    check("the tag list shows Patient Name with its value", rows.contains { $0.name == "Patient Name" && $0.value == "SILVA^MARIA^C" })
+                }
+
                 viewer.layout = .grid
                 check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.stack != nil })
                 viewer.activate(viewer.viewports[3])

@@ -38,6 +38,8 @@ final class ViewerModel {
     var layout: ViewerLayout = .single {
         didSet { fillEmptyViewports() }
     }
+    /// Shows the DICOM tags of the active image (⌘I).
+    var showsTags = false
     /// The left-button tool, shared by every viewport.
     var tool: MeasureTool = .navigate {
         didSet { for viewport in viewports { viewport.tool = tool } }
@@ -52,10 +54,13 @@ final class ViewerModel {
     static var nextTransformed = false
     /// Snapshot mode: add a distance and an angle once the first image shows.
     static var nextMeasured = false
+    /// Snapshot mode: open the tag inspector in the next viewer.
+    static var nextShowsTags = false
 
     func load(_ study: Study) {
         guard stacks.isEmpty else { return }
         if let next = Self.nextLayout { layout = next; Self.nextLayout = nil }
+        if Self.nextShowsTags { showsTags = true; Self.nextShowsTags = false }
         stacks = study.series.sorted { ($0.number, $0.seriesDescription) < ($1.number, $1.seriesDescription) }
             .map(SeriesStack.init(series:))
             .filter { $0.count > 0 }
