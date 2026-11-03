@@ -11,7 +11,7 @@ enum MeasureTool: String, CaseIterable, Identifiable {
 
     var title: LocalizedStringResource {
         switch self {
-        case .navigate: "VOIWindow/Level"
+        case .navigate: "Window/Level"
         case .distance: "Distance"
         case .angle: "Angle"
         }

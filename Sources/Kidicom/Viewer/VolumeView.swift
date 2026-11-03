@@ -65,7 +65,7 @@ final class VolumeMTKView: MTKView {
         guard let session else { return }
         let d = delta(event)
         interacting()
-        if event.modifierFlags.contains(.shift) {
+        if event.modifierFlags.contains(.shift) || event.modifierFlags.contains(.command) {
             session.adjustWindow(dx: d.width, dy: -d.height)
         } else {
             session.rotate(dx: Float(d.width), dy: Float(d.height))
@@ -145,8 +145,10 @@ final class VolumeSession {
 
     func rotate(dx: Float, dy: Float) {
         // Horizontal drag turns around the screen's vertical axis, vertical drag around the horizontal one.
-        let yaw = simd_quatf(angle: dx * 0.01, axis: [0, 1, 0])
-        let pitch = simd_quatf(angle: -dy * 0.01, axis: [1, 0, 0])
+        // The surface under the pointer follows it: drag right turns the front
+        // to the right, drag up tilts the top away. dy grows upward here.
+        let yaw = simd_quatf(angle: -dx * 0.01, axis: [0, 1, 0])
+        let pitch = simd_quatf(angle: dy * 0.01, axis: [1, 0, 0])
         camera.rotation = simd_normalize(yaw * pitch * camera.rotation)
     }
 
@@ -193,7 +195,7 @@ struct VolumePane: View {
                 .padding(Space.sm)
             }
             .overlay(alignment: .bottomLeading) {
-                Text("Drag to rotate · Shift-drag: window · Right-drag: zoom · Wheel button: pan")
+                Text("Drag: rotate · Shift-drag or ⌘-drag: window/level · Right-drag: zoom · Wheel button: pan")
                     .foregroundStyle(.white.opacity(0.6))
                     .padding(Space.sm)
             }

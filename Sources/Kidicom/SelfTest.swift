@@ -2,6 +2,7 @@ import AppKit
 import SwiftData
 import KidicomKit
 import Foundation
+import simd
 
 /// Self-test for agents: runs the app's real functions on a test store,
 /// prints PASS or FAIL per check, and quits with exit code 0 or 1.
@@ -298,6 +299,26 @@ enum SelfTest {
             session.rotate(dx: 157, dy: 0)
             session.renderer.camera = session.camera
             check("dragging rotates the 3D view", bytes(session.renderer.renderImage(width: 96, height: 96)) != bytes(front))
+            // Real mouse events: Shift-drag sets the window; a plain drag rotates.
+            let view = VolumeMTKView(frame: NSRect(x: 0, y: 0, width: 200, height: 200), device: session.renderer.device)
+            let window = NSWindow(contentRect: view.frame, styleMask: [.borderless], backing: .buffered, defer: true)
+            window.contentView = view
+            view.session = session
+            let number = window.windowNumber
+            func send(_ type: NSEvent.EventType, _ x: CGFloat, _ y: CGFloat, _ flags: NSEvent.ModifierFlags = []) -> NSEvent {
+                NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: flags, timestamp: 0,
+                                   windowNumber: number, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            }
+            let before = session.camera.window
+            let turned = session.camera.rotation
+            view.mouseDown(with: send(.leftMouseDown, 100, 100, .shift))
+            view.mouseDragged(with: send(.leftMouseDragged, 160, 100, .shift))
+            check("Shift-drag in 3D widens the window", session.camera.window.width > before.width, "\(before.width) -> \(session.camera.window.width)")
+            check("Shift-drag in 3D does not rotate", session.camera.rotation == turned)
+            let rotationBefore = session.camera.rotation
+            view.mouseDown(with: send(.leftMouseDown, 100, 100))
+            view.mouseDragged(with: send(.leftMouseDragged, 130, 100))
+            check("a plain drag in 3D rotates", session.camera.rotation != rotationBefore)
             session.apply(.softTissue)
             session.renderer.camera = session.camera
             check("the soft tissue preset shows more of the body than bone", lit(session.renderer.renderImage(width: 96, height: 96)) > lit(front))
