@@ -13,6 +13,17 @@ struct MeasureTests {
         #expect(Measure.distance(.zero, CGPoint(x: 3, y: 4), calibration: .pixels) == 5)
     }
 
+    @Test("Area uses the shoelace formula in physical space")
+    func area() {
+        let square = [CGPoint(x: 0, y: 0), CGPoint(x: 10, y: 0), CGPoint(x: 10, y: 10), CGPoint(x: 0, y: 10)]
+        #expect(Measure.area(square, calibration: .pixels) == 100)
+        #expect(Measure.area(square, calibration: .millimeters(row: 2, column: 0.5)) == 100)
+        #expect(Measure.area(square.reversed(), calibration: .millimeters(row: 1, column: 1)) == 100)
+        let triangle = [CGPoint(x: 0, y: 0), CGPoint(x: 4, y: 0), CGPoint(x: 0, y: 3)]
+        #expect(Measure.area(triangle, calibration: .pixels) == 6)
+        #expect(Measure.area(Array(square.prefix(2)), calibration: .pixels) == 0)
+    }
+
     @Test("Angle is measured in physical space")
     func angle() {
         let square = Calibration.millimeters(row: 1, column: 1)

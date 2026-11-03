@@ -33,6 +33,16 @@
         }
       }
     },
+    "%@ cm²": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ cm²"
+          }
+        }
+      }
+    },
     "%@ is already used by the viewer.": {
       "localizations": {
         "pt-BR": {
@@ -49,6 +59,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ mm"
+          }
+        }
+      }
+    },
+    "%@ mm²": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ mm²"
           }
         }
       }
@@ -147,6 +167,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld px"
+          }
+        }
+      }
+    },
+    "%lld px²": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld px²"
           }
         }
       }
@@ -327,6 +357,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aparência"
+          }
+        }
+      }
+    },
+    "Area": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Área"
           }
         }
       }
@@ -929,18 +969,18 @@
         }
       }
     },
-    "Left button: window/level (%@), scroll (%@), distance (%@), or angle (%@). Esc returns to window/level.": {
+    "Left button: window/level (%@), scroll (%@), distance (%@), angle (%@), or area (%@). Esc returns to window/level.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "new",
-            "value": "Left button: window/level (%1$@), scroll (%2$@), distance (%3$@), or angle (%4$@). Esc returns to window/level."
+            "value": "Left button: window/level (%1$@), scroll (%2$@), distance (%3$@), angle (%4$@), or area (%5$@). Esc returns to window/level."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Botão esquerdo: janela (%1$@), rolar (%2$@), distância (%3$@) ou ângulo (%4$@). Esc volta para janela."
+            "value": "Botão esquerdo: janela (%1$@), rolar (%2$@), distância (%3$@), ângulo (%4$@) ou área (%5$@). Esc volta para janela."
           }
         }
       }

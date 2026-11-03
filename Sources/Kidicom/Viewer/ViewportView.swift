@@ -229,8 +229,8 @@ final class ViewportNSView: NSView {
             if let (point, _) = imagePoint(event) { mpr.drag(point) }
             return
         }
-        if measuring, let (point, _) = imagePoint(event) {
-            viewport.pointerDragged(to: point)
+        if measuring, let (point, scale) = imagePoint(event) {
+            viewport.pointerDragged(to: point, scale: scale)
             return
         }
         let d = delta(event)

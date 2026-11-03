@@ -22,3 +22,4 @@ Strings are written in English in code and translated to Portuguese in the Strin
 | Cine | Cine | Playing the frames of a series in a loop | movie, video |
 | Scroll (tool) | Rolar | Left-button tool that drags through the images | |
 | Tool key | Atalho da ferramenta | The letter that picks a left-button tool (Settings > Tools) | hotkey |
+| Area | Área | A freehand closed outline (lasso) and the area inside it, in mm² or cm² | ROI, region |

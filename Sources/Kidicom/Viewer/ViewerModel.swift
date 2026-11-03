@@ -202,6 +202,10 @@ final class ViewerModel {
                 viewport.measurements = [
                     Measurement(kind: .distance, points: [CGPoint(x: w * 0.3, y: h * 0.45), CGPoint(x: w * 0.6, y: h * 0.45)], slice: viewport.index),
                     Measurement(kind: .angle, points: [CGPoint(x: w * 0.55, y: h * 0.7), CGPoint(x: w * 0.65, y: h * 0.85), CGPoint(x: w * 0.8, y: h * 0.75)], slice: viewport.index),
+                    Measurement(kind: .area, points: (0 ..< 48).map { k in
+                        let a = Double(k) / 48 * 2 * .pi
+                        return CGPoint(x: w * 0.36 + w * 0.07 * cos(a) * (1 + 0.1 * sin(3 * a)), y: h * 0.62 + h * 0.05 * sin(a))
+                    }, slice: viewport.index),
                 ]
                 viewport.selected = viewport.measurements[1].id
             }

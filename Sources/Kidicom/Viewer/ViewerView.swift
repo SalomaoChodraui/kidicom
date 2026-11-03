@@ -104,7 +104,7 @@ struct ViewerView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelStyle(.iconOnly)
-                .help(Text("Left button: window/level (\(ToolKeys.shared.key(for: .navigate).uppercased())), scroll (\(ToolKeys.shared.key(for: .scroll).uppercased())), distance (\(ToolKeys.shared.key(for: .distance).uppercased())), or angle (\(ToolKeys.shared.key(for: .angle).uppercased())). Esc returns to window/level."))
+                .help(Text("Left button: window/level (\(ToolKeys.shared.key(for: .navigate).uppercased())), scroll (\(ToolKeys.shared.key(for: .scroll).uppercased())), distance (\(ToolKeys.shared.key(for: .distance).uppercased())), angle (\(ToolKeys.shared.key(for: .angle).uppercased())), or area (\(ToolKeys.shared.key(for: .area).uppercased())). Esc returns to window/level."))
             }
             ToolbarItem {
                 let playing = viewer.active?.isPlaying == true

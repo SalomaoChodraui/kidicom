@@ -130,6 +130,29 @@ enum SelfTest {
                         view.keyDown(with: NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: number,
                                                             context: nil, characters: "\u{7F}", charactersIgnoringModifiers: "\u{7F}", isARepeat: false, keyCode: 51)!)
                         check("Delete removes the selected measurement", viewport.measurements.count == 1)
+                        // Area: a 20 x 20 px outline on 5 mm pixels is 100 x 100 mm = 100 cm².
+                        viewport.tool = .area
+                        let corners: [(CGFloat, CGFloat)] = [(20, 10), (40, 10), (40, 30), (20, 30), (20, 11)]
+                        p = at(corners[0].0, corners[0].1); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        for (k, corner) in corners.enumerated().dropFirst() {
+                            let previous = corners[k - 1]
+                            for s in 1 ... 10 {
+                                let f = CGFloat(s) / 10
+                                p = at(previous.0 + (corner.0 - previous.0) * f, previous.1 + (corner.1 - previous.1) * f)
+                                view.mouseDragged(with: send(.leftMouseDragged, p.0, p.1))
+                            }
+                        }
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        let outline = viewport.measurements.last
+                        let mm2 = outline.map { Measure.area($0.points, calibration: viewport.calibration(for: $0)) } ?? 0
+                        check("the lasso closes the outline and reads 100 cm²", outline?.kind == .area && abs(mm2 - 10_000) < 300 && viewport.label(for: outline!).contains("cm²"), "\(mm2)")
+                        let before = outline?.points.first
+                        p = at(30, 20); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        p = at(35, 20); view.mouseDragged(with: send(.leftMouseDragged, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        let after = viewport.measurements.last?.points.first
+                        check("dragging inside the outline moves it whole", viewport.measurements.count == 2 && abs((after?.x ?? 0) - (before?.x ?? 0) - 5) < 0.5)
+                        viewport.measurements.removeLast()
                         let here = viewport.index
                         viewport.go(to: here == 0 ? 1 : here - 1)
                         check("measurements show only on their own image", viewport.visibleMeasurements.isEmpty)

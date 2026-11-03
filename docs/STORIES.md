@@ -189,6 +189,19 @@ UX:
 - Words: label "90,0°"
 Status: done
 
+### S-016 Medir área com o laço
+Como usuário, escolho o laço e contorno uma estrutura com o botão esquerdo; ao soltar, o contorno se fecha e mostra a área.
+Screens: viewer-ct-measure
+Depends: S-013
+Acceptance:
+- [unit] Área pela fórmula do laço (shoelace) no espaço físico, certa com pixels não quadrados.
+- [self] Um contorno de 20 x 20 px em pixels de 5 mm mede 100 cm².
+- [self] Arrastar dentro do contorno move o contorno inteiro.
+UX:
+- Flow: toolbar Area tool (lasso, key O) -> press, trace the outline, release -> it closes, fills lightly, and shows mm² (cm² from 1 cm²; px² without calibration) -> click on or inside it to select, drag to move, Delete removes
+- Words: tool "Area"; labels "45,6 mm²", "17,02 cm²", "1200 px²"
+Status: done
+
 ### S-015 Ver informações DICOM
 Como usuário, abro um painel com as tags do arquivo atual.
 Screens: viewer-1x1

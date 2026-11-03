@@ -5,7 +5,7 @@ import SwiftUI
 
 /// What the left mouse button does in the viewer.
 enum MeasureTool: String, CaseIterable, Identifiable {
-    case navigate, scroll, distance, angle
+    case navigate, scroll, distance, angle, area
 
     var id: String { rawValue }
 
@@ -18,6 +18,7 @@ enum MeasureTool: String, CaseIterable, Identifiable {
         case .scroll: "Scroll"
         case .distance: "Distance"
         case .angle: "Angle"
+        case .area: "Area"
         }
     }
 
@@ -27,6 +28,7 @@ enum MeasureTool: String, CaseIterable, Identifiable {
         case .scroll: "arrow.up.and.down"
         case .distance: "ruler"
         case .angle: "angle"
+        case .area: "lasso"
         }
     }
 }
@@ -35,7 +37,7 @@ enum MeasureTool: String, CaseIterable, Identifiable {
 @Observable
 final class ToolKeys {
     static let shared = ToolKeys()
-    static let defaults: [MeasureTool: String] = [.navigate: "w", .scroll: "b", .distance: "l", .angle: "a"]
+    static let defaults: [MeasureTool: String] = [.navigate: "w", .scroll: "b", .distance: "l", .angle: "a", .area: "o"]
     /// Keys the viewer already uses for other things.
     static let reserved: Set<String> = ["h", "v", "0", "1", "2", "3", "4", " "]
 
@@ -79,16 +81,36 @@ final class ToolKeys {
     }
 }
 
-/// A distance (two points) or an angle (arm, vertex, arm) on one frame,
-/// in image pixel coordinates. Measurements live until the window closes.
+/// A distance (two points), an angle (arm, vertex, arm), or an area (a
+/// closed freehand outline) on one frame, in image pixel coordinates.
+/// Measurements live until the window closes.
 struct Measurement: Identifiable, Equatable {
-    enum Kind { case distance, angle }
+    enum Kind { case distance, angle, area }
     let id = UUID()
     var kind: Kind
     var points: [CGPoint]
     var slice: Int
 
-    var isComplete: Bool { points.count == (kind == .distance ? 2 : 3) }
+    var isComplete: Bool {
+        switch kind {
+        case .distance: points.count == 2
+        case .angle: points.count == 3
+        case .area: points.count >= 3
+        }
+    }
+
+    /// True when `p` is inside the outline (even-odd rule).
+    func contains(_ p: CGPoint) -> Bool {
+        guard kind == .area, points.count >= 3 else { return false }
+        var inside = false
+        var j = points.count - 1
+        for i in points.indices {
+            let a = points[i], b = points[j]
+            if (a.y > p.y) != (b.y > p.y), p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x { inside.toggle() }
+            j = i
+        }
+        return inside
+    }
 }
 
 /// Measurement editing for one viewport: drawing, handles, selection.
@@ -104,8 +126,19 @@ extension Viewport {
             dragging = (draft.id, 2)
             return
         }
-        // Grab a handle of a measurement on this frame.
+        // Grab a handle of a measurement on this frame; an area moves whole,
+        // grabbed by its outline or from inside.
         for measurement in measurements where measurement.slice == index {
+            if measurement.kind == .area {
+                let onEdge = measurement.points.contains { hypot($0.x - p.x, $0.y - p.y) < grabRadius(scale: scale) }
+                if onEdge || measurement.contains(p) {
+                    selected = measurement.id
+                    dragging = (measurement.id, -1)
+                    moveFrom = p
+                    return
+                }
+                continue
+            }
             if let handle = measurement.points.firstIndex(where: { hypot($0.x - p.x, $0.y - p.y) < grabRadius(scale: scale) }) {
                 selected = measurement.id
                 dragging = (measurement.id, handle)
@@ -117,12 +150,27 @@ extension Viewport {
         case .navigate, .scroll: return
         case .distance: draft = Measurement(kind: .distance, points: [p, p], slice: index)
         case .angle: draft = Measurement(kind: .angle, points: [p, p], slice: index)
+        case .area: draft = Measurement(kind: .area, points: [p], slice: index)
         }
         dragging = (draft!.id, 1)
     }
 
-    func pointerDragged(to p: CGPoint) {
+    func pointerDragged(to p: CGPoint, scale: CGFloat = 1) {
         guard let (id, handle) = dragging else { return }
+        if var area = draft, area.id == id, area.kind == .area {
+            // Freehand: a new point every two view points of travel.
+            if let last = area.points.last, hypot(last.x - p.x, last.y - p.y) * scale >= 2 {
+                area.points.append(p)
+                draft = area
+            }
+            return
+        }
+        if handle == -1, let i = measurements.firstIndex(where: { $0.id == id }), let from = moveFrom {
+            let dx = p.x - from.x, dy = p.y - from.y
+            measurements[i].points = measurements[i].points.map { CGPoint(x: $0.x + dx, y: $0.y + dy) }
+            moveFrom = p
+            return
+        }
         if draft?.id == id {
             draft?.points[handle] = p
         } else if let i = measurements.firstIndex(where: { $0.id == id }) {
@@ -133,6 +181,17 @@ extension Viewport {
     func pointerUp(scale: CGFloat) {
         defer { dragging = nil }
         guard let draft, dragging?.0 == draft.id else { return }
+        if draft.kind == .area {
+            // Too small to be an outline: a click, not a drawing.
+            let xs = draft.points.map(\.x), ys = draft.points.map(\.y)
+            let span = max((xs.max() ?? 0) - (xs.min() ?? 0), (ys.max() ?? 0) - (ys.min() ?? 0)) * scale
+            if draft.points.count >= 3 && span >= 6 {
+                measurements.append(draft)
+                selected = draft.id
+            }
+            self.draft = nil
+            return
+        }
         let a = draft.points[0], b = draft.points[1]
         // A click without a drag starts nothing.
         if draft.points.count == 2 && hypot(a.x - b.x, a.y - b.y) < grabRadius(scale: scale) / 2 {
@@ -178,6 +237,12 @@ extension Viewport {
             guard measurement.points.count == 3 else { return "" }
             let value = Measure.angle(measurement.points[0], vertex: measurement.points[1], measurement.points[2], calibration: calibration)
             return String(localized: "\(value.formatted(.number.precision(.fractionLength(1))))°")
+        case .area:
+            let value = Measure.area(measurement.points, calibration: calibration)
+            if case .pixels = calibration { return String(localized: "\(Int(value.rounded())) px²") }
+            return value >= 100
+                ? String(localized: "\((value / 100).formatted(.number.precision(.fractionLength(2)))) cm²")
+                : String(localized: "\(value.formatted(.number.precision(.fractionLength(1)))) mm²")
         }
     }
 }
@@ -194,12 +259,17 @@ struct MeasurementOverlay: View {
                         let points = measurement.points.map(geometry.toView)
                         let isSelected = viewport.selected == measurement.id
                         let color: Color = isSelected ? .cyan : .yellow
-                        Path { path in
+                        let outline = Path { path in
                             path.move(to: points[0])
                             for point in points.dropFirst() { path.addLine(to: point) }
+                            if measurement.kind == .area { path.closeSubpath() }
                         }
-                        .stroke(color, lineWidth: 1.5)  // grid: ok drawn in image coordinates
-                        ForEach(Array(points.enumerated()), id: \.offset) { _, point in
+                        if measurement.kind == .area {
+                            outline.fill(color.opacity(0.12))
+                        }
+                        outline.stroke(color, lineWidth: 1.5)  // grid: ok drawn in image coordinates
+                        // An outline has no handles: it moves whole.
+                        ForEach(Array((measurement.kind == .area ? [] : points).enumerated()), id: \.offset) { _, point in
                             Circle()
                                 .stroke(color, lineWidth: 1.5)  // grid: ok drawn in image coordinates
                                 .frame(width: 8, height: 8)
@@ -218,8 +288,13 @@ struct MeasurementOverlay: View {
         .allowsHitTesting(false)
     }
 
-    /// The label sits up and to the right of the end point (distance) or the vertex (angle).
+    /// The label sits up and to the right of the end point (distance), the
+    /// vertex (angle), or the outline's top-right corner (area).
     private func labelPoint(_ points: [CGPoint], kind: Measurement.Kind) -> CGPoint {
+        if kind == .area {
+            let top = points.map(\.y).min() ?? 0, right = points.map(\.x).max() ?? 0
+            return CGPoint(x: right + Space.xxl + Space.xl, y: top - Space.md)
+        }
         let anchor = points[kind == .angle ? 1 : points.count - 1]
         return CGPoint(x: anchor.x + Space.xxl + Space.xl, y: anchor.y - Space.md)
     }

@@ -65,6 +65,18 @@ public enum Measure {
         return ((bx - ax) * (bx - ax) + (by - ay) * (by - ay)).squareRoot()
     }
 
+    /// Area inside a closed outline (shoelace formula), in mm² or px².
+    public static func area(_ points: [CGPoint], calibration: Calibration) -> Double {
+        guard points.count >= 3 else { return 0 }
+        let p = points.map { calibration.physical($0) }
+        var twice = 0.0
+        for i in p.indices {
+            let (x0, y0) = p[i], (x1, y1) = p[(i + 1) % p.count]
+            twice += x0 * y1 - x1 * y0
+        }
+        return abs(twice) / 2
+    }
+
     /// The angle at `vertex` between the arms to `a` and `c`, in degrees,
     /// measured in physical space so non-square pixels are right.
     public static func angle(_ a: CGPoint, vertex: CGPoint, _ c: CGPoint, calibration: Calibration) -> Double {

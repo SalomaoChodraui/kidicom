@@ -42,7 +42,7 @@ enum ToolCursor {
         switch tool {
         case .navigate: symbol("circle.lefthalf.filled")
         case .scroll: symbol("arrow.up.and.down")
-        case .distance, .angle: .crosshair
+        case .distance, .angle, .area: .crosshair
         }
     }
 

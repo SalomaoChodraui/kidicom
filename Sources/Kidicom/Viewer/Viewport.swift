@@ -61,6 +61,8 @@ final class Viewport: Identifiable {
     var draft: Measurement?
     var selected: UUID?
     @ObservationIgnored var dragging: (UUID, Int)?
+    /// Last pointer position while an area is dragged whole.
+    @ObservationIgnored var moveFrom: CGPoint?
 
     /// Where the current image sits in a view of this size.
     func geometry(in size: CGSize) -> ViewportGeometry? {
