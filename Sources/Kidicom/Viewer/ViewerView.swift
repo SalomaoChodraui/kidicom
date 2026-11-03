@@ -41,7 +41,7 @@ struct ViewerView: View {
 
     private func content(_ study: Study) -> some View {
         HStack(spacing: 0) {
-            SeriesStrip(viewer: viewer)
+            SeriesStrip(viewer: viewer, others: priors(of: study))
                 .frame(width: 148)
             Divider()
             ViewportGrid(viewer: viewer, study: study)
@@ -190,6 +190,8 @@ struct ViewerView: View {
 /// Thumbnails of the study's series. Click shows one; drag it to a viewport.
 struct SeriesStrip: View {
     let viewer: ViewerModel
+    /// The patient's other studies, newest first: the strip's timeline.
+    var others: [Study] = []
 
     private func thumbnail(_ stack: SeriesStack) -> some View {
         Button { viewer.show(stack) } label: {
@@ -205,16 +207,31 @@ struct SeriesStrip: View {
         ScrollView {
             VStack(spacing: Space.sm) {
                 ForEach(viewer.stacks) { stack in thumbnail(stack) }
-                ForEach(viewer.priors) { prior in
-                    VStack(alignment: .leading, spacing: 0) {
-                        Divider()
-                        Text("Prior · \(prior.date.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")")
-                            .font(.caption.weight(.semibold))
+                ForEach(others, id: \.uid) { study in
+                    let expanded = viewer.expandedPriors.contains(study.uid)
+                    Button { viewer.togglePrior(study) } label: {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Divider()
+                            HStack(spacing: Space.xs) {
+                                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                Text(study.studyDate.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")
+                                    .font(.caption.weight(.semibold))
+                                Spacer(minLength: 0)
+                                Text(study.modalities).font(.caption2).foregroundStyle(.secondary)
+                            }
                             .padding(.top, Space.sm)
-                        Text(prior.description).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                            Text(study.studyDescription).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    ForEach(prior.stacks) { stack in thumbnail(stack) }
+                    .buttonStyle(.plain)
+                    .help(expanded ? "Hide the series of this study" : "Show the series of this study. Right-click a thumbnail to open it beside the current images.")
+                    if expanded, let prior = viewer.priors.first(where: { $0.id == study.uid }) {
+                        ForEach(prior.stacks) { stack in thumbnail(stack) }
+                    }
                 }
             }
             .padding(Space.sm)

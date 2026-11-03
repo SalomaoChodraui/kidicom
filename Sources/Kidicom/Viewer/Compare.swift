@@ -15,19 +15,33 @@ extension ViewerModel {
     /// Opens a prior study beside the current images, on the series most
     /// like the active one: same modality and plane, closest image count.
     func openPrior(_ study: Study) {
-        let prior: PriorStudy
-        if let loaded = priors.first(where: { $0.id == study.uid }) {
-            prior = loaded
-        } else {
-            let stacks = study.series.sorted { ($0.number, $0.seriesDescription) < ($1.number, $1.seriesDescription) }
-                .map(SeriesStack.init(series:))
-                .filter { $0.count > 0 }
-            prior = PriorStudy(id: study.uid, date: study.studyDate, description: study.studyDescription, stacks: stacks)
-            priors.append(prior)
-            for stack in stacks { Task { await stack.makeThumbnail() } }
-        }
+        let prior = loadPrior(study)
+        expandedPriors.insert(study.uid)
         guard let match = bestMatch(in: prior.stacks, for: active?.stack) else { return }
         compare(match)
+    }
+
+    /// Reads a prior study's series for the strip, once.
+    @discardableResult
+    func loadPrior(_ study: Study) -> PriorStudy {
+        if let loaded = priors.first(where: { $0.id == study.uid }) { return loaded }
+        let stacks = study.series.sorted { ($0.number, $0.seriesDescription) < ($1.number, $1.seriesDescription) }
+            .map(SeriesStack.init(series:))
+            .filter { $0.count > 0 }
+        let prior = PriorStudy(id: study.uid, date: study.studyDate, description: study.studyDescription, stacks: stacks)
+        priors.append(prior)
+        for stack in stacks { Task { await stack.makeThumbnail() } }
+        return prior
+    }
+
+    /// Strip timeline: a date row expands or collapses that study's series.
+    func togglePrior(_ study: Study) {
+        if expandedPriors.contains(study.uid) {
+            expandedPriors.remove(study.uid)
+        } else {
+            loadPrior(study)
+            expandedPriors.insert(study.uid)
+        }
     }
 
     func bestMatch(in stacks: [SeriesStack], for reference: SeriesStack?) -> SeriesStack? {

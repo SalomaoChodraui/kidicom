@@ -355,6 +355,10 @@ enum SelfTest {
         viewer.load(ct)
         let current = viewer.viewports[0]
         current.go(to: 10)
+        viewer.togglePrior(prior)
+        check("a date in the strip shows that study's series", viewer.expandedPriors.contains(prior.uid) && viewer.priors.first?.stacks.count == 1 && viewer.layout == .single)
+        viewer.togglePrior(prior)
+        check("clicking the date again hides them", !viewer.expandedPriors.contains(prior.uid))
         viewer.openPrior(prior)
         let other = viewer.viewports[1]
         check("a prior opens beside the current study", viewer.layout == .sideBySide && other.stack?.studyUID == prior.uid)

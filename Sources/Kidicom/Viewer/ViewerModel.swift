@@ -63,6 +63,8 @@ final class ViewerModel {
 
     /// Prior studies opened to compare, shown below the series strip.
     var priors: [PriorStudy] = []
+    /// Prior studies whose series show in the strip.
+    var expandedPriors: Set<UUID> = []
     /// Scroll follows across parallel viewports (S-031). On by default.
     var syncScroll = true
     /// W/L follows across viewports. Off by default.
