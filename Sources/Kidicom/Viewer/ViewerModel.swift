@@ -63,6 +63,8 @@ final class ViewerModel {
 
     /// Prior studies opened to compare, shown below the series strip.
     var priors: [PriorStudy] = []
+    /// The open study's series folded away in the strip.
+    var currentCollapsed = false
     /// Prior studies whose series show in the strip.
     var expandedPriors: Set<UUID> = []
     /// Scroll follows across parallel viewports (S-031). On by default.

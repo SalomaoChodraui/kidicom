@@ -501,6 +501,16 @@
         }
       }
     },
+    "Current": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atual"
+          }
+        }
+      }
+    },
     "Current Window": {
       "localizations": {
         "pt-BR": {
@@ -1977,6 +1987,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zoom %lld%%"
+          }
+        }
+      }
+    },
+    "^[%lld series](inflect: true)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld série](inflect: true)"
           }
         }
       }

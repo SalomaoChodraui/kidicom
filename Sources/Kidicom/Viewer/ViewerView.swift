@@ -41,8 +41,8 @@ struct ViewerView: View {
 
     private func content(_ study: Study) -> some View {
         HStack(spacing: 0) {
-            SeriesStrip(viewer: viewer, others: priors(of: study))
-                .frame(width: 148)
+            SeriesStrip(viewer: viewer, current: study, others: priors(of: study))
+                .frame(width: 184)
             Divider()
             ViewportGrid(viewer: viewer, study: study)
                 .overlay {
@@ -197,6 +197,7 @@ struct ViewerView: View {
 /// Thumbnails of the study's series. Click shows one; drag it to a viewport.
 struct SeriesStrip: View {
     let viewer: ViewerModel
+    let current: Study
     /// The patient's other studies, newest first: the strip's timeline.
     var others: [Study] = []
 
@@ -212,38 +213,99 @@ struct SeriesStrip: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Space.sm) {
-                ForEach(viewer.stacks) { stack in thumbnail(stack) }
+            // One folder per study; its header stays on top while its series scroll.
+            LazyVStack(alignment: .leading, spacing: Space.md, pinnedViews: [.sectionHeaders]) {
+                Section {
+                    if !viewer.currentCollapsed {
+                        ForEach(viewer.stacks) { stack in thumbnail(stack) }
+                    }
+                } header: {
+                    StudyFolderHeader(study: current, isCurrent: true, expanded: !viewer.currentCollapsed,
+                                      seriesCount: viewer.stacks.count) {
+                        viewer.currentCollapsed.toggle()
+                    }
+                }
                 ForEach(others, id: \.uid) { study in
                     let expanded = viewer.expandedPriors.contains(study.uid)
-                    Button { viewer.togglePrior(study) } label: {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Divider()
-                            HStack(spacing: Space.xs) {
-                                Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(.secondary)
-                                Text(study.studyDate.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")
-                                    .font(.caption.weight(.semibold))
-                                Spacer(minLength: 0)
-                                Text(study.modalities).font(.caption2).foregroundStyle(.secondary)
-                            }
-                            .padding(.top, Space.sm)
-                            Text(study.studyDescription).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                    Section {
+                        if expanded, let prior = viewer.priors.first(where: { $0.id == study.uid }) {
+                            ForEach(prior.stacks) { stack in thumbnail(stack) }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(expanded ? "Hide the series of this study" : "Show the series of this study. Right-click a thumbnail to open it beside the current images.")
-                    if expanded, let prior = viewer.priors.first(where: { $0.id == study.uid }) {
-                        ForEach(prior.stacks) { stack in thumbnail(stack) }
+                    } header: {
+                        StudyFolderHeader(study: study, isCurrent: false, expanded: expanded,
+                                          seriesCount: study.series.count) {
+                            viewer.togglePrior(study)
+                        }
+                        .padding(.top, Space.sm)
                     }
                 }
             }
-            .padding(Space.sm)
+            .padding(.horizontal, Space.sm)
+            .padding(.bottom, Space.sm)
         }
         .background(.background.secondary)
+    }
+}
+
+/// The header of one study in the series strip: date, description,
+/// modalities. Click to fold or unfold its series.
+struct StudyFolderHeader: View {
+    let study: Study
+    let isCurrent: Bool
+    let expanded: Bool
+    let seriesCount: Int
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(alignment: .top, spacing: Space.sm) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary))
+                    .frame(width: Space.xs)
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    HStack(spacing: Space.xs) {
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: Space.md)
+                        Text(study.studyDate.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")
+                            .font(.title3.weight(.bold))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    HStack(spacing: Space.xs) {
+                        if isCurrent {
+                            Text("Current")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Palette.onAccent)
+                                .padding(.horizontal, Space.xs)
+                                .background(Palette.accent, in: Capsule())
+                        }
+                        Text(study.modalities)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Text(study.studyDescription)
+                        .font(.caption)
+                        .lineLimit(2)
+                    Text("^[\(seriesCount) series](inflect: true)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(Space.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.bar, in: RoundedRectangle(cornerRadius: Space.sm))
+            .overlay {
+                RoundedRectangle(cornerRadius: Space.sm)
+                    .strokeBorder(isCurrent ? AnyShapeStyle(.tint.opacity(0.5)) : AnyShapeStyle(.separator), lineWidth: 1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(expanded ? "Hide the series of this study" : "Show the series of this study. Right-click a thumbnail to open it beside the current images.")
     }
 }
 

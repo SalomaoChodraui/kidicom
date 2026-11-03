@@ -129,6 +129,8 @@ PT = {
 "Sync Scrolling": "Sincronizar Rolagem",
 "Sync Window/Level": "Sincronizar Janela",
 "Sync Zoom": "Sincronizar Zoom",
+"Current": "Atual",
+"^[%lld series](inflect: true)": "^[%lld série](inflect: true)",
 "Anonymous": "Anônimo",
 "Private Tag": "Tag Privada",
 "Private Creator": "Criador Privado",
