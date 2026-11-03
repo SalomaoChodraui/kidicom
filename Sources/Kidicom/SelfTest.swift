@@ -279,6 +279,10 @@ enum SelfTest {
                 check("deleting an album keeps its studies", studies().contains { $0.uid == ct.uid } && ct.albums.isEmpty)
             }
 
+            // The pointer shows the tool: every cursor symbol exists.
+            check("each tool has its own pointer", MeasureTool.allCases.allSatisfy { ToolCursor.cursor(for: $0) !== NSCursor.arrow }
+                  && ToolCursor.zoom !== NSCursor.arrow && ToolCursor.rotate !== NSCursor.arrow)
+
             // Importing the same files again adds nothing.
             let again = await model.importer.run(scan ?? ImportScan(), copy: true)
             check("importing twice does not duplicate images", again.images == 0 && again.duplicates == 50 && images().count == 50)

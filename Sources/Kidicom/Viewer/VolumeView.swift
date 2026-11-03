@@ -32,6 +32,25 @@ final class VolumeMTKView: MTKView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// Rotate, or the window icon while Shift or ⌘ is held.
+    private var windowMode = false {
+        didSet { if windowMode != oldValue { window?.invalidateCursorRects(for: self); currentCursor.set() } }
+    }
+    private var currentCursor: NSCursor { windowMode ? ToolCursor.cursor(for: .navigate) : ToolCursor.rotate }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: currentCursor)
+    }
+
+    override func flagsChanged(with event: NSEvent) {
+        windowMode = !event.modifierFlags.intersection([.shift, .command]).isEmpty
+        super.flagsChanged(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) { currentCursor.set() }
+    override func rightMouseUp(with event: NSEvent) { currentCursor.set() }
+    override func otherMouseUp(with event: NSEvent) { currentCursor.set() }
+
     /// ⌘R resets the camera, like the 2D views.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if window?.firstResponder === self, event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
@@ -82,14 +101,20 @@ final class VolumeMTKView: MTKView {
         }
     }
 
-    override func rightMouseDown(with event: NSEvent) { begin(event) }
+    override func rightMouseDown(with event: NSEvent) {
+        begin(event)
+        ToolCursor.zoom.set()
+    }
 
     override func rightMouseDragged(with event: NSEvent) {
         interacting()
         session?.zoom(by: exp(Float(delta(event).height) * 0.01))
     }
 
-    override func otherMouseDown(with event: NSEvent) { begin(event) }
+    override func otherMouseDown(with event: NSEvent) {
+        begin(event)
+        ToolCursor.pan.set()
+    }
 
     override func otherMouseDragged(with event: NSEvent) {
         interacting()

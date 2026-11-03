@@ -32,6 +32,7 @@ struct ViewportView: NSViewRepresentable {
         view.onClick = onClick
         view.onDoubleClick = onDoubleClick
         view.onTool = onTool
+        view.setTool(viewport.tool)
         _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical)
         view.update(image: viewport.image)
     }
@@ -49,6 +50,23 @@ final class ViewportNSView: NSView {
     var onTool: (MeasureTool) -> Void = { _ in }
     private var dragged = false
     private var scrollDrag: CGFloat = 0
+    private var tool: MeasureTool = .navigate
+
+    /// The pointer follows the left-button tool.
+    func setTool(_ newTool: MeasureTool) {
+        guard newTool != tool else { return }
+        tool = newTool
+        window?.invalidateCursorRects(for: self)
+    }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: ToolCursor.cursor(for: tool))
+    }
+
+    /// While a drag does something else than the tool (zoom, pan), the
+    /// pointer shows it; afterwards it goes back to the tool's.
+    private func showDuring(_ cursor: NSCursor) { cursor.set() }
+    private func restoreCursor() { ToolCursor.cursor(for: tool).set() }
     private let imageLayer = CALayer()
     private var scrollRemainder: CGFloat = 0
     private var zoomAnchor: CGPoint?
@@ -130,6 +148,7 @@ final class ViewportNSView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        restoreCursor()
         if measuring, let (_, scale) = imagePoint(event) {
             viewport?.pointerUp(scale: scale)
         } else if !dragged, event.clickCount == 1, let (point, _) = imagePoint(event) {
@@ -141,10 +160,16 @@ final class ViewportNSView: NSView {
     override func rightMouseDown(with event: NSEvent) {
         begin(event)
         zoomAnchor = lastPoint
+        showDuring(ToolCursor.zoom)
     }
+
+    override func rightMouseUp(with event: NSEvent) { restoreCursor() }
+
+    override func otherMouseUp(with event: NSEvent) { restoreCursor() }
 
     override func otherMouseDown(with event: NSEvent) {
         begin(event)
+        showDuring(ToolCursor.pan)
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -166,6 +191,7 @@ final class ViewportNSView: NSView {
             return
         }
         if event.modifierFlags.contains(.command) {
+            showDuring(ToolCursor.pan)
             viewport.pan.width += d.width
             viewport.pan.height += d.height
         } else {
