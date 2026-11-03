@@ -20,10 +20,10 @@ Como usuário, abro exames comprimidos como os da minha base Horos.
 Depends: S-001
 Acceptance:
 - [unit] JPEG Lossless (`.4.57`, `.4.70`) decodifica igual ao pixel data de referência, bit a bit.
-- [unit] JPEG 2000 (`.4.90`, `.4.91`) de 16 bits decodifica via ImageIO com diferença máxima de 0 em lossless.
+- [unit] JPEG 2000 (`.4.90`, `.4.91`) de 12 e 16 bits decodifica via OpenJPEG embutido com diferença máxima de 0 em lossless.
 - [unit] RLE e JPEG baseline (`.4.50`, US colorido YBR_FULL_422) decodificam.
 - [manual] 100 arquivos sorteados da base Horos abrem sem erro.
-Status: doing
+Status: done
 
 ### S-003 Importar por botão + ou arrastar e soltar
 Como usuário, clico em + ou arrasto arquivos, pastas ou zips para a worklist e os exames aparecem agrupados por paciente e estudo.

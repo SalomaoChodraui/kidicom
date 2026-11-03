@@ -6,7 +6,13 @@ let package = Package(
     platforms: [.macOS(.v26)],
     targets: [
         // Rules and data logic with no SwiftUI, so tests run without the app.
-        .target(name: "KidicomKit"),
+        .target(name: "KidicomKit", dependencies: ["COpenJPEG"]),
+        // JPEG 2000 decoder (OpenJPEG 2.5.3, BSD 2-clause), vendored.
+        .target(
+            name: "COpenJPEG",
+            exclude: ["LICENSE", "README.md"],
+            cSettings: [.define("MUTEX_pthread", to: "1"), .unsafeFlags(["-w"])]
+        ),
         .executableTarget(
             name: "Kidicom",
             dependencies: ["KidicomKit"],

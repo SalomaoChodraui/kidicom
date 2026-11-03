@@ -29,7 +29,7 @@ Janela com sidebar (worklist) e janela de visualização por exame, macOS 26 ou 
 Zips de laboratório trazem estrutura de CD (`DICOMDIR`, pastas como `5WKSINVZ/KUHL4U42`, arquivos sem extensão), mais JPG, PDF de laudo e lixo do macOS (`__MACOSX`, `._*`). O importador reconhece DICOM pelo conteúdo (`DICM` no byte 128, com fallback para dataset sem preâmbulo), ignora o resto e informa quantos arquivos pulou. Amostra real: dossiê pessoal com 19 zips e 33 `DICOMDIR` (fora do repositório, nunca usado como fixture).
 
 ## Decoding (decided by the agent)
-Parser DICOM próprio em Swift. Decoders próprios para JPEG Lossless (`1.2.840.10008.1.2.4.70`) e RLE. ImageIO do sistema para JPEG baseline e JPEG 2000 (`.4.90/.4.91`). Renderização e volume rendering em Metal. Sem DCMTK. Se o JPEG 2000 de 16 bits falhar no ImageIO, entra OpenJPEG só para esse caso. Formatos medidos na base Horos do usuário: 68% sem compressão, 27% JPEG Lossless, 5% JPEG 2000.
+Parser DICOM próprio em Swift. Decoders próprios em Swift para JPEG Lossless (`.4.57`, `.4.70`) e RLE (`.5`). ImageIO do sistema para JPEG baseline (`.4.50`, `.4.51`, ultrassom colorido). JPEG 2000 (`.4.90`, `.4.91`) pelo decoder do OpenJPEG 2.5.3 embutido em `Sources/COpenJPEG` (BSD), porque o ImageIO reduz JPEG 2000 de 12 e 16 bits a 8 bits. Sem DCMTK no app. JPEG-LS (`.4.80`, `.4.81`) fica para depois, se aparecer em mamografia. Renderização e volume rendering em Metal. Formatos medidos na base Horos do usuário: 68% sem compressão, 27% JPEG Lossless, 5% JPEG 2000; JPEG Lossless confere bit a bit com o DCMTK em 300 de 300 arquivos.
 
 ## System hooks
 Abrir arquivos e pastas pelo Finder (Abrir com, arrastar para o ícone no Dock). Nada além disso.
