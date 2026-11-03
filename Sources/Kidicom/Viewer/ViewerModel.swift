@@ -128,8 +128,8 @@ final class ViewerModel {
     private func fillEmptyViewports() {
         if activeIndex >= layout.count { activeIndex = 0 }
         guard !stacks.isEmpty else { return }
-        for viewport in visible where viewport.stack == nil {
-            let shown = Set(visible.compactMap { $0.stack?.id })
+        for viewport in visible where viewport.source == nil {
+            let shown = Set(visible.compactMap { $0.source?.id })
             // Skip scouts (single images) while real series are left.
             let next = stacks.first { !shown.contains($0.id) && $0.count > 1 }
                 ?? stacks.first { !shown.contains($0.id) }

@@ -8,8 +8,8 @@ struct TagInspector: View {
     @State private var search = ""
 
     private var url: URL? {
-        guard let viewport, let stack = viewport.stack, stack.slices.indices.contains(viewport.index) else { return nil }
-        return stack.slices[viewport.index].url
+        guard let viewport else { return nil }
+        return viewport.source?.fileURL(viewport.index)
     }
 
     private var visible: [TagRow] {

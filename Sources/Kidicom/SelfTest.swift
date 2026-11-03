@@ -174,7 +174,7 @@ enum SelfTest {
                 }
 
                 viewer.layout = .grid
-                check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.stack != nil })
+                check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.source != nil })
                 viewer.activate(viewer.viewports[3])
                 check("clicking a viewport makes it active", viewer.activeIndex == 3)
                 viewer.layout = .sideBySide

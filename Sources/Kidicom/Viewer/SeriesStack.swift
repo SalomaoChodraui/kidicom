@@ -91,7 +91,8 @@ final class SeriesStack: Identifiable {
     }
 
     /// Decodes the next and previous frames while the person looks at one.
-    func prefetch(around index: Int, radius: Int = 6) {
+    func prefetch(around index: Int) {
+        let radius = 6
         for offset in 1 ... radius {
             for candidate in [index + offset, index - offset] where slices.indices.contains(candidate) && cache[candidate] == nil && loading[candidate] == nil {
                 Task { _ = await load(candidate) }

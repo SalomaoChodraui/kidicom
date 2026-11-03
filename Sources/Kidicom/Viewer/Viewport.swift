@@ -6,7 +6,9 @@ import KidicomKit
 @Observable
 final class Viewport: Identifiable {
     let id = UUID()
-    private(set) var stack: SeriesStack?
+    private(set) var source: (any FrameSource)?
+    /// The source when it is a series of files.
+    var stack: SeriesStack? { source as? SeriesStack }
     private(set) var index = 0
     /// The person's window; nil follows each frame's own default.
     var window: Window? { didSet { render() } }
@@ -72,24 +74,24 @@ final class Viewport: Identifiable {
         playTask = nil
     }
 
-    func show(_ stack: SeriesStack, at index: Int? = nil) {
-        if self.stack?.id != stack.id {
+    func show(_ stack: any FrameSource, at index: Int? = nil) {
+        if source?.id != stack.id {
             pause()
             measurements = []
             draft = nil
-            self.stack = stack
+            source = stack
             window = nil
             resetView()
         }
         go(to: index ?? stack.count / 2)
     }
 
-    var count: Int { stack?.count ?? 0 }
+    var count: Int { source?.count ?? 0 }
 
     var effectiveWindow: Window? { window ?? slice?.defaultWindow }
 
     func go(to newIndex: Int) {
-        guard let stack, stack.count > 0 else { return }
+        guard let stack = source, stack.count > 0 else { return }
         index = min(max(0, newIndex), stack.count - 1)
         if let hit = stack.cached(index) {
             slice = hit
@@ -145,8 +147,8 @@ final class Viewport: Identifiable {
 
     /// Patient direction letters on the screen edges, when the image has geometry.
     var edges: Orientation.Edges? {
-        guard let stack, stack.slices.indices.contains(index) else { return nil }
-        return Orientation.edges(stack.slices[index].orientation, quarterTurns: quarterTurns,
+        guard let source else { return nil }
+        return Orientation.edges(source.orientation(index), quarterTurns: quarterTurns,
                                  flipHorizontal: flipHorizontal, flipVertical: flipVertical)
     }
 
@@ -155,7 +157,13 @@ final class Viewport: Identifiable {
         resetView()
     }
 
-    var location: Double? { stack.flatMap { $0.slices.indices.contains(index) ? $0.slices[index].location : nil } }
+    var location: Double? { source?.location(index) }
+
+    /// Draws the current frame again after the source changed it (slab, MIP).
+    func reload() {
+        slice = nil
+        go(to: index)
+    }
 
     private func render() {
         guard let slice, let window = effectiveWindow else { image = nil; return }

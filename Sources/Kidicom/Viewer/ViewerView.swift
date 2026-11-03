@@ -107,7 +107,7 @@ struct SeriesStrip: View {
             VStack(spacing: Space.sm) {
                 ForEach(viewer.stacks) { stack in
                     Button { viewer.show(stack) } label: {
-                        SeriesThumbnail(stack: stack, isShown: viewer.active?.stack?.id == stack.id)
+                        SeriesThumbnail(stack: stack, isShown: viewer.active?.source?.id == stack.id)
                     }
                     .buttonStyle(.plain)
                     .overlay { RightClickCatcher { viewer.compare(stack) } }
@@ -188,7 +188,7 @@ struct ViewportOverlay: View {
             HStack(alignment: .top) {
                 corner([study.displayName, study.patientID, study.studyDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
                 Spacer()
-                corner([study.studyDescription, viewport.stack?.title], alignment: .trailing)
+                corner([study.studyDescription, viewport.source?.title], alignment: .trailing)
             }
             Spacer()
             HStack(alignment: .bottom) {
