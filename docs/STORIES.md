@@ -155,7 +155,11 @@ Depends: S-006
 Acceptance:
 - [unit] A taxa vem de Frame Time ou Cine Rate, com 30 fps como padrão.
 - [self] O loop toca sem frames perdidos em 60 Hz.
-Status: todo
+UX:
+- Flow: Space or the toolbar Play button plays the active viewport in a loop; Space or Pause stops on the current frame
+- Surface: toolbar button and key
+- Words: "Play", "Pause"; tooltip "Play the images as a cine (Space)"; overlay "▶ 25 fps" while playing
+Status: done
 
 ### S-013 Medir distância
 Como usuário, escolho a régua e arrasto entre dois pontos para ver a distância em mm.

@@ -21,9 +21,46 @@ final class Viewport: Identifiable {
     private(set) var slice: DecodedSlice?
 
     @ObservationIgnored private var renderTask: Task<Void, Never>?
+    @ObservationIgnored private var playTask: Task<Void, Never>?
+    private(set) var isPlaying = false
+
+    /// Frames per second for cine: Frame Time, then Cine Rate, then 30.
+    var framesPerSecond: Double {
+        if let ms = slice?.frameTime, ms > 0 { return min(120, 1000 / ms) }
+        if let rate = slice?.cineRate, rate > 0 { return min(120, rate) }
+        return 30
+    }
+
+    func togglePlay() {
+        isPlaying ? pause() : play()
+    }
+
+    func play() {
+        guard count > 1, !isPlaying else { return }
+        isPlaying = true
+        playTask = Task { [weak self] in
+            let clock = ContinuousClock()
+            var deadline = clock.now
+            while !Task.isCancelled, let self, self.isPlaying {
+                deadline += .milliseconds(Int(1000 / self.framesPerSecond))
+                try? await clock.sleep(until: deadline)
+                if Task.isCancelled || !self.isPlaying { break }
+                self.go(to: (self.index + 1) % max(1, self.count))
+                // Fell behind (slow decode): restart the schedule from now.
+                if clock.now > deadline + .milliseconds(200) { deadline = clock.now }
+            }
+        }
+    }
+
+    func pause() {
+        isPlaying = false
+        playTask?.cancel()
+        playTask = nil
+    }
 
     func show(_ stack: SeriesStack, at index: Int? = nil) {
         if self.stack?.id != stack.id {
+            pause()
             self.stack = stack
             window = nil
             resetView()

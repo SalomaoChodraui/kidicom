@@ -40,6 +40,14 @@ struct ViewerView: View {
         }
         .toolbar {
             ToolbarItem {
+                let playing = viewer.active?.isPlaying == true
+                Button(playing ? "Pause" : "Play", systemImage: playing ? "pause.fill" : "play.fill") {
+                    viewer.active?.togglePlay()
+                }
+                .help(playing ? "Pause the cine (Space)" : "Play the images as a cine (Space)")
+                .disabled((viewer.active?.count ?? 0) < 2)
+            }
+            ToolbarItem {
                 Menu {
                     Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
                     Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
@@ -189,6 +197,9 @@ struct ViewportOverlay: View {
             lines.append(String(localized: "WL \(Int(window.center.rounded())) WW \(Int(window.width.rounded()))"))
         }
         lines.append(String(localized: "Zoom \(Int((viewport.zoom * 100).rounded()))%"))
+        if viewport.isPlaying {
+            lines.append(String(localized: "▶ \(Int(viewport.framesPerSecond.rounded())) fps"))
+        }
         return lines
     }
 

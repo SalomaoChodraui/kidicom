@@ -141,6 +141,17 @@ enum SelfTest {
                 viewport?.adjustWindow(dx: -60, dy: 20)
                 let after = viewport?.image.flatMap { $0.dataProvider?.data as Data? }
                 check("dragging changes the window on color ultrasound", viewport?.window != nil && before != nil && before != after)
+                // S-012: cine at the file's frame time (40 ms = 25 fps), looping.
+                check("cine speed comes from Frame Time", viewport?.framesPerSecond == 25)
+                viewport?.go(to: 0)
+                viewport?.play()
+                try? await Task.sleep(for: .milliseconds(450))
+                let played = viewport?.index ?? 0
+                check("playing advances about 25 frames a second and loops", viewport?.isPlaying == true && played != 0, "index \(played)")
+                viewport?.togglePlay()
+                let stopped = viewport?.index
+                try? await Task.sleep(for: .milliseconds(200))
+                check("pause stops on the current frame", viewport?.isPlaying == false && viewport?.index == stopped)
                 viewport?.apply(.lung)
                 check("CT presets leave color images alone", viewport?.effectiveWindow != Window(center: -600, width: 1500))
             }

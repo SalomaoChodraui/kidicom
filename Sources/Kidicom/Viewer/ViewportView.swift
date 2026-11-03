@@ -178,6 +178,8 @@ final class ViewportNSView: NSView {
             let key = event.charactersIgnoringModifiers ?? ""
             if let digit = Int(key), let preset = WindowPreset(rawValue: digit) {
                 viewport.apply(preset)
+            } else if key == " " {
+                viewport.togglePlay()
             } else if key == "r" {
                 viewport.rotate(clockwise: true)
             } else if key == "R" {

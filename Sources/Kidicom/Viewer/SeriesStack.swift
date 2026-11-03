@@ -22,7 +22,10 @@ struct DecodedSlice: Sendable {
     var defaultWindow: Window
     var pixelSpacing: [Double]
     var sliceThickness: Double?
+    /// Milliseconds between frames (Frame Time), or nil.
     var frameTime: Double?
+    /// Frames per second from Cine Rate, or nil.
+    var cineRate: Double?
     var isColor: Bool {
         if case .color = frame { return true }
         return false
@@ -131,7 +134,7 @@ final class SeriesStack: Identifiable {
         return DecodedSlice(
             frame: frame, width: descriptor.columns, height: descriptor.rows,
             inverted: descriptor.isInverted, defaultWindow: window, pixelSpacing: spacing,
-            sliceThickness: d.number(.sliceThickness), frameTime: d.number(.frameTime)
+            sliceThickness: d.number(.sliceThickness), frameTime: d.number(.frameTime), cineRate: d.number(.cineRate)
         )
     }
 }
