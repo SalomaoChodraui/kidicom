@@ -37,6 +37,16 @@ struct KidicomApp: App {
             }
         }
 
+        WindowGroup("Viewer", id: "viewer", for: UUID.self) { $uid in
+            if let uid {
+                ViewerView(studyUID: uid)
+                    .environment(model)
+                    .themed()
+            }
+        }
+        .modelContainer(model.container)
+        .defaultSize(width: 1200, height: 860)
+
         Settings {
             SettingsView()
                 .environment(model)

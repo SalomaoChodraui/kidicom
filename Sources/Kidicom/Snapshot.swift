@@ -1,5 +1,6 @@
 import AppKit
 import IOKit.pwr_mgt
+import SwiftData
 import SwiftUI
 
 /// Screenshot mode for agents.
@@ -10,7 +11,7 @@ import SwiftUI
 /// APP_SNAPSHOT_PAGES=all,recent limits the pages. Add "settings" to include Settings.
 /// Add APP_ACCENT=<id> to see the pages in another accent.
 enum Snapshot {
-    static func runIfRequested(model: AppModel, openSettings: OpenSettingsAction) {
+    static func runIfRequested(model: AppModel, openSettings: OpenSettingsAction, openWindow: OpenWindowAction) {
         let env = ProcessInfo.processInfo.environment
         guard let dir = env["APP_SNAPSHOT"], !dir.isEmpty else { return }
         // Snapshots never run against the real database.
@@ -51,6 +52,23 @@ enum Snapshot {
                         try? await Task.sleep(for: .seconds(0.6))
                     }
                 }
+            }
+            // Viewer windows: one per sample modality.
+            let studies = (try? model.container.mainContext.fetch(FetchDescriptor<Study>(sortBy: [SortDescriptor(\.studyDate, order: .reverse)]))) ?? []
+            for modality in ["CT", "MR", "PT", "US", "CR"] where only == nil || only?.contains("viewer-\(modality.lowercased())") == true {
+                guard let study = studies.first(where: { $0.modalities.contains(modality) }) else { continue }
+                let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet && $0.isVisible }
+                openWindow(id: "viewer", value: study.uid)
+                try? await Task.sleep(for: .seconds(2))
+                let viewer = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet && $0.canBecomeMain }
+                viewer?.setContentSize(NSSize(width: 1000, height: 720))
+                for mode in ["light", "dark"] {
+                    NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
+                    try? await Task.sleep(for: .seconds(0.8))
+                    capture(to: "\(dir)/viewer-\(modality.lowercased())-\(mode).png", window: viewer)
+                }
+                viewer?.close()
+                try? await Task.sleep(for: .seconds(0.5))
             }
             if only == nil || only?.contains("settings") == true {
                 let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }

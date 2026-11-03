@@ -44,7 +44,7 @@ enum SelfTest {
             check("importing 50 images takes under 3 seconds", Date.now.timeIntervalSince(started) < 3, "\(Date.now.timeIntervalSince(started)) s")
             check("4 studies and 50 images were imported", summary.studies == 4 && summary.images == 50, "\(summary)")
             check("studies are grouped by patient and date", studies().count == 4)
-            let ct = studies().first { $0.studyDescription.contains("TORAX") && $0.imageCount == 24 }
+            let ct = studies().filter { $0.studyDescription.contains("TORAX") && $0.imageCount == 24 }.max { $0.sortDate < $1.sortDate }
             check("the CT has 24 images in one series", ct?.series.count == 1 && ct?.series.first?.images.count == 24)
             check("the patient name reads well", ct?.displayName == "Silva, Maria C")
             check("copied files are in the Library", images().allSatisfy { $0.isCopied && FileManager.default.fileExists(atPath: $0.fileURL.path) })
@@ -54,6 +54,30 @@ enum SelfTest {
             check("search finds by name, ID, and description", ct?.matches("maria") == true && ct?.matches("102938") == true && ct?.matches("tórax") == true && ct?.matches("abdome") == false)
             let byDate = studies().sorted(using: KeyPathComparator(\Study.sortDate, order: .reverse))
             check("the newest study sorts first", byDate.first?.studyDescription == "TC TORAX SEM CONTRASTE" && byDate.first?.studyDate == ct?.studyDate)
+
+            // S-006 to S-008: the viewer opens the CT and responds to scroll and window.
+            if let ct {
+                let viewer = ViewerModel()
+                let opened = Date.now
+                viewer.load(ct)
+                let viewport = viewer.active
+                while viewport?.image == nil && Date.now.timeIntervalSince(opened) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+                check("the first image shows in under 300 ms", viewport?.image != nil && Date.now.timeIntervalSince(opened) < 0.3, "\(Date.now.timeIntervalSince(opened)) s")
+                check("the viewer starts in the middle of the series", viewport?.index == 12 && viewport?.count == 24)
+                check("slices are ordered head to feet", viewport?.stack?.slices.first?.location == 0 && viewport?.stack?.slices.last?.location == -57.5)
+                viewport?.step(1)
+                check("scrolling moves one image", viewport?.index == 13)
+                viewport?.go(to: 100)
+                check("scrolling stops at the last image", viewport?.index == 23)
+                check("the window comes from the file", viewport?.effectiveWindow == Window(center: 40, width: 400))
+                viewport?.adjustWindow(dx: 30, dy: 0)
+                check("dragging right widens the window", (viewport?.effectiveWindow?.width ?? 0) > 400)
+                viewport?.apply(.lung)
+                check("key 2 applies the lung window", viewport?.effectiveWindow == Window(center: -600, width: 1500))
+                viewport?.zoom = 3
+                viewport?.reset()
+                check("double-click resets window and zoom", viewport?.effectiveWindow == Window(center: 40, width: 400) && viewport?.zoom == 1)
+            }
 
             // Importing the same files again adds nothing.
             let again = await model.importer.run(scan ?? ImportScan(), copy: true)

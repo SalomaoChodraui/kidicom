@@ -19,18 +19,27 @@ struct SampleFolderTests {
         var generator = SystemRandomNumberGenerator()
         let sample = files.shuffled(using: &generator).prefix(limit)
         var parsed = 0, decoded = 0
+        let clock = ContinuousClock()
+        var decodeTime: [String: (Duration, Int)] = [:]
         var failures: [String: Int] = [:]
         for url in sample {
             do {
                 let file = try DicomParser.parse(contentsOf: url)
                 parsed += 1
+                let started = clock.now
                 _ = try file.frame(0)
+                let spent = clock.now - started
+                let key = file.transferSyntax.uid
+                decodeTime[key] = ((decodeTime[key]?.0 ?? .zero) + spent, (decodeTime[key]?.1 ?? 0) + 1)
                 decoded += 1
             } catch {
                 failures["\(error)", default: 0] += 1
             }
         }
         print("SAMPLES \(sample.count) parsed \(parsed) decoded \(decoded)")
+        for (syntax, (total, count)) in decodeTime {
+            print("  DECODE \(syntax): \(count) frames, \((total / count).formatted(.units(allowed: [.milliseconds], fractionalPart: .show(length: 1)))) each")
+        }
         for (reason, count) in failures.sorted(by: { $0.value > $1.value }) { print("  \(count) \(reason)") }
         #expect(parsed == sample.count)
     }

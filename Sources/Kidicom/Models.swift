@@ -148,6 +148,9 @@ final class AppModel {
 
     func importFiles() { showsOpenPanel = true }
 
-    /// Opens a study in the viewer. Filled in by S-006.
-    func open(_ uid: UUID) {}
+    /// Set by the main window; opens or brings forward a viewer window.
+    @ObservationIgnored var openViewer: (UUID) -> Void = { _ in }
+
+    /// Opens a study in the viewer (double-click, Return, File > Open).
+    func open(_ uid: UUID) { openViewer(uid) }
 }

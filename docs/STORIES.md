@@ -82,7 +82,13 @@ Acceptance:
 - [snap] Faixa de séries com miniatura, descrição e contagem; área de imagem preta com overlays nos quatro cantos.
 - [self] A primeira imagem aparece em menos de 300 ms para uma série de 300 cortes de TC.
 - [manual] Arrastar uma miniatura para o viewport troca a série.
-Status: todo
+UX:
+- Flow: double-click a row, or select and press Return -> a Viewer window opens for that study on its largest series -> click a thumbnail, or drag it onto the image, to change series -> ⌘W closes
+- Surface: new window (self-contained task people keep open beside the worklist)
+- States: offline study shows "Study Offline" with the reason; thumbnails show a spinner until decoded
+- Words: thumbnail captions "<series> · <n> images"; overlay corners: patient, ID, date | study, series | Im n/N, Pos, Thk | WL WW, Zoom
+- Access: Return opens from the worklist; the thumbnail tooltip says "Show <series> (<n> images)"
+Status: done
 
 ### S-007 Rolar as imagens da série
 Como usuário, rolo os cortes com a roda do mouse, setas para cima e para baixo, ou arrastando com o botão direito.
@@ -92,7 +98,11 @@ Acceptance:
 - [self] Rolar uma série de 500 cortes mantém 60 fps no M1 base.
 - [snap] O overlay mostra "Im 42/300" e a posição do corte em mm.
 - [unit] As imagens são ordenadas pela posição projetada na normal do plano, com Instance Number como desempate.
-Status: todo
+UX:
+- Flow: wheel or trackpad scroll, right-drag, ↑ ↓, Page Up/Down, Home/End move through the series
+- Surface: inline in the viewport
+- Words: overlay "Im 13/24" and "Pos -30,0 mm"
+Status: done
 
 ### S-008 Ajustar janela, zoom e pan
 Como usuário, arrasto com o botão esquerdo para mudar janela/nível, uso pinça ou Option-roda para zoom e arraste com o botão do meio para pan.
@@ -102,7 +112,11 @@ Acceptance:
 - [snap] O overlay mostra WL/WW atualizados.
 - [self] Presets por tecla: 1 Partes moles, 2 Pulmão, 3 Osso, 4 Cérebro, 0 Padrão do arquivo.
 - [manual] Duplo clique na imagem reseta janela, zoom e pan.
-Status: todo
+UX:
+- Flow: left-drag sets window/level; pinch or Option-scroll zooms; middle-drag or ⌘-drag pans; keys 1 to 4 apply presets, 0 the file window; double-click resets
+- Surface: inline in the viewport
+- Words: overlay "WL 40 WW 400" and "Zoom 100%"
+Status: done
 
 ## M2 Ferramentas de leitura
 

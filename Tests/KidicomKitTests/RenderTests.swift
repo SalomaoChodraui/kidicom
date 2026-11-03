@@ -1,0 +1,42 @@
+import Foundation
+import Testing
+@testable import KidicomKit
+
+@Suite("Render")
+struct RenderTests {
+    @Test("Vector windowing matches the DICOM linear function")
+    func windowing() {
+        let window = Window(center: 40, width: 400)
+        let values: [Float] = [-1000, -160, -100, 0, 40, 100, 239, 240, 3000]
+        let fast = Renderer.gray8(values, window: window, inverted: false)
+        let slow = values.map { window.gray($0) }
+        for (a, b) in zip(fast, slow) { #expect(abs(Int(a) - Int(b)) <= 1) }
+        let inverted = Renderer.gray8(values, window: window, inverted: true)
+        for (a, b) in zip(inverted, slow) { #expect(abs(Int(a) - (255 - Int(b))) <= 1) }
+    }
+
+    @Test("Axial slices sort from head to feet by position, not by number")
+    func axialOrder() {
+        let axial = [1.0, 0, 0, 0, 1, 0]
+        let items = [
+            SliceOrder.Item(instanceNumber: 1, position: [0, 0, -10], orientation: axial),
+            SliceOrder.Item(instanceNumber: 2, position: [0, 0, 10], orientation: axial),
+            SliceOrder.Item(instanceNumber: 3, position: [0, 0, 0], orientation: axial),
+        ]
+        #expect(SliceOrder.order(items) == [1, 2, 0])
+        #expect(SliceOrder.location(position: [0, 0, -10], orientation: axial) == -10)
+    }
+
+    @Test("Without positions, images sort by instance number")
+    func byNumber() {
+        let items = [3, 1, 2].map { SliceOrder.Item(instanceNumber: $0, position: [], orientation: []) }
+        #expect(SliceOrder.order(items) == [1, 2, 0])
+    }
+
+    @Test("Same position keeps instance order")
+    func samePosition() {
+        let axial = [1.0, 0, 0, 0, 1, 0]
+        let items = [2, 1].map { SliceOrder.Item(instanceNumber: $0, position: [0, 0, 5], orientation: axial) }
+        #expect(SliceOrder.order(items) == [1, 0])
+    }
+}

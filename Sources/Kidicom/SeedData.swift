@@ -15,6 +15,15 @@ enum SeedData {
         }
         let context = model.container.mainContext
         guard ((try? context.fetchCount(FetchDescriptor<Study>())) ?? 0) == 0 else { return }
+        // APP_IMPORT=<folder> seeds from real files, kept in place (never copied).
+        if let path = ProcessInfo.processInfo.environment["APP_IMPORT"], !path.isEmpty,
+           let scan = try? ImportScanner.scan([URL(fileURLWithPath: path)], temporaryRoot: Library.temporary) {
+            let summary = await model.importer.run(scan, copy: false)
+            print("SEED imported \(summary.studies) studies, \(summary.images) images from \(path)")
+            model.importer.dismissMessage()
+            model.sidebar = .all
+            return
+        }
         let folder = FileManager.default.temporaryDirectory.appending(path: "Kidicom-seed-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: folder) }
         guard (try? SampleStudies.write(to: folder)) != nil,
