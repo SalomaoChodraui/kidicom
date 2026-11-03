@@ -157,7 +157,7 @@ final class Viewport: Identifiable {
     /// 0 (file default) works on every image.
     func apply(_ preset: WindowPreset) {
         if slice?.isColor == true && preset != .fileDefault { return }
-        window = preset.window
+        window = WindowPresets.shared.window(for: preset)
     }
 
     func resetView() {

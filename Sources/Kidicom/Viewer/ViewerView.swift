@@ -103,7 +103,7 @@ struct ViewerView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelStyle(.iconOnly)
-                .help("Left button: window/level, measure a distance, or measure an angle (Esc returns to window/level)")
+                .help(Text("Left button: window/level (\(ToolKeys.shared.key(for: .navigate).uppercased())), scroll (\(ToolKeys.shared.key(for: .scroll).uppercased())), distance (\(ToolKeys.shared.key(for: .distance).uppercased())), or angle (\(ToolKeys.shared.key(for: .angle).uppercased())). Esc returns to window/level."))
             }
             ToolbarItem {
                 let playing = viewer.active?.isPlaying == true
@@ -116,16 +116,21 @@ struct ViewerView: View {
             ToolbarItem {
                 Menu {
                     Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
+                        .keyboardShortcut("r", modifiers: .control)
                     Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
+                        .keyboardShortcut("l", modifiers: .control)
                     Divider()
                     Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
+                        .keyboardShortcut("h", modifiers: [])
                     Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
+                        .keyboardShortcut("v", modifiers: [])
                     Divider()
                     Button("Reset View") { viewer.active?.reset() }
+                        .keyboardShortcut("r", modifiers: .command)
                 } label: {
                     Label("Orientation", systemImage: "rotate.right")
                 }
-                .help("Rotate or flip the active viewport (R, Shift-R, H, V)")
+                .help("Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view")
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.mpr != nil }, set: { _ in viewer.toggleMPR() })) {

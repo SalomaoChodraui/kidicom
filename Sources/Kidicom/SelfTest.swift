@@ -136,6 +136,41 @@ enum SelfTest {
                         viewport.go(to: here)
                         viewport.tool = .navigate
                     }
+                    // Tool keys: B scroll, W window, L distance; the scroll tool drags through images.
+                    func key(_ c: String) -> NSEvent {
+                        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: number,
+                                         context: nil, characters: c, charactersIgnoringModifiers: c, isARepeat: false, keyCode: 0)!
+                    }
+                    var picked: MeasureTool?
+                    view.onTool = { picked = $0; viewport.tool = $0 }
+                    view.keyDown(with: key("b"))
+                    check("B picks the scroll tool", picked == .scroll)
+                    let start = viewport.index
+                    view.mouseDown(with: send(.leftMouseDown, 200, 300))
+                    view.mouseDragged(with: send(.leftMouseDragged, 200, 288))
+                    check("with the scroll tool, dragging down 12 points moves 3 images", viewport.index == min(viewport.count - 1, start + 3), "\(start) -> \(viewport.index)")
+                    view.keyDown(with: key("l"))
+                    check("L picks the ruler", picked == .distance)
+                    view.keyDown(with: key("w"))
+                    check("W picks window/level", picked == .navigate)
+                    check("a key already used by the viewer is refused", ToolKeys.shared.problem(with: "h", for: .angle) != nil && ToolKeys.shared.problem(with: "l", for: .angle) != nil)
+                    // ⌃R / ⌃L rotate, ⌘R resets everything.
+                    func key(_ c: String, _ flags: NSEvent.ModifierFlags) -> NSEvent {
+                        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: number,
+                                         context: nil, characters: c, charactersIgnoringModifiers: c, isARepeat: false, keyCode: 0)!
+                    }
+                    viewport.reset()
+                    view.keyDown(with: key("r", .control))
+                    check("⌃R rotates right", viewport.quarterTurns == 1)
+                    view.keyDown(with: key("l", .control))
+                    view.keyDown(with: key("l", .control))
+                    check("⌃L rotates left", viewport.quarterTurns == 3)
+                    viewport.zoom = 2
+                    viewport.window = VOIWindow(center: 1, width: 2)
+                    window.makeFirstResponder(view)
+                    _ = view.performKeyEquivalent(with: key("r", .command))
+                    check("⌘R resets window, zoom, and rotation", viewport.quarterTurns == 0 && viewport.zoom == 1 && viewport.window == nil)
+                    viewport.tool = .navigate
                     let pan = viewport.pan
                     view.otherMouseDown(with: send(.otherMouseDown, 200, 200))
                     view.otherMouseDragged(with: send(.otherMouseDragged, 230, 200))

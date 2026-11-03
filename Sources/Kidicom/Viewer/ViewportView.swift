@@ -12,6 +12,7 @@ struct ViewportView: NSViewRepresentable {
     var onEscape: () -> Void = {}
     var onClick: (CGPoint) -> Void = { _ in }
     var onDoubleClick: () -> Void = {}
+    var onTool: (MeasureTool) -> Void = { _ in }
 
     func makeNSView(context: Context) -> ViewportNSView {
         let view = ViewportNSView()
@@ -20,6 +21,7 @@ struct ViewportView: NSViewRepresentable {
         view.onEscape = onEscape
         view.onClick = onClick
         view.onDoubleClick = onDoubleClick
+        view.onTool = onTool
         return view
     }
 
@@ -29,6 +31,7 @@ struct ViewportView: NSViewRepresentable {
         view.onEscape = onEscape
         view.onClick = onClick
         view.onDoubleClick = onDoubleClick
+        view.onTool = onTool
         _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical)
         view.update(image: viewport.image)
     }
@@ -42,7 +45,10 @@ final class ViewportNSView: NSView {
     var onClick: (CGPoint) -> Void = { _ in }
     /// Double-click: maximize in a split layout, reset in a single one.
     var onDoubleClick: () -> Void = {}
+    /// A tool's key was pressed in the viewport.
+    var onTool: (MeasureTool) -> Void = { _ in }
     private var dragged = false
+    private var scrollDrag: CGFloat = 0
     private let imageLayer = CALayer()
     private var scrollRemainder: CGFloat = 0
     private var zoomAnchor: CGPoint?
@@ -149,6 +155,16 @@ final class ViewportNSView: NSView {
             return
         }
         let d = delta(event)
+        if viewport.tool == .scroll && !event.modifierFlags.contains(.command) {
+            // Scroll tool: four points of drag per image, down goes forward.
+            scrollDrag += d.height
+            let steps = Int(scrollDrag / 4)
+            if steps != 0 {
+                viewport.step(steps)
+                scrollDrag -= CGFloat(steps) * 4
+            }
+            return
+        }
         if event.modifierFlags.contains(.command) {
             viewport.pan.width += d.width
             viewport.pan.height += d.height
@@ -209,6 +225,16 @@ final class ViewportNSView: NSView {
 
     // MARK: Keyboard
 
+    /// ⌘R resets the whole view: window, zoom, pan, rotation, flips.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if window?.firstResponder === self, event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "r" {
+            viewport?.reset()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
     override func keyDown(with event: NSEvent) {
         guard let viewport else { return super.keyDown(with: event) }
         if event.keyCode == 53 {  // Escape
@@ -225,15 +251,15 @@ final class ViewportNSView: NSView {
         case .home: viewport.step(-viewport.index)
         case .end: viewport.step(viewport.count - 1 - viewport.index)
         default:
-            let key = event.charactersIgnoringModifiers ?? ""
-            if let digit = Int(key), let preset = WindowPreset(rawValue: digit) {
+            let key = (event.charactersIgnoringModifiers ?? "").lowercased()
+            if event.modifierFlags.contains(.control) && (key == "r" || key == "l") {
+                viewport.rotate(clockwise: key == "r")   // ⌃R right, ⌃L left
+            } else if event.modifierFlags.intersection([.command, .control, .option]).isEmpty, let tool = ToolKeys.shared.tool(for: key) {
+                onTool(tool)
+            } else if let digit = Int(key), let preset = WindowPreset(rawValue: digit) {
                 viewport.apply(preset)
             } else if key == " " {
                 viewport.togglePlay()
-            } else if key == "r" {
-                viewport.rotate(clockwise: true)
-            } else if key == "R" {
-                viewport.rotate(clockwise: false)
             } else if key == "h" {
                 viewport.flip(horizontal: true)
             } else if key == "v" {

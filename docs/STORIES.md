@@ -144,9 +144,9 @@ Acceptance:
 - [snap] Os marcadores de orientação (A, P, R, L, H, F) nas bordas acompanham a rotação.
 - [unit] Os marcadores vêm de Image Orientation (Patient).
 UX:
-- Flow: toolbar Orientation menu (Rotate Right, Rotate Left, Flip Horizontal, Flip Vertical, Reset View) or keys R, Shift-R, H, V on the active viewport; double-click also resets
+- Flow: toolbar Orientation menu (Rotate Right ⌃R, Rotate Left ⌃L, Flip Horizontal H, Flip Vertical V, Reset View ⌘R) on the active viewport; ⌘R resets window, zoom, pan, rotation, and flips
 - Surface: toolbar menu (a few related choices tied to one control)
-- Words: menu items above; tooltip "Rotate or flip the active viewport (R, Shift-R, H, V)"; edge letters R/L, A/P, H/F, two letters for oblique planes
+- Words: menu items above; tooltip "Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view"; edge letters R/L, A/P, H/F, two letters for oblique planes
 - Access: flips act on the screen axes, whatever the rotation
 Status: done
 
@@ -319,8 +319,11 @@ Status: done
 Como usuário, defino a pasta da base, a escolha padrão de importação e os presets de janela.
 Screens: settings
 Acceptance:
-- [snap] Abas Geral e Janelas.
-Status: todo
+- [snap] Abas Geral, Ferramentas, Janelas e Aparência.
+UX:
+- Tabs: General (When importing: Ask Each Time, Copy to Library, Keep in Place; Ask before deleting a study; Library path with Show in Finder), Tools (a letter per left-button tool: W Window/Level, B Scroll, L Distance, A Angle; refuses keys the viewer uses; Restore Defaults), Windows (WL and WW for presets 1 to 4; Restore Defaults), Appearance (accent color)
+- Surface: Settings window (⌘,)
+Status: done
 
 ### S-044 Ícone e build para o GitHub
 Como mantenedor, gero um `.app` assinado e notarizado e publico no GitHub Releases.

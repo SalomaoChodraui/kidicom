@@ -5,13 +5,17 @@ import SwiftUI
 
 /// What the left mouse button does in the viewer.
 enum MeasureTool: String, CaseIterable, Identifiable {
-    case navigate, distance, angle
+    case navigate, scroll, distance, angle
 
     var id: String { rawValue }
+
+    /// The key that picks this tool in the viewer, set in Settings > Tools.
+    var key: String { ToolKeys.shared.key(for: self) }
 
     var title: LocalizedStringResource {
         switch self {
         case .navigate: "Window/Level"
+        case .scroll: "Scroll"
         case .distance: "Distance"
         case .angle: "Angle"
         }
@@ -20,9 +24,58 @@ enum MeasureTool: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .navigate: "circle.lefthalf.filled"
+        case .scroll: "arrow.up.and.down"
         case .distance: "ruler"
         case .angle: "angle"
         }
+    }
+}
+
+/// Letters that pick the left-button tool. People change them in Settings.
+@Observable
+final class ToolKeys {
+    static let shared = ToolKeys()
+    static let defaults: [MeasureTool: String] = [.navigate: "w", .scroll: "b", .distance: "l", .angle: "a"]
+    /// Keys the viewer already uses for other things.
+    static let reserved: Set<String> = ["h", "v", "0", "1", "2", "3", "4", " "]
+
+    private(set) var keys: [MeasureTool: String]
+
+    init() {
+        var keys = Self.defaults
+        for tool in MeasureTool.allCases {
+            if let saved = UserDefaults.standard.string(forKey: "toolKey.\(tool.rawValue)"), saved.count == 1 { keys[tool] = saved }
+        }
+        self.keys = keys
+    }
+
+    func key(for tool: MeasureTool) -> String { keys[tool] ?? "" }
+
+    /// The tool a key picks, if any.
+    func tool(for key: String) -> MeasureTool? {
+        let key = key.lowercased()
+        return keys.first { $0.value == key }?.key
+    }
+
+    /// Why a key can't be used for a tool, or nil when it can.
+    func problem(with key: String, for tool: MeasureTool) -> String? {
+        let key = key.lowercased()
+        guard key.count == 1, let c = key.first, c.isLetter || c.isNumber else { return String(localized: "Use one letter.") }
+        if Self.reserved.contains(key) { return String(localized: "\(key.uppercased()) is already used by the viewer.") }
+        if let other = self.tool(for: key), other != tool { return String(localized: "\(key.uppercased()) already picks \(String(localized: other.title)).") }
+        return nil
+    }
+
+    func set(_ key: String, for tool: MeasureTool) {
+        let key = key.lowercased()
+        guard problem(with: key, for: tool) == nil else { return }
+        keys[tool] = key
+        if !Store.isOverridden { UserDefaults.standard.set(key, forKey: "toolKey.\(tool.rawValue)") }
+    }
+
+    func reset() {
+        keys = Self.defaults
+        for tool in MeasureTool.allCases { UserDefaults.standard.removeObject(forKey: "toolKey.\(tool.rawValue)") }
     }
 }
 
@@ -61,7 +114,7 @@ extension Viewport {
         }
         selected = nil
         switch tool {
-        case .navigate: return
+        case .navigate, .scroll: return
         case .distance: draft = Measurement(kind: .distance, points: [p, p], slice: index)
         case .angle: draft = Measurement(kind: .angle, points: [p, p], slice: index)
         }

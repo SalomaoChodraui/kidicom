@@ -20,3 +20,5 @@ Strings are written in English in code and translated to Portuguese in the Strin
 | Distance | Distância | A two-point length measurement in mm, or px without calibration | ruler, line |
 | Angle | Ângulo | A three-point angle measurement in degrees | |
 | Cine | Cine | Playing the frames of a series in a loop | movie, video |
+| Scroll (tool) | Rolar | Left-button tool that drags through the images | |
+| Tool key | Atalho da ferramenta | The letter that picks a left-button tool (Settings > Tools) | hotkey |

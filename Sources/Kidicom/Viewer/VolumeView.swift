@@ -32,6 +32,16 @@ final class VolumeMTKView: MTKView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// ⌘R resets the camera, like the 2D views.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if window?.firstResponder === self, event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "r" {
+            session?.resetCamera()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
     private func begin(_ event: NSEvent) {
         window?.makeFirstResponder(self)
         last = convert(event.locationInWindow, from: nil)

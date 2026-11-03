@@ -361,7 +361,8 @@ struct ViewportGrid: View {
         return ViewportView(viewport: viewport, isActive: isActive, onActivate: { viewer.activate(viewport) },
                             onEscape: { viewer.escape() },
                             onClick: { point in viewer.click(at: point, in: viewport) },
-                            onDoubleClick: { viewer.doubleClick(viewport) })
+                            onDoubleClick: { viewer.doubleClick(viewport) },
+                            onTool: { viewer.tool = $0 })
             .overlay { CrosshairOverlay(viewer: viewer, viewport: viewport) }
             .overlay { MeasurementOverlay(viewport: viewport) }
             .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
