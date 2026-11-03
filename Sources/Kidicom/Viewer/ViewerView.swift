@@ -41,6 +41,7 @@ struct ViewerView: View {
                 if let viewport = viewer.active {
                     ViewportView(viewport: viewport, isActive: true) {}
                         .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
+                        .clipped()
                         .dropDestination(for: String.self) { ids, _ in
                             guard let id = ids.first, let stack = viewer.stacks.first(where: { $0.id == id }) else { return false }
                             viewport.show(stack)

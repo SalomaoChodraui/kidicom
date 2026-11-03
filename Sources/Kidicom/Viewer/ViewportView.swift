@@ -3,8 +3,8 @@ import KidicomKit
 import SwiftUI
 
 /// The image area of one viewport, with the mouse and keyboard of a
-/// radiology viewer: wheel and right-drag scroll, left-drag window/level,
-/// middle-drag or Command-drag pan, pinch or Option-wheel zoom.
+/// radiology viewer: wheel and arrows scroll, left-drag window/level,
+/// right-drag zoom, middle-drag or Command-drag pan, pinch or Option-wheel zoom.
 struct ViewportView: NSViewRepresentable {
     let viewport: Viewport
     var isActive: Bool
@@ -29,7 +29,7 @@ final class ViewportNSView: NSView {
     var onActivate: () -> Void = {}
     private let imageLayer = CALayer()
     private var scrollRemainder: CGFloat = 0
-    private var dragRemainder: CGFloat = 0
+    private var zoomAnchor: CGPoint?
     private var imageSize = CGSize.zero
     /// Last pointer position in view coordinates. Deltas come from positions,
     /// because some event sources (tablets, synthetic input) leave deltaX at 0.
@@ -39,6 +39,8 @@ final class ViewportNSView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
+        // Zoom and pan never draw outside the viewport.
+        layer?.masksToBounds = true
         imageLayer.magnificationFilter = .linear
         imageLayer.minificationFilter = .trilinear
         imageLayer.actions = ["contents": NSNull(), "frame": NSNull(), "bounds": NSNull(), "position": NSNull()]
@@ -94,7 +96,7 @@ final class ViewportNSView: NSView {
 
     override func rightMouseDown(with event: NSEvent) {
         begin(event)
-        dragRemainder = 0
+        zoomAnchor = lastPoint
     }
 
     override func otherMouseDown(with event: NSEvent) {
@@ -112,14 +114,10 @@ final class ViewportNSView: NSView {
         }
     }
 
+    /// Right-drag zooms around the point where the drag started: up zooms
+    /// in, down zooms out.
     override func rightMouseDragged(with event: NSEvent) {
-        // Four points of drag per frame, so a long series fits in one sweep.
-        dragRemainder += delta(event).height
-        let steps = Int(dragRemainder / 4)
-        if steps != 0 {
-            viewport?.step(steps)
-            dragRemainder -= CGFloat(steps) * 4
-        }
+        zoom(by: exp(-delta(event).height * 0.01), around: zoomAnchor)
     }
 
     override func otherMouseDragged(with event: NSEvent) {
@@ -131,7 +129,7 @@ final class ViewportNSView: NSView {
     override func scrollWheel(with event: NSEvent) {
         guard let viewport else { return }
         if event.modifierFlags.contains(.option) {
-            zoom(by: 1 + event.scrollingDeltaY * 0.01)
+            zoom(by: 1 + event.scrollingDeltaY * 0.01, around: convert(event.locationInWindow, from: nil))
             return
         }
         // Trackpads send many small deltas, wheels a few large ones.
@@ -145,12 +143,22 @@ final class ViewportNSView: NSView {
     }
 
     override func magnify(with event: NSEvent) {
-        zoom(by: 1 + event.magnification)
+        zoom(by: 1 + event.magnification, around: convert(event.locationInWindow, from: nil))
     }
 
-    private func zoom(by factor: CGFloat) {
+    /// Zooms keeping the image point under `anchor` in place.
+    private func zoom(by factor: CGFloat, around anchor: CGPoint? = nil) {
         guard let viewport else { return }
-        viewport.zoom = min(20, max(0.1, viewport.zoom * factor))
+        let old = viewport.zoom
+        let new = min(20, max(0.1, old * factor))
+        guard new != old else { return }
+        if let anchor {
+            let applied = new / old
+            let center = CGPoint(x: bounds.midX + viewport.pan.width, y: bounds.midY + viewport.pan.height)
+            let moved = CGPoint(x: anchor.x - (anchor.x - center.x) * applied, y: anchor.y - (anchor.y - center.y) * applied)
+            viewport.pan = CGSize(width: moved.x - bounds.midX, height: moved.y - bounds.midY)
+        }
+        viewport.zoom = new
     }
 
     // MARK: Keyboard

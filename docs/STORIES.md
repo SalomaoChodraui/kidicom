@@ -91,7 +91,7 @@ UX:
 Status: done
 
 ### S-007 Rolar as imagens da série
-Como usuário, rolo os cortes com a roda do mouse, setas para cima e para baixo, ou arrastando com o botão direito.
+Como usuário, rolo os cortes com a roda do mouse ou com as setas para cima e para baixo.
 Screens: viewer-1x1
 Depends: S-006
 Acceptance:
@@ -99,13 +99,13 @@ Acceptance:
 - [snap] O overlay mostra "Im 42/300" e a posição do corte em mm.
 - [unit] As imagens são ordenadas pela posição projetada na normal do plano, com Instance Number como desempate.
 UX:
-- Flow: wheel or trackpad scroll, right-drag, ↑ ↓, Page Up/Down, Home/End move through the series
+- Flow: wheel or trackpad scroll, ↑ ↓, Page Up/Down, Home/End move through the series
 - Surface: inline in the viewport
 - Words: overlay "Im 13/24" and "Pos -30,0 mm"
 Status: done
 
 ### S-008 Ajustar janela, zoom e pan
-Como usuário, arrasto com o botão esquerdo para mudar janela/nível, uso pinça ou Option-roda para zoom e arraste com o botão do meio para pan.
+Como usuário, arrasto com o botão esquerdo para mudar janela/nível, seguro e arrasto o botão direito para zoom (também pinça ou Option-roda) e arrasto com o botão do meio para pan.
 Screens: viewer-1x1
 Depends: S-006
 Acceptance:
@@ -113,7 +113,7 @@ Acceptance:
 - [self] Presets por tecla: 1 Partes moles, 2 Pulmão, 3 Osso, 4 Cérebro, 0 Padrão do arquivo.
 - [manual] Duplo clique na imagem reseta janela, zoom e pan.
 UX:
-- Flow: left-drag sets window/level; pinch or Option-scroll zooms; middle-drag or ⌘-drag pans; keys 1 to 4 apply presets, 0 the file window; double-click resets
+- Flow: left-drag sets window/level; right-drag zooms around the click (up in, down out), also pinch or Option-scroll; middle-drag or ⌘-drag pans; keys 1 to 4 apply presets, 0 the file window; double-click resets
 - Surface: inline in the viewport
 - Words: overlay "WL 40 WW 400" and "Zoom 100%"
 Status: done

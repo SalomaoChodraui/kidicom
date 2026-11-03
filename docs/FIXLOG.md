@@ -13,3 +13,10 @@ Symptom: after a restart, a blank Viewer window appeared.
 Cause: SwiftUI restored the viewer `WindowGroup` with a study id from another store.
 Fix: `.restorationBehavior(.disabled)` on the viewer windows.
 Rule: windows bound to a database id never restore.
+
+## 2026-11-03 Zoomed or panned image covered the series strip
+
+Symptom: after zoom or pan, the ultrasound image drew over the series thumbnails.
+Cause: the viewport's layer did not clip its image sublayer.
+Fix: `masksToBounds` on the viewport layer and `.clipped()` on the SwiftUI view.
+Rule: every image surface clips to its own bounds.

@@ -74,6 +74,38 @@ enum SelfTest {
                 check("dragging right widens the window", (viewport?.effectiveWindow?.width ?? 0) > 400)
                 viewport?.apply(.lung)
                 check("key 2 applies the lung window", viewport?.effectiveWindow == Window(center: -600, width: 1500))
+                // Real mouse events into a viewport view in an offscreen window.
+                if let viewport {
+                    viewport.reset()
+                    let view = ViewportNSView(frame: NSRect(x: 0, y: 0, width: 400, height: 400))
+                    let window = NSWindow(contentRect: view.frame, styleMask: [.borderless], backing: .buffered, defer: true)
+                    window.contentView = view
+                    view.viewport = viewport
+                    check("the viewport clips the image to its bounds", view.layer?.masksToBounds == true)
+                    let number = window.windowNumber
+                    func send(_ type: NSEvent.EventType, _ x: CGFloat, _ y: CGFloat) -> NSEvent {
+                        NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: [], timestamp: 0,
+                                           windowNumber: number, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+                    }
+                    view.rightMouseDown(with: send(.rightMouseDown, 300, 200))
+                    view.rightMouseDragged(with: send(.rightMouseDragged, 300, 280))
+                    check("holding the right button and dragging up zooms in", viewport.zoom > 1.5, "zoom \(viewport.zoom)")
+                    // Clicked right of center: zooming in slides the image left, so the clicked point stays put.
+                    check("the zoom keeps the clicked point in place", viewport.pan.width < 0)
+                    let zoomed = viewport.zoom
+                    view.rightMouseDragged(with: send(.rightMouseDragged, 300, 150))
+                    check("dragging down zooms out", viewport.zoom < zoomed)
+                    let index = viewport.index
+                    check("the right button no longer scrolls", viewport.index == index)
+                    let width = viewport.effectiveWindow?.width ?? 0
+                    view.mouseDown(with: send(.leftMouseDown, 200, 200))
+                    view.mouseDragged(with: send(.leftMouseDragged, 260, 200))
+                    check("left-drag right widens the window", (viewport.effectiveWindow?.width ?? 0) > width)
+                    let pan = viewport.pan
+                    view.otherMouseDown(with: send(.otherMouseDown, 200, 200))
+                    view.otherMouseDragged(with: send(.otherMouseDragged, 230, 200))
+                    check("holding the wheel button and dragging pans with the pointer", viewport.pan.width == pan.width + 30)
+                }
                 viewport?.zoom = 3
                 viewport?.reset()
                 check("double-click resets window and zoom", viewport?.effectiveWindow == Window(center: 40, width: 400) && viewport?.zoom == 1)
