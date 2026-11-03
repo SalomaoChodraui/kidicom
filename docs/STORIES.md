@@ -332,6 +332,7 @@ Status: done
 Como mantenedor, gero um `.app` assinado e notarizado e publico no GitHub Releases.
 Acceptance:
 - [manual] O DMG abre no macOS 26 em Apple Silicon sem alerta do Gatekeeper.
+Note: tools/release.sh builds, signs, and makes dist/Kidicom-<version>.dmg, and notarizes with NOTARY_PROFILE. Blocked: this Mac has only an Apple Development certificate; a Developer ID Application certificate (Apple Developer Program) and a notary profile are needed for a DMG that opens on other Macs without a warning.
 Status: todo
 
 ## Dropped

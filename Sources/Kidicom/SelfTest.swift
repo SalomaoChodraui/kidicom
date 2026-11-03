@@ -320,7 +320,7 @@ enum SelfTest {
         await viewer.enterMPR()
         let planes = viewer.mpr?.sources.map(\.title) ?? []
         check("MPR builds a 64x64x24 volume", viewer.mpr?.volume.width == 64 && viewer.mpr?.volume.depth == 24, "\(String(describing: viewer.mprMessage))")
-        check("MPR shows axial, coronal, and sagittal side by side", viewer.layout == .three && planes == ["Axial", "Coronal", "Sagittal"], "\(planes)")
+        check("MPR shows axial, coronal, and sagittal side by side", viewer.layout == .three && planes == [PatientPlane.axial, .coronal, .sagittal].map(ReformatSource.name), "\(planes)")
         let axial = viewer.viewports[0], coronal = viewer.viewports[1], sagittal = viewer.viewports[2]
         let started = Date.now
         while coronal.image == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
