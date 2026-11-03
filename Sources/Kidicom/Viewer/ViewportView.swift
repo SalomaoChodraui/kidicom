@@ -31,6 +31,9 @@ final class ViewportNSView: NSView {
     private var scrollRemainder: CGFloat = 0
     private var dragRemainder: CGFloat = 0
     private var imageSize = CGSize.zero
+    /// Last pointer position in view coordinates. Deltas come from positions,
+    /// because some event sources (tablets, synthetic input) leave deltaX at 0.
+    private var lastPoint: CGPoint?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -71,36 +74,47 @@ final class ViewportNSView: NSView {
 
     // MARK: Mouse
 
-    override func mouseDown(with event: NSEvent) {
+    private func delta(_ event: NSEvent) -> CGSize {
+        let point = convert(event.locationInWindow, from: nil)
+        defer { lastPoint = point }
+        guard let last = lastPoint else { return .zero }
+        return CGSize(width: point.x - last.x, height: point.y - last.y)
+    }
+
+    private func begin(_ event: NSEvent) {
         window?.makeFirstResponder(self)
         onActivate()
+        lastPoint = convert(event.locationInWindow, from: nil)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        begin(event)
         if event.clickCount == 2 { viewport?.reset() }
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        window?.makeFirstResponder(self)
-        onActivate()
+        begin(event)
         dragRemainder = 0
     }
 
     override func otherMouseDown(with event: NSEvent) {
-        window?.makeFirstResponder(self)
-        onActivate()
+        begin(event)
     }
 
     override func mouseDragged(with event: NSEvent) {
         guard let viewport else { return }
+        let d = delta(event)
         if event.modifierFlags.contains(.command) {
-            viewport.pan.width += event.deltaX
-            viewport.pan.height += event.deltaY
+            viewport.pan.width += d.width
+            viewport.pan.height += d.height
         } else {
-            viewport.adjustWindow(dx: event.deltaX, dy: event.deltaY)
+            viewport.adjustWindow(dx: d.width, dy: d.height)
         }
     }
 
     override func rightMouseDragged(with event: NSEvent) {
         // Four points of drag per frame, so a long series fits in one sweep.
-        dragRemainder += event.deltaY
+        dragRemainder += delta(event).height
         let steps = Int(dragRemainder / 4)
         if steps != 0 {
             viewport?.step(steps)
@@ -109,8 +123,9 @@ final class ViewportNSView: NSView {
     }
 
     override func otherMouseDragged(with event: NSEvent) {
-        viewport?.pan.width += event.deltaX
-        viewport?.pan.height += event.deltaY
+        let d = delta(event)
+        viewport?.pan.width += d.width
+        viewport?.pan.height += d.height
     }
 
     override func scrollWheel(with event: NSEvent) {

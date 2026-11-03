@@ -173,7 +173,7 @@ struct ViewportOverlay: View {
 
     private var bottomRight: [String?] {
         var lines: [String?] = []
-        if let window = viewport.effectiveWindow, viewport.slice?.isColor == false {
+        if let window = viewport.effectiveWindow {
             lines.append(String(localized: "WL \(Int(window.center.rounded())) WW \(Int(window.width.rounded()))"))
         }
         lines.append(String(localized: "Zoom \(Int((viewport.zoom * 100).rounded()))%"))

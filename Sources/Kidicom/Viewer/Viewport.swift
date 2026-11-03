@@ -50,14 +50,20 @@ final class Viewport: Identifiable {
 
     func step(_ delta: Int) { go(to: index + delta) }
 
-    /// Left-drag window/level: right widens, down raises the center.
+    /// Left-drag window/level: right widens, left narrows, up raises the
+    /// level. Width changes by a factor, so a long drag never collapses it
+    /// and the feel is the same for CT (thousands) and ultrasound (256).
     func adjustWindow(dx: CGFloat, dy: CGFloat) {
-        guard let current = effectiveWindow, slice?.isColor == false else { return }
-        let speed = max(1, current.width / 300)
-        window = Window(center: current.center - Double(dy) * speed, width: max(1, current.width + Double(dx) * speed * 2))
+        guard let current = effectiveWindow else { return }
+        let width = min(100_000, max(2, current.width * exp(Double(dx) * 0.004)))
+        let center = current.center - Double(dy) * current.width * 0.002
+        window = Window(center: center, width: width)
     }
 
+    /// Presets are in Hounsfield units, so they apply to grayscale only;
+    /// 0 (file default) works on every image.
     func apply(_ preset: WindowPreset) {
+        if slice?.isColor == true && preset != .fileDefault { return }
         window = preset.window
     }
 

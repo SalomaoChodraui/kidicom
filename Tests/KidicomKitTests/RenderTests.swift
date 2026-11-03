@@ -15,6 +15,15 @@ struct RenderTests {
         for (a, b) in zip(inverted, slow) { #expect(abs(Int(a) - (255 - Int(b))) <= 1) }
     }
 
+    @Test("Color frames get brightness and contrast per channel")
+    func colorWindow() {
+        let rgba: [UInt8] = [10, 128, 250, 255]
+        #expect(Renderer.color(rgba, window: Window(center: 128, width: 256)) == rgba)
+        let narrow = Renderer.color(rgba, window: Window(center: 128, width: 64))
+        #expect(narrow[0] == 0 && narrow[2] == 255 && narrow[3] == 255)
+        #expect(abs(Int(narrow[1]) - 129) <= 2)
+    }
+
     @Test("Axial slices sort from head to feet by position, not by number")
     func axialOrder() {
         let axial = [1.0, 0, 0, 0, 1, 0]

@@ -79,6 +79,21 @@ enum SelfTest {
                 check("double-click resets window and zoom", viewport?.effectiveWindow == Window(center: 40, width: 400) && viewport?.zoom == 1)
             }
 
+            // Window/level also works on color ultrasound (brightness and contrast).
+            if let us = studies().first(where: { $0.modalities == "US" }) {
+                let viewer = ViewerModel()
+                viewer.load(us)
+                let viewport = viewer.active
+                let started = Date.now
+                while viewport?.image == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+                let before = viewport?.image.flatMap { $0.dataProvider?.data as Data? }
+                viewport?.adjustWindow(dx: -60, dy: 20)
+                let after = viewport?.image.flatMap { $0.dataProvider?.data as Data? }
+                check("dragging changes the window on color ultrasound", viewport?.window != nil && before != nil && before != after)
+                viewport?.apply(.lung)
+                check("CT presets leave color images alone", viewport?.effectiveWindow != Window(center: -600, width: 1500))
+            }
+
             // Importing the same files again adds nothing.
             let again = await model.importer.run(scan ?? ImportScan(), copy: true)
             check("importing twice does not duplicate images", again.images == 0 && again.duplicates == 50 && images().count == 50)

@@ -30,8 +30,24 @@ public enum Renderer {
         case .grayscale(let values):
             return grayImage(gray8(values, window: window, inverted: inverted), width: width, height: height)
         case .color(let rgba):
-            return colorImage(rgba, width: width, height: height)
+            return colorImage(color(rgba, window: window), width: width, height: height)
         }
+    }
+
+    /// Brightness and contrast for color frames: the same linear window on
+    /// each of R, G, and B (0...255). The default 128/256 leaves pixels as is.
+    public static func color(_ rgba: [UInt8], window: Window) -> [UInt8] {
+        if window == Window(center: 128, width: 256) { return rgba }
+        let table = gray8((0 ..< 256).map(Float.init), window: window, inverted: false)
+        var out = rgba
+        out.withUnsafeMutableBufferPointer { pixels in
+            for i in stride(from: 0, to: pixels.count, by: 4) {
+                pixels[i] = table[Int(pixels[i])]
+                pixels[i + 1] = table[Int(pixels[i + 1])]
+                pixels[i + 2] = table[Int(pixels[i + 2])]
+            }
+        }
+        return out
     }
 
     public static func grayImage(_ pixels: [UInt8], width: Int, height: Int) -> CGImage? {

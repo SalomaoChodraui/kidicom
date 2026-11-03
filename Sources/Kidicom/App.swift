@@ -46,6 +46,8 @@ struct KidicomApp: App {
         }
         .modelContainer(model.container)
         .defaultSize(width: 1200, height: 860)
+        // A restored viewer would point at a study from another session.
+        .restorationBehavior(.disabled)
 
         Settings {
             SettingsView()
