@@ -2,10 +2,16 @@ import SwiftUI
 
 /// How the image area is split.
 enum ViewerLayout: String, CaseIterable, Identifiable {
-    case single, sideBySide, stacked, grid
+    case single, sideBySide, three, stacked, grid
 
     var id: String { rawValue }
-    var columns: Int { self == .sideBySide || self == .grid ? 2 : 1 }
+    var columns: Int {
+        switch self {
+        case .single, .stacked: 1
+        case .sideBySide, .grid: 2
+        case .three: 3
+        }
+    }
     var rows: Int { self == .stacked || self == .grid ? 2 : 1 }
     var count: Int { columns * rows }
 
@@ -13,6 +19,7 @@ enum ViewerLayout: String, CaseIterable, Identifiable {
         switch self {
         case .single: "1 Viewport"
         case .sideBySide: "2 Side by Side"
+        case .three: "3 Side by Side"
         case .stacked: "2 Stacked"
         case .grid: "4 Viewports"
         }
@@ -22,6 +29,7 @@ enum ViewerLayout: String, CaseIterable, Identifiable {
         switch self {
         case .single: "square"
         case .sideBySide: "rectangle.split.2x1"
+        case .three: "rectangle.split.3x1"
         case .stacked: "rectangle.split.1x2"
         case .grid: "square.grid.2x2"
         }
@@ -95,6 +103,25 @@ final class ViewerModel {
 
     func show(_ stack: SeriesStack) {
         active?.show(stack)
+    }
+
+    /// Right-click on a thumbnail: show the series in one more viewport to
+    /// compare, 1 -> 2 side by side -> 3 side by side -> 2x2. With four
+    /// viewports open, it replaces the active one.
+    func compare(_ stack: SeriesStack) {
+        let next: ViewerLayout?
+        switch layout.count {
+        case 1: next = .sideBySide
+        case 2: next = .three
+        case 3: next = .grid
+        default: next = nil
+        }
+        guard let next else { active?.show(stack); return }
+        let target = layout.count
+        // Keep the open viewports, then fill the new one with this series.
+        viewports[target].show(stack)
+        layout = next
+        activeIndex = target
     }
 
     /// New viewports get the series not shown yet, in strip order.

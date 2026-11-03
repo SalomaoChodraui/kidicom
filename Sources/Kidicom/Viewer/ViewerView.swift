@@ -1,3 +1,4 @@
+import AppKit
 import KidicomKit
 import SwiftData
 import SwiftUI
@@ -109,8 +110,9 @@ struct SeriesStrip: View {
                         SeriesThumbnail(stack: stack, isShown: viewer.active?.stack?.id == stack.id)
                     }
                     .buttonStyle(.plain)
+                    .overlay { RightClickCatcher { viewer.compare(stack) } }
                     .draggable(stack.id)
-                    .help(Text("Show \(stack.title) (\(stack.count) images)"))
+                    .help(Text("Show \(stack.title). Right-click to open it beside the others to compare."))
                 }
             }
             .padding(Space.sm)
@@ -228,5 +230,31 @@ struct ViewportOverlay: View {
                 Text(line)
             }
         }
+    }
+}
+
+/// Catches right-clicks and lets every other event through to the views below.
+struct RightClickCatcher: NSViewRepresentable {
+    let action: () -> Void
+
+    func makeNSView(context: Context) -> CatcherView {
+        let view = CatcherView()
+        view.action = action
+        return view
+    }
+
+    func updateNSView(_ view: CatcherView, context: Context) {
+        view.action = action
+    }
+
+    final class CatcherView: NSView {
+        var action: () -> Void = {}
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard let event = NSApp.currentEvent, event.type == .rightMouseDown || event.type == .rightMouseUp else { return nil }
+            return super.hitTest(point)
+        }
+
+        override func rightMouseDown(with event: NSEvent) { action() }
     }
 }

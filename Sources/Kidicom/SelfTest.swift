@@ -160,6 +160,19 @@ enum SelfTest {
                     check("the tag list shows Patient Name with its value", rows.contains { $0.name == "Patient Name" && $0.value == "SILVA^MARIA^C" })
                 }
 
+                // Right-click on thumbnails adds viewports: 2 side by side, 3 side by side, 2x2.
+                if let stack = viewport?.stack {
+                    viewer.compare(stack)
+                    check("right-click on a thumbnail opens it beside the current one", viewer.layout == .sideBySide && viewer.activeIndex == 1 && viewer.viewports[1].stack === stack)
+                    viewer.compare(stack)
+                    check("a second right-click shows three side by side", viewer.layout == .three && viewer.visible.count == 3)
+                    viewer.compare(stack)
+                    check("a third right-click shows four, one per quadrant", viewer.layout == .grid && viewer.activeIndex == 3)
+                    viewer.compare(stack)
+                    check("with four open, right-click replaces the active one", viewer.layout == .grid)
+                    viewer.layout = .single
+                }
+
                 viewer.layout = .grid
                 check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.stack != nil })
                 viewer.activate(viewer.viewports[3])

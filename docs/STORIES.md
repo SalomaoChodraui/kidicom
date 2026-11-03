@@ -130,7 +130,8 @@ Acceptance:
 UX:
 - Flow: toolbar layout control (1, 2 side by side, 2 stacked, 4) -> empty viewports get the next series not shown, skipping scouts -> click a viewport to make it active -> thumbnail click or drag fills the active or target viewport
 - Surface: segmented control in the viewer toolbar
-- Words: "1 Viewport", "2 Side by Side", "2 Stacked", "4 Viewports"; tooltip "Split the image area into up to four viewports"
+- Right-click a thumbnail: the series opens beside the others to compare, 1 -> 2 side by side -> 3 side by side -> 2x2; with four open it replaces the active viewport
+- Words: "1 Viewport", "2 Side by Side", "3 Side by Side", "2 Stacked", "4 Viewports"; tooltip "Split the image area into up to four viewports"
 - Access: the active viewport has an accent outline; the viewer is always dark
 Status: done
 
