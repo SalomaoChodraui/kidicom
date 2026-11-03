@@ -49,3 +49,35 @@ struct RenderTests {
         #expect(SliceOrder.order(items) == [1, 0])
     }
 }
+
+@Suite("Orientation")
+struct OrientationTests {
+    let axial = [1.0, 0, 0, 0, 1, 0]
+
+    @Test("Axial image: patient right on screen left, anterior on top")
+    func axialEdges() {
+        #expect(Orientation.edges(axial) == .init(top: "A", bottom: "P", left: "R", right: "L"))
+    }
+
+    @Test("Sagittal and coronal")
+    func others() {
+        #expect(Orientation.edges([0, 1, 0, 0, 0, -1]) == .init(top: "H", bottom: "F", left: "A", right: "P"))
+        #expect(Orientation.edges([1, 0, 0, 0, 0, -1]) == .init(top: "H", bottom: "F", left: "R", right: "L"))
+    }
+
+    @Test("Rotation and flips move the letters")
+    func transforms() {
+        #expect(Orientation.edges(axial, quarterTurns: 1) == .init(top: "R", bottom: "L", left: "P", right: "A"))
+        #expect(Orientation.edges(axial, quarterTurns: 4) == Orientation.edges(axial))
+        #expect(Orientation.edges(axial, quarterTurns: -1) == Orientation.edges(axial, quarterTurns: 3))
+        #expect(Orientation.edges(axial, flipHorizontal: true) == .init(top: "A", bottom: "P", left: "L", right: "R"))
+        #expect(Orientation.edges(axial, flipVertical: true) == .init(top: "P", bottom: "A", left: "R", right: "L"))
+    }
+
+    @Test("Oblique images get two letters, strongest first")
+    func oblique() {
+        let c = 0.8, s = 0.6
+        #expect(Orientation.edges([c, s, 0, 0, 0, -1])?.right == "LP")
+        #expect(Orientation.edges([1, 0, 0])  == nil)
+    }
+}

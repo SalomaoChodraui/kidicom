@@ -12,6 +12,11 @@ final class Viewport: Identifiable {
     var window: Window? { didSet { render() } }
     var zoom: CGFloat = 1
     var pan: CGSize = .zero
+    /// Clockwise quarter turns of the displayed image.
+    var quarterTurns = 0
+    /// Mirrors, applied before the rotation.
+    var flipHorizontal = false
+    var flipVertical = false
     private(set) var image: CGImage?
     private(set) var slice: DecodedSlice?
 
@@ -70,6 +75,26 @@ final class Viewport: Identifiable {
     func resetView() {
         zoom = 1
         pan = .zero
+        quarterTurns = 0
+        flipHorizontal = false
+        flipVertical = false
+    }
+
+    func rotate(clockwise: Bool) {
+        quarterTurns = ((quarterTurns + (clockwise ? 1 : -1)) % 4 + 4) % 4
+    }
+
+    /// Mirrors the image as seen on screen, whatever the rotation.
+    func flip(horizontal: Bool) {
+        // After an odd number of turns, the screen's horizontal is the image's vertical.
+        if horizontal != (quarterTurns % 2 == 1) { flipHorizontal.toggle() } else { flipVertical.toggle() }
+    }
+
+    /// Patient direction letters on the screen edges, when the image has geometry.
+    var edges: Orientation.Edges? {
+        guard let stack, stack.slices.indices.contains(index) else { return nil }
+        return Orientation.edges(stack.slices[index].orientation, quarterTurns: quarterTurns,
+                                 flipHorizontal: flipHorizontal, flipVertical: flipVertical)
     }
 
     func reset() {

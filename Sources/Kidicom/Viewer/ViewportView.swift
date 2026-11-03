@@ -20,7 +20,7 @@ struct ViewportView: NSViewRepresentable {
     func updateNSView(_ view: ViewportNSView, context: Context) {
         view.viewport = viewport
         view.onActivate = onActivate
-        view.update(image: viewport.image, zoom: viewport.zoom, pan: viewport.pan)
+        view.update(image: viewport.image)
     }
 }
 
@@ -52,26 +52,28 @@ final class ViewportNSView: NSView {
     override var acceptsFirstResponder: Bool { true }
     override var isFlipped: Bool { true }
 
-    func update(image: CGImage?, zoom: CGFloat, pan: CGSize) {
+    func update(image: CGImage?) {
         imageLayer.contents = image
         if let image { imageSize = CGSize(width: image.width, height: image.height) }
-        layoutImage(zoom: zoom, pan: pan)
+        layoutImage()
     }
 
     override func layout() {
         super.layout()
-        layoutImage(zoom: viewport?.zoom ?? 1, pan: viewport?.pan ?? .zero)
+        layoutImage()
     }
 
-    private func layoutImage(zoom: CGFloat, pan: CGSize) {
-        guard imageSize.width > 0, bounds.width > 0 else { imageLayer.frame = .zero; return }
-        let fit = min(bounds.width / imageSize.width, bounds.height / imageSize.height) * zoom
-        let size = CGSize(width: imageSize.width * fit, height: imageSize.height * fit)
-        imageLayer.frame = CGRect(
-            x: (bounds.width - size.width) / 2 + pan.width,
-            y: (bounds.height - size.height) / 2 + pan.height,
-            width: size.width, height: size.height
-        )
+    /// Fits the image, then applies zoom, pan, flips, and rotation around its center.
+    private func layoutImage() {
+        guard let viewport, imageSize.width > 0, bounds.width > 0 else { imageLayer.bounds = .zero; return }
+        let turned = viewport.quarterTurns % 2 == 1
+        let shown = turned ? CGSize(width: imageSize.height, height: imageSize.width) : imageSize
+        let fit = min(bounds.width / shown.width, bounds.height / shown.height) * viewport.zoom
+        imageLayer.bounds = CGRect(x: 0, y: 0, width: imageSize.width * fit, height: imageSize.height * fit)
+        imageLayer.position = CGPoint(x: bounds.midX + viewport.pan.width, y: bounds.midY + viewport.pan.height)
+        var transform = CATransform3DMakeRotation(CGFloat(viewport.quarterTurns) * .pi / 2, 0, 0, 1)
+        transform = CATransform3DScale(transform, viewport.flipHorizontal ? -1 : 1, viewport.flipVertical ? -1 : 1, 1)
+        imageLayer.transform = transform
     }
 
     // MARK: Mouse
@@ -173,8 +175,17 @@ final class ViewportNSView: NSView {
         case .home: viewport.go(to: 0)
         case .end: viewport.go(to: viewport.count - 1)
         default:
-            if let digit = event.charactersIgnoringModifiers.flatMap(Int.init), let preset = WindowPreset(rawValue: digit) {
+            let key = event.charactersIgnoringModifiers ?? ""
+            if let digit = Int(key), let preset = WindowPreset(rawValue: digit) {
                 viewport.apply(preset)
+            } else if key == "r" {
+                viewport.rotate(clockwise: true)
+            } else if key == "R" {
+                viewport.rotate(clockwise: false)
+            } else if key == "h" {
+                viewport.flip(horizontal: true)
+            } else if key == "v" {
+                viewport.flip(horizontal: false)
             } else {
                 super.keyDown(with: event)
             }

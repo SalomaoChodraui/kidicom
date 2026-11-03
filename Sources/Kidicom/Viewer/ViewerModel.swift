@@ -44,6 +44,8 @@ final class ViewerModel {
 
     /// Snapshot mode sets the layout of the next viewer that opens.
     static var nextLayout: ViewerLayout?
+    /// Snapshot mode: rotate right and flip the first viewport of the next viewer.
+    static var nextTransformed = false
 
     func load(_ study: Study) {
         guard stacks.isEmpty else { return }
@@ -53,6 +55,11 @@ final class ViewerModel {
             .filter { $0.count > 0 }
         // Start on the series with the most images, not the scout.
         if let main = stacks.max(by: { $0.count < $1.count }) { viewports[0].show(main) }
+        if Self.nextTransformed {
+            viewports[0].rotate(clockwise: true)
+            viewports[0].flip(horizontal: true)
+            Self.nextTransformed = false
+        }
         fillEmptyViewports()
         for stack in stacks { Task { await stack.makeThumbnail() } }
     }

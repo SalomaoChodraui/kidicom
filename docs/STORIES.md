@@ -141,7 +141,12 @@ Depends: S-006
 Acceptance:
 - [snap] Os marcadores de orientação (A, P, R, L, H, F) nas bordas acompanham a rotação.
 - [unit] Os marcadores vêm de Image Orientation (Patient).
-Status: todo
+UX:
+- Flow: toolbar Orientation menu (Rotate Right, Rotate Left, Flip Horizontal, Flip Vertical, Reset View) or keys R, Shift-R, H, V on the active viewport; double-click also resets
+- Surface: toolbar menu (a few related choices tied to one control)
+- Words: menu items above; tooltip "Rotate or flip the active viewport (R, Shift-R, H, V)"; edge letters R/L, A/P, H/F, two letters for oblique planes
+- Access: flips act on the screen axes, whatever the rotation
+Status: done
 
 ### S-012 Tocar e pausar cine de ultrassom
 Como usuário, aperto espaço para tocar ou pausar um ultrassom multiframe na taxa gravada no arquivo.

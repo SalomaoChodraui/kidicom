@@ -39,6 +39,20 @@ struct ViewerView: View {
             ViewportGrid(viewer: viewer, study: study)
         }
         .toolbar {
+            ToolbarItem {
+                Menu {
+                    Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
+                    Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
+                    Divider()
+                    Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
+                    Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
+                    Divider()
+                    Button("Reset View") { viewer.active?.reset() }
+                } label: {
+                    Label("Orientation", systemImage: "rotate.right")
+                }
+                .help("Rotate or flip the active viewport (R, Shift-R, H, V)")
+            }
             ToolbarItem(placement: .principal) {
                 Picker("Layout", selection: Bindable(viewer).layout) {
                     ForEach(ViewerLayout.allCases) { layout in
@@ -118,6 +132,29 @@ struct ViewportOverlay: View {
     let study: Study
 
     var body: some View {
+        ZStack {
+            corners
+            if let edges = viewport.edges {
+                VStack {
+                    Text(edges.top)
+                    Spacer()
+                    Text(edges.bottom)
+                }
+                .padding(.vertical, Space.sm)
+                HStack {
+                    Text(edges.left)
+                    Spacer()
+                    Text(edges.right)
+                }
+                .padding(.horizontal, Space.sm)
+            }
+        }
+        .font(.system(size: 12).monospacedDigit())
+        .foregroundStyle(.white)
+        .shadow(color: .black, radius: 1, x: 0, y: 1)
+    }
+
+    private var corners: some View {
         VStack {
             HStack(alignment: .top) {
                 corner([study.displayName, study.patientID, study.studyDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
@@ -132,9 +169,6 @@ struct ViewportOverlay: View {
             }
         }
         .padding(Space.sm)
-        .font(.system(size: 12).monospacedDigit())
-        .foregroundStyle(.white)
-        .shadow(color: .black, radius: 1, x: 0, y: 1)
     }
 
     private var bottomLeft: [String?] {

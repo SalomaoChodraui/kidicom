@@ -108,6 +108,18 @@ enum SelfTest {
                 }
                 viewport?.zoom = 3
                 viewport?.reset()
+                // S-011: rotation and flips move the orientation letters.
+                check("axial CT shows R on the left and A on top", viewport?.edges == Orientation.Edges(top: "A", bottom: "P", left: "R", right: "L"))
+                viewport?.rotate(clockwise: true)
+                check("rotate right puts R on top", viewport?.edges?.top == "R" && viewport?.quarterTurns == 1)
+                viewport?.flip(horizontal: true)
+                check("flip horizontal after a turn swaps the screen's left and right", viewport?.edges?.left == "A" && viewport?.edges?.right == "P")
+                viewport?.rotate(clockwise: false)
+                viewport?.rotate(clockwise: false)
+                check("rotate left twice ends at three quarter turns", viewport?.quarterTurns == 3)
+                viewport?.reset()
+                check("reset clears rotation and flips", viewport?.quarterTurns == 0 && viewport?.flipHorizontal == false && viewport?.flipVertical == false)
+
                 viewer.layout = .grid
                 check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.stack != nil })
                 viewer.activate(viewer.viewports[3])

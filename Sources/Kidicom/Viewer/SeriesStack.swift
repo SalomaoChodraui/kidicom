@@ -9,6 +9,8 @@ struct SliceRef: Sendable {
     var instanceNumber: Int
     /// Position along the slice normal, in mm, when the series has geometry.
     var location: Double?
+    /// Image Orientation (Patient): row and column direction cosines.
+    var orientation: [Double] = []
 }
 
 /// A decoded frame with what the viewport needs to draw it.
@@ -58,7 +60,7 @@ final class SeriesStack: Identifiable {
             let image = images[index]
             let location = SliceOrder.location(position: image.imagePosition, orientation: image.imageOrientation)
             for frame in 0 ..< max(1, image.frames) {
-                slices.append(SliceRef(url: image.fileURL, frame: frame, instanceNumber: image.instanceNumber, location: location))
+                slices.append(SliceRef(url: image.fileURL, frame: frame, instanceNumber: image.instanceNumber, location: location, orientation: image.imageOrientation))
             }
         }
         self.slices = slices
