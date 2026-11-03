@@ -969,18 +969,18 @@
         }
       }
     },
-    "Left button: window/level (%@), scroll (%@), distance (%@), angle (%@), or area (%@). Esc returns to window/level.": {
+    "Left button: window/level (%@), scroll (%@), rotate (%@), distance (%@), angle (%@), or area (%@). Esc returns to window/level.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "new",
-            "value": "Left button: window/level (%1$@), scroll (%2$@), distance (%3$@), angle (%4$@), or area (%5$@). Esc returns to window/level."
+            "value": "Left button: window/level (%1$@), scroll (%2$@), rotate (%3$@), distance (%4$@), angle (%5$@), or area (%6$@). Esc returns to window/level."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Botão esquerdo: janela (%1$@), rolar (%2$@), distância (%3$@), ângulo (%4$@) ou área (%5$@). Esc volta para janela."
+            "value": "Botão esquerdo: janela (%1$@), rolar (%2$@), girar (%3$@), distância (%4$@), ângulo (%5$@) ou área (%6$@). Esc volta para janela."
           }
         }
       }
@@ -1431,6 +1431,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restaurar Padrões"
+          }
+        }
+      }
+    },
+    "Rot %lld°": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rot %lld°"
+          }
+        }
+      }
+    },
+    "Rotate": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girar"
+          }
+        }
+      }
+    },
+    "Rotate Freely": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girar Livremente"
           }
         }
       }

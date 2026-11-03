@@ -12,9 +12,11 @@ public struct ViewportGeometry: Equatable, Sendable {
     public var quarterTurns = 0
     public var flipHorizontal = false
     public var flipVertical = false
+    /// Extra rotation in radians, clockwise on screen, on top of the quarter turns.
+    public var freeAngle: Double = 0
 
     public init(imageSize: CGSize, viewSize: CGSize, zoom: CGFloat = 1, pan: CGSize = .zero,
-                quarterTurns: Int = 0, flipHorizontal: Bool = false, flipVertical: Bool = false) {
+                quarterTurns: Int = 0, flipHorizontal: Bool = false, flipVertical: Bool = false, freeAngle: Double = 0) {
         self.imageSize = imageSize
         self.viewSize = viewSize
         self.zoom = zoom
@@ -22,6 +24,7 @@ public struct ViewportGeometry: Equatable, Sendable {
         self.quarterTurns = ((quarterTurns % 4) + 4) % 4
         self.flipHorizontal = flipHorizontal
         self.flipVertical = flipVertical
+        self.freeAngle = freeAngle
     }
 
     /// View points per image pixel.
@@ -37,7 +40,8 @@ public struct ViewportGeometry: Equatable, Sendable {
         CGPoint(x: viewSize.width / 2 + pan.width, y: viewSize.height / 2 + pan.height)
     }
 
-    private var angle: CGFloat { CGFloat(quarterTurns) * .pi / 2 }
+    /// Total clockwise rotation on screen, in radians.
+    public var angle: CGFloat { CGFloat(quarterTurns) * .pi / 2 + CGFloat(freeAngle) }
 
     public func toView(_ p: CGPoint) -> CGPoint {
         var x = (p.x - imageSize.width / 2) * scale

@@ -23,6 +23,26 @@ public enum Orientation {
     ///   - flipHorizontal: mirror left and right, applied before rotating.
     ///   - flipVertical: mirror top and bottom, applied before rotating.
     public static func edges(_ orientation: [Double], quarterTurns: Int = 0, flipHorizontal: Bool = false, flipVertical: Bool = false) -> Edges? {
+        edges(orientation, angle: Double(quarterTurns) * .pi / 2, flipHorizontal: flipHorizontal, flipVertical: flipVertical)
+    }
+
+    /// Edge letters for any clockwise rotation in radians: each edge gets the
+    /// patient direction that points toward it on screen.
+    public static func edges(_ orientation: [Double], angle: Double, flipHorizontal: Bool = false, flipVertical: Bool = false) -> Edges? {
+        guard orientation.count == 6 else { return nil }
+        let row = Array(orientation[0 ..< 3]), column = Array(orientation[3 ..< 6])
+        // Screen direction (y down) to image direction: undo the rotation, then the flips.
+        func toward(_ sx: Double, _ sy: Double) -> String {
+            let c = cos(-angle), s = sin(-angle)
+            var ix = sx * c - sy * s, iy = sx * s + sy * c
+            if flipHorizontal { ix = -ix }
+            if flipVertical { iy = -iy }
+            return letters((0 ..< 3).map { ix * row[$0] + iy * column[$0] })
+        }
+        return Edges(top: toward(0, -1), bottom: toward(0, 1), left: toward(-1, 0), right: toward(1, 0))
+    }
+
+    static func quarterTurnEdges(_ orientation: [Double], quarterTurns: Int, flipHorizontal: Bool, flipVertical: Bool) -> Edges? {
         guard orientation.count == 6 else { return nil }
         let row = Array(orientation[0 ..< 3]), column = Array(orientation[3 ..< 6])
         var e = Edges(top: letters(column.map { -$0 }), bottom: letters(column), left: letters(row.map { -$0 }), right: letters(row))

@@ -105,7 +105,7 @@ struct ViewerView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelStyle(.iconOnly)
-                .help(Text("Left button: window/level (\(ToolKeys.shared.key(for: .navigate).uppercased())), scroll (\(ToolKeys.shared.key(for: .scroll).uppercased())), distance (\(ToolKeys.shared.key(for: .distance).uppercased())), angle (\(ToolKeys.shared.key(for: .angle).uppercased())), or area (\(ToolKeys.shared.key(for: .area).uppercased())). Esc returns to window/level."))
+                .help(Text("Left button: window/level (\(ToolKeys.shared.key(for: .navigate).uppercased())), scroll (\(ToolKeys.shared.key(for: .scroll).uppercased())), rotate (\(ToolKeys.shared.key(for: .rotate).uppercased())), distance (\(ToolKeys.shared.key(for: .distance).uppercased())), angle (\(ToolKeys.shared.key(for: .angle).uppercased())), or area (\(ToolKeys.shared.key(for: .area).uppercased())). Esc returns to window/level."))
             }
             ToolbarItem {
                 let playing = viewer.active?.isPlaying == true
@@ -121,6 +121,8 @@ struct ViewerView: View {
                         .keyboardShortcut("r", modifiers: .control)
                     Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
                         .keyboardShortcut("l", modifiers: .control)
+                    Button("Rotate Freely") { viewer.tool = .rotate }
+                        .keyboardShortcut("r", modifiers: [])
                     Divider()
                     Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
                         .keyboardShortcut("h", modifiers: [])
@@ -425,6 +427,8 @@ struct ViewportOverlay: View {
             lines.append(String(localized: "WL \(Int(window.center.rounded())) WW \(Int(window.width.rounded()))"))
         }
         lines.append(String(localized: "Zoom \(Int((viewport.zoom * 100).rounded()))%"))
+        let degrees = Int((viewport.freeAngle * 180 / .pi).rounded()) % 360
+        if degrees != 0 { lines.append(String(localized: "Rot \(degrees)°")) }
         if viewport.isPlaying {
             lines.append(String(localized: "▶ \(Int(viewport.framesPerSecond.rounded())) fps"))
         }

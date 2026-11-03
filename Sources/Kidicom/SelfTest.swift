@@ -84,8 +84,8 @@ enum SelfTest {
                     view.viewport = viewport
                     check("the viewport clips the image to its bounds", view.layer?.masksToBounds == true)
                     let number = window.windowNumber
-                    func send(_ type: NSEvent.EventType, _ x: CGFloat, _ y: CGFloat) -> NSEvent {
-                        NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: [], timestamp: 0,
+                    func send(_ type: NSEvent.EventType, _ x: CGFloat, _ y: CGFloat, _ flags: NSEvent.ModifierFlags = []) -> NSEvent {
+                        NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: flags, timestamp: 0,
                                            windowNumber: number, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
                     }
                     view.rightMouseDown(with: send(.rightMouseDown, 300, 200))
@@ -176,7 +176,29 @@ enum SelfTest {
                     check("L picks the ruler", picked == .distance)
                     view.keyDown(with: key("w"))
                     check("W picks window/level", picked == .navigate)
-                    check("a key already used by the viewer is refused", ToolKeys.shared.problem(with: "h", for: .angle) != nil && ToolKeys.shared.problem(with: "l", for: .angle) != nil)
+                    check("a key already used by the viewer is refused", ToolKeys.shared.problem(with: "h", for: .angle) != nil && ToolKeys.shared.problem(with: "l", for: .angle) != nil && ToolKeys.shared.tool(for: "r") == .rotate)
+                    // Rotate tool: dragging around the center turns the image by any angle.
+                    viewport.reset()
+                    viewport.tool = .rotate
+                    view.setTool(.rotate)
+                    // From the right of the center to straight below it (window y grows up): a quarter turn.
+                    view.mouseDown(with: send(.leftMouseDown, 300, 200))
+                    for k in 1 ... 9 {
+                        let a = -Double(k) / 9 * .pi / 2
+                        view.mouseDragged(with: send(.leftMouseDragged, 200 + 100 * cos(a), 200 + 100 * sin(a)))
+                    }
+                    view.mouseUp(with: send(.leftMouseUp, 200, 100))
+                    let turned = viewport.freeAngle * 180 / .pi
+                    check("dragging around the center rotates the image freely", abs(abs(turned) - 90) < 1, "\(turned)°")
+                    view.mouseDown(with: send(.leftMouseDown, 200, 100))
+                    view.mouseDragged(with: send(.leftMouseDragged, 200 + 100 * cos(-.pi / 2 + 0.2), 200 + 100 * sin(-.pi / 2 + 0.2), .shift))
+                    let snapped = viewport.freeAngle * 180 / .pi
+                    check("Shift snaps the rotation to 15 degrees", abs(snapped / 15 - (snapped / 15).rounded()) < 1e-6, "\(snapped)°")
+                    view.mouseUp(with: send(.leftMouseUp, 200, 100))
+                    check("the edge letters follow a free rotation", viewport.edges?.top != "A")
+                    viewport.tool = .navigate
+                    view.setTool(.navigate)
+
                     // ⌃R / ⌃L rotate, ⌘R resets everything.
                     func key(_ c: String, _ flags: NSEvent.ModifierFlags) -> NSEvent {
                         NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: number,
@@ -192,7 +214,7 @@ enum SelfTest {
                     viewport.window = VOIWindow(center: 1, width: 2)
                     window.makeFirstResponder(view)
                     _ = view.performKeyEquivalent(with: key("r", .command))
-                    check("⌘R resets window, zoom, and rotation", viewport.quarterTurns == 0 && viewport.zoom == 1 && viewport.window == nil)
+                    check("⌘R resets window, zoom, and rotation", viewport.quarterTurns == 0 && viewport.freeAngle == 0 && viewport.zoom == 1 && viewport.window == nil)
                     viewport.tool = .navigate
                     let pan = viewport.pan
                     view.otherMouseDown(with: send(.otherMouseDown, 200, 200))

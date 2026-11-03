@@ -5,7 +5,7 @@ import SwiftUI
 
 /// What the left mouse button does in the viewer.
 enum MeasureTool: String, CaseIterable, Identifiable {
-    case navigate, scroll, distance, angle, area
+    case navigate, scroll, rotate, distance, angle, area
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum MeasureTool: String, CaseIterable, Identifiable {
         switch self {
         case .navigate: "Window/Level"
         case .scroll: "Scroll"
+        case .rotate: "Rotate"
         case .distance: "Distance"
         case .angle: "Angle"
         case .area: "Area"
@@ -26,6 +27,7 @@ enum MeasureTool: String, CaseIterable, Identifiable {
         switch self {
         case .navigate: "circle.lefthalf.filled"
         case .scroll: "arrow.up.and.down"
+        case .rotate: "rotate.right"
         case .distance: "ruler"
         case .angle: "angle"
         case .area: "lasso"
@@ -37,7 +39,7 @@ enum MeasureTool: String, CaseIterable, Identifiable {
 @Observable
 final class ToolKeys {
     static let shared = ToolKeys()
-    static let defaults: [MeasureTool: String] = [.navigate: "w", .scroll: "b", .distance: "l", .angle: "a", .area: "o"]
+    static let defaults: [MeasureTool: String] = [.navigate: "w", .scroll: "b", .rotate: "r", .distance: "l", .angle: "a", .area: "o"]
     /// Keys the viewer already uses for other things.
     static let reserved: Set<String> = ["h", "v", "0", "1", "2", "3", "4", " "]
 
@@ -148,7 +150,7 @@ extension Viewport {
         }
         selected = nil
         switch tool {
-        case .navigate, .scroll: return
+        case .navigate, .scroll, .rotate: return
         case .distance: draft = Measurement(kind: .distance, points: [p, p], slice: index)
         case .angle: draft = Measurement(kind: .angle, points: [p, p], slice: index)
         case .area: draft = Measurement(kind: .area, points: [p], slice: index)

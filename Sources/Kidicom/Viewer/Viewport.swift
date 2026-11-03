@@ -52,6 +52,8 @@ final class Viewport: Identifiable {
     /// Mirrors, applied before the rotation.
     var flipHorizontal = false
     var flipVertical = false
+    /// Free rotation in radians (Rotate tool), on top of the quarter turns.
+    var freeAngle: Double = 0
     private(set) var image: CGImage?
     private(set) var slice: DecodedSlice?
 
@@ -68,7 +70,8 @@ final class Viewport: Identifiable {
     func geometry(in size: CGSize) -> ViewportGeometry? {
         guard let slice, size.width > 0 else { return nil }
         return ViewportGeometry(imageSize: CGSize(width: slice.width, height: slice.height), viewSize: size, zoom: zoom,
-                                pan: pan, quarterTurns: quarterTurns, flipHorizontal: flipHorizontal, flipVertical: flipVertical)
+                                pan: pan, quarterTurns: quarterTurns, flipHorizontal: flipHorizontal, flipVertical: flipVertical,
+                                freeAngle: freeAngle)
     }
 
     @ObservationIgnored private var renderTask: Task<Void, Never>?
@@ -199,6 +202,7 @@ final class Viewport: Identifiable {
         quarterTurns = 0
         flipHorizontal = false
         flipVertical = false
+        freeAngle = 0
     }
 
     func rotate(clockwise: Bool) {
@@ -214,7 +218,7 @@ final class Viewport: Identifiable {
     /// Patient direction letters on the screen edges, when the image has geometry.
     var edges: Orientation.Edges? {
         guard let source else { return nil }
-        return Orientation.edges(source.orientation(index), quarterTurns: quarterTurns,
+        return Orientation.edges(source.orientation(index), angle: Double(quarterTurns) * .pi / 2 + freeAngle,
                                  flipHorizontal: flipHorizontal, flipVertical: flipVertical)
     }
 

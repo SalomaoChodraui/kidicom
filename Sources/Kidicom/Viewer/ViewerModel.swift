@@ -151,6 +151,8 @@ final class ViewerModel {
     static var next3D = false
     /// Snapshot mode: tilt the MPR planes 20 degrees around the axial.
     static var nextTilt = false
+    /// Snapshot mode: a free rotation for the first viewport, in radians.
+    static var nextFreeAngle: Double = 0
     /// Snapshot mode: open the newest prior beside the next viewer's study.
     static var nextComparePrior = false
 
@@ -167,6 +169,10 @@ final class ViewerModel {
             viewports[0].rotate(clockwise: true)
             viewports[0].flip(horizontal: true)
             Self.nextTransformed = false
+        }
+        if Self.nextFreeAngle != 0 {
+            viewports[0].freeAngle = Self.nextFreeAngle
+            Self.nextFreeAngle = 0
         }
         fillEmptyViewports()
         for stack in stacks { Task { await stack.makeThumbnail() } }

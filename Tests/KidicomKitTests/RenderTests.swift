@@ -81,3 +81,34 @@ struct OrientationTests {
         #expect(Orientation.edges([1, 0, 0])  == nil)
     }
 }
+
+@Suite("Free rotation")
+struct FreeRotationTests {
+    @Test("Any-angle letters match the quarter-turn rule", arguments: 0 ..< 16)
+    func matchesQuarterTurns(_ code: Int) {
+        let orientations: [[Double]] = [[1, 0, 0, 0, 1, 0], [0, 1, 0, 0, 0, -1], [1, 0, 0, 0, 0, -1]]
+        for o in orientations {
+            let turns = code % 4, h = code & 4 != 0, v = code & 8 != 0
+            #expect(Orientation.edges(o, angle: Double(turns) * .pi / 2, flipHorizontal: h, flipVertical: v)
+                    == Orientation.quarterTurnEdges(o, quarterTurns: turns, flipHorizontal: h, flipVertical: v))
+        }
+    }
+
+    @Test("A 30 degree turn of an axial image puts two letters on the edges")
+    func thirtyDegrees() {
+        let e = Orientation.edges([1, 0, 0, 0, 1, 0], angle: .pi / 6)
+        // Turned 30° clockwise, the top edge looks mostly anterior and a little toward patient right.
+        #expect(e?.top == "AR")
+        #expect(e?.right == "LA")
+    }
+
+    @Test("Free rotation converts back and forth")
+    func geometry() {
+        let g = ViewportGeometry(imageSize: CGSize(width: 100, height: 60), viewSize: CGSize(width: 300, height: 300),
+                                 zoom: 1.3, pan: CGSize(width: 8, height: -4), quarterTurns: 1, flipHorizontal: true, freeAngle: 0.37)
+        for p in [CGPoint(x: 0, y: 0), CGPoint(x: 51, y: 17), CGPoint(x: 99, y: 59)] {
+            let back = g.toImage(g.toView(p))
+            #expect(abs(back.x - p.x) < 1e-6 && abs(back.y - p.y) < 1e-6)
+        }
+    }
+}

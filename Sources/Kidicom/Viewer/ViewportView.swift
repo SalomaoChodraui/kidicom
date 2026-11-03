@@ -45,7 +45,7 @@ struct ViewportView: NSViewRepresentable {
         view.onTool = onTool
         view.mpr = mpr
         view.setTool(viewport.tool)
-        _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical)
+        _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical, viewport.freeAngle)
         view.update(image: viewport.image)
     }
 }
@@ -62,6 +62,9 @@ final class ViewportNSView: NSView {
     var onTool: (MeasureTool) -> Void = { _ in }
     private var dragged = false
     private var scrollDrag: CGFloat = 0
+    /// Rotate tool: the angle when the drag began and the turn so far.
+    private var rotateBase: Double = 0
+    private var rotateAccumulator: Double = 0
     private var tool: MeasureTool = .navigate
     var mpr = MPRMouse()
     /// True while the left button tilts or moves the MPR planes.
@@ -146,7 +149,7 @@ final class ViewportNSView: NSView {
         guard let geometry = viewport?.geometry(in: bounds.size) else { imageLayer.bounds = .zero; return }
         imageLayer.bounds = CGRect(x: 0, y: 0, width: geometry.imageSize.width * geometry.scale, height: geometry.imageSize.height * geometry.scale)
         imageLayer.position = geometry.center
-        var transform = CATransform3DMakeRotation(CGFloat(geometry.quarterTurns) * .pi / 2, 0, 0, 1)
+        var transform = CATransform3DMakeRotation(geometry.angle, 0, 0, 1)
         transform = CATransform3DScale(transform, geometry.flipHorizontal ? -1 : 1, geometry.flipVertical ? -1 : 1, 1)
         imageLayer.transform = transform
     }
@@ -178,6 +181,8 @@ final class ViewportNSView: NSView {
         begin(event)
         dragged = false
         guard let viewport else { return }
+        rotateBase = viewport.freeAngle
+        rotateAccumulator = 0
         if tool == .navigate, !event.modifierFlags.contains(.command), event.clickCount == 1,
            let (point, scale) = imagePoint(event), let drag = mpr.begin(point, scale) {
             mprDragging = true
@@ -234,6 +239,25 @@ final class ViewportNSView: NSView {
             return
         }
         let d = delta(event)
+        if viewport.tool == .rotate && !event.modifierFlags.contains(.command) {
+            // Turn by the change in the pointer's angle around the viewport center.
+            let point = convert(event.locationInWindow, from: nil)
+            let center = CGPoint(x: bounds.midX, y: bounds.midY)
+            let previous = CGPoint(x: point.x - d.width, y: point.y - d.height)
+            let before = atan2(previous.y - center.y, previous.x - center.x)
+            let after = atan2(point.y - center.y, point.x - center.x)
+            var turn = Double(after - before)
+            if turn > .pi { turn -= 2 * .pi } else if turn < -.pi { turn += 2 * .pi }
+            rotateAccumulator += turn
+            if event.modifierFlags.contains(.shift) {
+                // Shift: steps of 15 degrees.
+                let step = Double.pi / 12
+                viewport.freeAngle = ((rotateBase + rotateAccumulator) / step).rounded() * step
+            } else {
+                viewport.freeAngle = rotateBase + rotateAccumulator
+            }
+            return
+        }
         if viewport.tool == .scroll && !event.modifierFlags.contains(.command) {
             // Scroll tool: four points of drag per image, down goes forward.
             scrollDrag += d.height

@@ -56,7 +56,7 @@ enum Snapshot {
             // Viewer windows: one per sample modality.
             let studies = (try? model.container.mainContext.fetch(FetchDescriptor<Study>(sortBy: [SortDescriptor(\.studyDate, order: .reverse)]))) ?? []
             let pages: [(String, String, ViewerLayout)] = [
-                ("viewer-ct", "CT", .single), ("viewer-ct-turned", "CT", .single), ("viewer-ct-measure", "CT", .single), ("viewer-ct-tags", "CT", .single), ("viewer-ct-mpr", "CT", .single), ("viewer-ct-oblique", "CT", .single), ("viewer-ct-mip", "CT", .single),
+                ("viewer-ct", "CT", .single), ("viewer-ct-turned", "CT", .single), ("viewer-ct-measure", "CT", .single), ("viewer-ct-rotated", "CT", .single), ("viewer-ct-tags", "CT", .single), ("viewer-ct-mpr", "CT", .single), ("viewer-ct-oblique", "CT", .single), ("viewer-ct-mip", "CT", .single),
                 ("viewer-mr-mpr", "MR", .single), ("viewer-ct-3d", "CT", .single), ("viewer-mr-3d", "MR", .single),
                 ("viewer-pt-compare", "PT", .single), ("viewer-ct-2x2", "CT", .grid), ("viewer-mr", "MR", .single),
                 ("viewer-mr-1x2", "MR", .sideBySide), ("viewer-us", "US", .single), ("viewer-cr", "CR", .single),
@@ -65,7 +65,8 @@ enum Snapshot {
                 guard let study = studies.first(where: { $0.modalities.contains(modality) }) else { continue }
                 ViewerModel.nextLayout = layout
                 ViewerModel.nextTransformed = name.hasSuffix("turned")
-                ViewerModel.nextMeasured = name.hasSuffix("measure")
+                ViewerModel.nextMeasured = name.hasSuffix("measure") || name.hasSuffix("rotated")
+                ViewerModel.nextFreeAngle = name.hasSuffix("rotated") ? 25 * .pi / 180 : 0
                 ViewerModel.nextShowsTags = name.hasSuffix("tags")
                 ViewerModel.nextMPR = name.hasSuffix("mpr") || name.hasSuffix("mip") || name.hasSuffix("oblique")
                 ViewerModel.nextTilt = name.hasSuffix("oblique")

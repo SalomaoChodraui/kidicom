@@ -145,7 +145,8 @@ Acceptance:
 - [snap] Os marcadores de orientação (A, P, R, L, H, F) nas bordas acompanham a rotação.
 - [unit] Os marcadores vêm de Image Orientation (Patient).
 UX:
-- Flow: toolbar Orientation menu (Rotate Right ⌃R, Rotate Left ⌃L, Flip Horizontal H, Flip Vertical V, Reset View ⌘R) on the active viewport; ⌘R resets window, zoom, pan, rotation, and flips
+- Flow: toolbar Orientation menu (Rotate Right ⌃R, Rotate Left ⌃L, Rotate Freely R, Flip Horizontal H, Flip Vertical V, Reset View ⌘R) on the active viewport; ⌘R resets window, zoom, pan, rotation, and flips
+- Rotate tool (R): drag around the viewport center to turn the image by any angle, Shift snaps to 15°; edge letters follow (two letters between axes); overlay "Rot 25°"
 - Surface: toolbar menu (a few related choices tied to one control)
 - Words: menu items above; tooltip "Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view"; edge letters R/L, A/P, H/F, two letters for oblique planes
 - Access: flips act on the screen axes, whatever the rotation
