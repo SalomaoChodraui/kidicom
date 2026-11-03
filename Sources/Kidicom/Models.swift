@@ -2,30 +2,83 @@ import Foundation
 import SwiftData
 import KidicomKit
 
-/// One imaging study (an exam) in the worklist. Series and instances come
-/// with the DICOM parser (stories S-001 to S-003).
+/// One imaging exam of one patient on one date.
 @Model
 final class Study {
     /// Study Instance UID (0020,000D). Unique in the database.
     @Attribute(.unique) var studyUID: String
+    /// A stable id for selection and links.
+    var uid: UUID = UUID()
     /// Patient's Name (0010,0010) as stored in the file, like "SILVA^MARIA".
     var patientName: String = ""
     var patientID: String = ""
+    var patientBirthDate: Date?
+    var patientSex: String = ""
     var studyDate: Date?
     var studyDescription: String = ""
-    /// Modalities in Study, like "CT" or "MR, PT".
+    var accessionNumber: String = ""
+    /// Modalities in Study, like "CT" or "PT, CT".
     var modalities: String = ""
     var imageCount: Int = 0
-    /// True when the files were copied into the Kidicom library, false when
-    /// they stay where they were imported from.
+    /// True when every image was copied into the Library; false when any
+    /// image stays where it was imported from.
     var isCopied: Bool = true
     var importedAt: Date = Date.now
+    @Relationship(deleteRule: .cascade, inverse: \Series.study) var series: [Series] = []
 
     init(studyUID: String) {
         self.studyUID = studyUID
     }
 
     var displayName: String { PersonName.display(patientName) }
+
+    /// A Keep in Place study whose files moved or were removed.
+    var isOffline: Bool {
+        guard !isCopied else { return false }
+        guard let image = series.lazy.flatMap(\.images).first(where: { !$0.isCopied }) else { return false }
+        return !FileManager.default.fileExists(atPath: image.fileURL.path)
+    }
+}
+
+/// One set of images inside a study.
+@Model
+final class Series {
+    @Attribute(.unique) var seriesUID: String
+    var number: Int = 0
+    var seriesDescription: String = ""
+    var modality: String = ""
+    var frameOfReferenceUID: String = ""
+    var study: Study?
+    @Relationship(deleteRule: .cascade, inverse: \ImageFile.series) var images: [ImageFile] = []
+
+    init(seriesUID: String) {
+        self.seriesUID = seriesUID
+    }
+}
+
+/// One DICOM file, with one or more frames.
+@Model
+final class ImageFile {
+    @Attribute(.unique) var sopUID: String
+    /// Inside the Library ("Files/...") when copied, else an absolute path.
+    var path: String = ""
+    var isCopied: Bool = true
+    var instanceNumber: Int = 0
+    var imagePosition: [Double] = []
+    var imageOrientation: [Double] = []
+    var frames: Int = 1
+    var rows: Int = 0
+    var columns: Int = 0
+    var transferSyntaxUID: String = ""
+    var series: Series?
+
+    init(sopUID: String) {
+        self.sopUID = sopUID
+    }
+
+    var fileURL: URL {
+        isCopied ? Library.root.appending(path: path) : URL(fileURLWithPath: path)
+    }
 }
 
 /// The sidebar pages. Snapshot mode walks through every case.
@@ -62,7 +115,9 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 final class AppModel {
     let container: ModelContainer
     var sidebar: SidebarItem? = .all
-    var selection: PersistentIdentifier?
+    /// The selected study, by `Study.uid`.
+    var selection: UUID?
+    @ObservationIgnored lazy var importer = Importer(model: self)
     /// Settings reopens on the last tab. Test and snapshot runs leave it alone.
     var settingsTab: SettingsTab = SettingsTab(rawValue: UserDefaults.standard.string(forKey: "settings.tab") ?? "") ?? .general {
         didSet { if !Store.isOverridden { UserDefaults.standard.set(settingsTab.rawValue, forKey: "settings.tab") } }
@@ -72,6 +127,8 @@ final class AppModel {
         self.container = container
     }
 
-    /// Imports files and folders. Filled in by story S-003.
-    func importFiles() {}
+    /// Shows the open panel (File > Import…, toolbar +).
+    var showsOpenPanel = false
+
+    func importFiles() { showsOpenPanel = true }
 }

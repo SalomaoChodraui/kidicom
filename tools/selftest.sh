@@ -4,4 +4,5 @@ set -u
 rm -rf ~/Library/Saved\ Application\ State/com.salomao.kidicom.savedState
 store=/tmp/Kidicom-self.store
 rm -f $store $store-shm $store-wal
+rm -rf /tmp/Kidicom-self.library
 APP_STORE=$store ~/Applications/Kidicom.app/Contents/MacOS/Kidicom --selftest

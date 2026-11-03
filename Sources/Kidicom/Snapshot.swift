@@ -38,6 +38,20 @@ enum Snapshot {
                     capture(to: "\(dir)/\(page.rawValue)-\(mode).png")
                 }
             }
+            if only == nil || only?.contains("import-sheet") == true {
+                model.sidebar = .all
+                for mode in ["light", "dark"] {
+                    NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
+                    for (name, zip) in [("import-sheet", false), ("import-sheet-zip", true)] {
+                        model.importer.previewSheet(files: 2_000, skipped: 18, fromZip: zip)
+                        try? await Task.sleep(for: .seconds(1))
+                        let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
+                        capture(to: "\(dir)/\(name)-\(mode).png", window: main?.attachedSheet)
+                        model.importer.cancel()
+                        try? await Task.sleep(for: .seconds(0.6))
+                    }
+                }
+            }
             if only == nil || only?.contains("settings") == true {
                 let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
                 openSettings()

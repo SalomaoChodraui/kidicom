@@ -32,6 +32,7 @@ struct KidicomApp: App {
             ToolbarCommands()
             CommandGroup(replacing: .newItem) {
                 Button("Import…") { model.importFiles() }
+                    .disabled(model.importer.isBusy)
                     .keyboardShortcut("o")
             }
         }
@@ -61,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 /// Where the data lives: ~/Library/Application Support/Kidicom/Kidicom.store
-enum Store {
+nonisolated enum Store {
     /// True when APP_STORE points somewhere else (tests, snapshots, seed data).
     static var isOverridden: Bool {
         !(ProcessInfo.processInfo.environment["APP_STORE"] ?? "").isEmpty
@@ -78,7 +79,7 @@ enum Store {
 
     static func makeContainer() -> ModelContainer {
         do {
-            return try ModelContainer(for: Study.self, configurations: ModelConfiguration(url: url))
+            return try ModelContainer(for: Study.self, Series.self, ImageFile.self, configurations: ModelConfiguration(url: url))
         } catch {
             fatalError("Could not open the database at \(url.path): \(error)")
         }

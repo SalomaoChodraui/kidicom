@@ -34,7 +34,13 @@ Acceptance:
 - [unit] Zips são extraídos para uma pasta temporária e importados; JPG, PDF, `__MACOSX` e `._*` são ignorados e contados no resumo da importação.
 - [self] Importar 2.000 imagens não trava a interface e mostra progresso.
 - [unit] Importar o mesmo exame duas vezes não duplica instâncias (chave: SOP Instance UID).
-Status: todo
+UX:
+- Flow: File > Import… (⌘O), toolbar +, drop files, folders, or zips on the worklist or on the Dock icon -> scan (progress inline) -> Import sheet (S-004) unless a choice is remembered -> progress bar "Importing 120 of 2,000 images" with Cancel -> new studies appear, selected, in Recently Imported
+- Surface: open panel for picking; drop target is the whole study list, highlighted while dragging (direct manipulation on a sidebar page)
+- States: empty "No Studies" with button "Import…"; scanning "Looking for DICOM files…"; nothing found: inline message "No DICOM images found in the selection." with the skipped count; done: footer "Imported 3 studies, 412 images. Skipped 18 files." for five seconds
+- Words: "Import…", tooltip "Import DICOM files, folders, or zips (⌘O)", "Cancel"
+- Access: ⌘O, Return in the panel; VoiceOver reads progress as "Importing, 120 of 2,000 images"
+Status: done
 
 ### S-004 Escolher copiar para a base ou manter no lugar
 Como usuário, ao importar, escolho entre copiar os arquivos para a base do Kidicom ou só referenciá-los.
@@ -44,7 +50,13 @@ Acceptance:
 - [snap] A folha de importação mostra as duas opções, a contagem de arquivos e "Lembrar minha escolha".
 - [unit] Zips sempre são copiados (a origem é temporária).
 - [self] Um exame referenciado cuja pasta foi removida aparece como offline e não abre.
-Status: todo
+UX:
+- Flow: after the scan -> sheet "Import 2,000 Images" -> pick Copy to Library or Keep in Place (default Copy) -> optional "Always do this" -> Return imports, Escape cancels and nothing changes
+- Surface: sheet (one short task that must finish or cancel before going on)
+- States: zip in the selection: Keep in Place disabled with "Files from zips are always copied."; studies already in the worklist: "120 images are already in the worklist and will be skipped."
+- Words: title "Import 2,000 Images"; radio "Copy to Library" with "Files stay available if the original folder is moved or removed."; radio "Keep in Place" with "Uses no extra disk space. The study goes offline if the files move."; checkbox "Always do this"; buttons "Import" and "Cancel"
+- Access: arrow keys move between the two choices, Return imports, Escape cancels; offline studies show a "Offline" label next to the icon, never color alone
+Status: done
 
 ### S-005 Ver a worklist
 Como usuário, vejo uma lista de estudos com paciente, ID, data, modalidade, descrição e nº de imagens, ordenável e com busca.

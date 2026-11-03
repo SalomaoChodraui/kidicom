@@ -139,3 +139,8 @@ struct GridOverlay: View {
         .allowsHitTesting(false)
     }
 }
+
+/// Corner radii.
+enum Radius {
+    static let card: CGFloat = 12
+}
