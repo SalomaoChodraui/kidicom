@@ -55,8 +55,13 @@ enum Snapshot {
             }
             // Viewer windows: one per sample modality.
             let studies = (try? model.container.mainContext.fetch(FetchDescriptor<Study>(sortBy: [SortDescriptor(\.studyDate, order: .reverse)]))) ?? []
-            for modality in ["CT", "MR", "PT", "US", "CR"] where only == nil || only?.contains("viewer-\(modality.lowercased())") == true {
+            let pages: [(String, String, ViewerLayout)] = [
+                ("viewer-ct", "CT", .single), ("viewer-ct-2x2", "CT", .grid), ("viewer-mr", "MR", .single),
+                ("viewer-mr-1x2", "MR", .sideBySide), ("viewer-us", "US", .single), ("viewer-cr", "CR", .single),
+            ]
+            for (name, modality, layout) in pages where only == nil || only?.contains(name) == true {
                 guard let study = studies.first(where: { $0.modalities.contains(modality) }) else { continue }
+                ViewerModel.nextLayout = layout
                 let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet && $0.isVisible }
                 openWindow(id: "viewer", value: study.uid)
                 try? await Task.sleep(for: .seconds(2))
@@ -65,7 +70,7 @@ enum Snapshot {
                 for mode in ["light", "dark"] {
                     NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
                     try? await Task.sleep(for: .seconds(0.8))
-                    capture(to: "\(dir)/viewer-\(modality.lowercased())-\(mode).png", window: viewer)
+                    capture(to: "\(dir)/\(name)-\(mode).png", window: viewer)
                 }
                 viewer?.close()
                 try? await Task.sleep(for: .seconds(0.5))

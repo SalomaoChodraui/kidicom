@@ -127,7 +127,12 @@ Depends: S-006
 Acceptance:
 - [snap] O viewport ativo tem borda na cor de destaque.
 - [self] As séries são distribuídas na ordem da faixa ao trocar o layout.
-Status: todo
+UX:
+- Flow: toolbar layout control (1, 2 side by side, 2 stacked, 4) -> empty viewports get the next series not shown, skipping scouts -> click a viewport to make it active -> thumbnail click or drag fills the active or target viewport
+- Surface: segmented control in the viewer toolbar
+- Words: "1 Viewport", "2 Side by Side", "2 Stacked", "4 Viewports"; tooltip "Split the image area into up to four viewports"
+- Access: the active viewport has an accent outline; the viewer is always dark
+Status: done
 
 ### S-011 Girar e espelhar a imagem
 Como usuário, giro 90° e espelho horizontal ou verticalmente o viewport ativo.

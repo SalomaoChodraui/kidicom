@@ -42,6 +42,8 @@ struct KidicomApp: App {
                 ViewerView(studyUID: uid)
                     .environment(model)
                     .themed()
+                    // Reading happens in the dark, like a radiology workstation.
+                    .preferredColorScheme(.dark)
             }
         }
         .modelContainer(model.container)

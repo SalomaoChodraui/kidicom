@@ -36,46 +36,23 @@ struct ViewerView: View {
             SeriesStrip(viewer: viewer)
                 .frame(width: 148)
             Divider()
-            ZStack {
-                Color.black
-                if let viewport = viewer.active {
-                    ViewportView(viewport: viewport, isActive: true) {}
-                        .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
-                        .clipped()
-                        .dropDestination(for: String.self) { ids, _ in
-                            guard let id = ids.first, let stack = viewer.stacks.first(where: { $0.id == id }) else { return false }
-                            viewport.show(stack)
-                            return true
-                        }
+            ViewportGrid(viewer: viewer, study: study)
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Layout", selection: Bindable(viewer).layout) {
+                    ForEach(ViewerLayout.allCases) { layout in
+                        Label(layout.title, systemImage: layout.symbol).tag(layout)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelStyle(.iconOnly)
+                .help("Split the image area into up to four viewports")
             }
         }
         .navigationTitle(study.displayName)
         .navigationSubtitle(study.studyDescription)
         .task(id: study.uid) { viewer.load(study) }
-    }
-}
-
-@Observable
-final class ViewerModel {
-    private(set) var stacks: [SeriesStack] = []
-    private(set) var viewports: [Viewport] = [Viewport()]
-    var activeIndex = 0
-
-    var active: Viewport? { viewports.indices.contains(activeIndex) ? viewports[activeIndex] : nil }
-
-    func load(_ study: Study) {
-        guard stacks.isEmpty else { return }
-        stacks = study.series.sorted { ($0.number, $0.seriesDescription) < ($1.number, $1.seriesDescription) }
-            .map(SeriesStack.init(series:))
-            .filter { $0.count > 0 }
-        // Start on the series with the most images, not the scout.
-        if let main = stacks.max(by: { $0.count < $1.count }) { viewports[0].show(main) }
-        for stack in stacks { Task { await stack.makeThumbnail() } }
-    }
-
-    func show(_ stack: SeriesStack) {
-        active?.show(stack)
     }
 }
 

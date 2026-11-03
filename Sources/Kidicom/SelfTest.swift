@@ -108,6 +108,13 @@ enum SelfTest {
                 }
                 viewport?.zoom = 3
                 viewport?.reset()
+                viewer.layout = .grid
+                check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.stack != nil })
+                viewer.activate(viewer.viewports[3])
+                check("clicking a viewport makes it active", viewer.activeIndex == 3)
+                viewer.layout = .sideBySide
+                check("a smaller layout moves the active viewport back into view", viewer.activeIndex == 0 && viewer.visible.count == 2)
+                viewer.layout = .single
                 check("double-click resets window and zoom", viewport?.effectiveWindow == Window(center: 40, width: 400) && viewport?.zoom == 1)
             }
 
