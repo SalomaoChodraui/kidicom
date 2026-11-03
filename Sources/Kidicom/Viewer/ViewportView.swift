@@ -10,12 +10,14 @@ struct ViewportView: NSViewRepresentable {
     var isActive: Bool
     var onActivate: () -> Void
     var onEscape: () -> Void = {}
+    var onClick: (CGPoint) -> Void = { _ in }
 
     func makeNSView(context: Context) -> ViewportNSView {
         let view = ViewportNSView()
         view.viewport = viewport
         view.onActivate = onActivate
         view.onEscape = onEscape
+        view.onClick = onClick
         return view
     }
 
@@ -23,6 +25,7 @@ struct ViewportView: NSViewRepresentable {
         view.viewport = viewport
         view.onActivate = onActivate
         view.onEscape = onEscape
+        view.onClick = onClick
         _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical)
         view.update(image: viewport.image)
     }
@@ -32,6 +35,9 @@ final class ViewportNSView: NSView {
     var viewport: Viewport?
     var onActivate: () -> Void = {}
     var onEscape: () -> Void = {}
+    /// A left click without a drag, in image pixels.
+    var onClick: (CGPoint) -> Void = { _ in }
+    private var dragged = false
     private let imageLayer = CALayer()
     private var scrollRemainder: CGFloat = 0
     private var zoomAnchor: CGPoint?
@@ -103,6 +109,7 @@ final class ViewportNSView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         begin(event)
+        dragged = false
         guard let viewport else { return }
         if let (point, scale) = imagePoint(event), !event.modifierFlags.contains(.command) {
             viewport.pointerDown(at: point, scale: scale)
@@ -112,7 +119,11 @@ final class ViewportNSView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if measuring, let (_, scale) = imagePoint(event) { viewport?.pointerUp(scale: scale) }
+        if measuring, let (_, scale) = imagePoint(event) {
+            viewport?.pointerUp(scale: scale)
+        } else if !dragged, event.clickCount == 1, let (point, _) = imagePoint(event) {
+            onClick(point)
+        }
         measuring = false
     }
 
@@ -127,6 +138,7 @@ final class ViewportNSView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         guard let viewport else { return }
+        dragged = true
         if measuring, let (point, _) = imagePoint(event) {
             viewport.pointerDragged(to: point)
             return

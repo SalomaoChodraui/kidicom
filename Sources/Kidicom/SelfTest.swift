@@ -69,11 +69,11 @@ enum SelfTest {
                 check("scrolling moves one image", viewport?.index == 13)
                 viewport?.go(to: 100)
                 check("scrolling stops at the last image", viewport?.index == 23)
-                check("the window comes from the file", viewport?.effectiveWindow == Window(center: 40, width: 400))
+                check("the window comes from the file", viewport?.effectiveWindow == VOIWindow(center: 40, width: 400))
                 viewport?.adjustWindow(dx: 30, dy: 0)
                 check("dragging right widens the window", (viewport?.effectiveWindow?.width ?? 0) > 400)
                 viewport?.apply(.lung)
-                check("key 2 applies the lung window", viewport?.effectiveWindow == Window(center: -600, width: 1500))
+                check("key 2 applies the lung window", viewport?.effectiveWindow == VOIWindow(center: -600, width: 1500))
                 // Real mouse events into a viewport view in an offscreen window.
                 if let viewport {
                     viewport.reset()
@@ -173,6 +173,8 @@ enum SelfTest {
                     viewer.layout = .single
                 }
 
+                await mprChecks(ct)
+
                 viewer.layout = .grid
                 check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.source != nil })
                 viewer.activate(viewer.viewports[3])
@@ -180,10 +182,10 @@ enum SelfTest {
                 viewer.layout = .sideBySide
                 check("a smaller layout moves the active viewport back into view", viewer.activeIndex == 0 && viewer.visible.count == 2)
                 viewer.layout = .single
-                check("double-click resets window and zoom", viewport?.effectiveWindow == Window(center: 40, width: 400) && viewport?.zoom == 1)
+                check("double-click resets window and zoom", viewport?.effectiveWindow == VOIWindow(center: 40, width: 400) && viewport?.zoom == 1)
             }
 
-            // Window/level also works on color ultrasound (brightness and contrast).
+            // VOIWindow/level also works on color ultrasound (brightness and contrast).
             if let us = studies().first(where: { $0.modalities == "US" }) {
                 let viewer = ViewerModel()
                 viewer.load(us)
@@ -206,7 +208,7 @@ enum SelfTest {
                 try? await Task.sleep(for: .milliseconds(200))
                 check("pause stops on the current frame", viewport?.isPlaying == false && viewport?.index == stopped)
                 viewport?.apply(.lung)
-                check("CT presets leave color images alone", viewport?.effectiveWindow != Window(center: -600, width: 1500))
+                check("CT presets leave color images alone", viewport?.effectiveWindow != VOIWindow(center: -600, width: 1500))
             }
 
             // Importing the same files again adds nothing.
@@ -246,6 +248,43 @@ enum SelfTest {
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }
+    }
+
+    static func mprChecks(_ ct: Study) async {
+        // S-020 to S-022: MPR from the 24-slice CT.
+        let viewer = ViewerModel()
+        viewer.load(ct)
+        await viewer.enterMPR()
+        let planes = viewer.mpr?.sources.map(\.title) ?? []
+        check("MPR builds a 64x64x24 volume", viewer.mpr?.volume.width == 64 && viewer.mpr?.volume.depth == 24, "\(String(describing: viewer.mprMessage))")
+        check("MPR shows axial, coronal, and sagittal side by side", viewer.layout == .three && planes == ["Axial", "Coronal", "Sagittal"], "\(planes)")
+        let axial = viewer.viewports[0], coronal = viewer.viewports[1], sagittal = viewer.viewports[2]
+        let started = Date.now
+        while coronal.image == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+        check("the coronal reformat is square-pixel: 64 wide, 57.5 mm in 13 rows of 5 mm", coronal.slice?.width == 64 && coronal.slice?.height == 13, "\(coronal.slice?.width ?? 0)x\(coronal.slice?.height ?? 0)")
+        check("coronal shows head at the top", coronal.edges?.top == "H" && coronal.edges?.left == "R")
+        viewer.click(at: CGPoint(x: 10, y: 0), in: coronal)
+        check("clicking the top row of the coronal moves the axial to the top slice", axial.index == 23)
+        check("the same click moves the sagittal to column 10", sagittal.index == 10)
+        axial.adjustWindow(dx: 40, dy: 0)
+        check("window/level follows across the three planes", coronal.window == axial.window && sagittal.window == axial.window && axial.window != nil)
+        if let source = coronal.source as? ReformatSource {
+            let plain = brightest(coronal.slice)
+            source.setSlab(40, mip: true)
+            coronal.reload()
+            let started = Date.now
+            while coronal.slice == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+            let mip = brightest(coronal.slice)
+            check("a 40 mm MIP is at least as bright as the single plane", mip >= plain && source.isMIP)
+        }
+        viewer.exitMPR()
+        check("leaving MPR restores the previous layout and series", viewer.mpr == nil && viewer.layout == .single && viewer.viewports[0].stack != nil)
+
+    }
+
+    private static func brightest(_ slice: DecodedSlice?) -> Float {
+        guard let slice, case .grayscale(let values) = slice.frame else { return 0 }
+        return values.max() ?? 0
     }
 
     /// Gives a copied file a new Study, Series, and SOP Instance UID.

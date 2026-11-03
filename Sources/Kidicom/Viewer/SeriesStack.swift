@@ -11,6 +11,8 @@ struct SliceRef: Sendable {
     var location: Double?
     /// Image Orientation (Patient): row and column direction cosines.
     var orientation: [Double] = []
+    /// Image Position (Patient) of the first pixel.
+    var position: [Double] = []
 }
 
 /// A decoded frame with what the viewport needs to draw it.
@@ -19,7 +21,7 @@ struct DecodedSlice: Sendable {
     var width: Int
     var height: Int
     var inverted: Bool
-    var defaultWindow: Window
+    var defaultWindow: VOIWindow
     var pixelSpacing: [Double]
     var sliceThickness: Double?
     /// Milliseconds between frames (Frame Time), or nil.
@@ -65,7 +67,7 @@ final class SeriesStack: Identifiable {
             let image = images[index]
             let location = SliceOrder.location(position: image.imagePosition, orientation: image.imageOrientation)
             for frame in 0 ..< max(1, image.frames) {
-                slices.append(SliceRef(url: image.fileURL, frame: frame, instanceNumber: image.instanceNumber, location: location, orientation: image.imageOrientation))
+                slices.append(SliceRef(url: image.fileURL, frame: frame, instanceNumber: image.instanceNumber, location: location, orientation: image.imageOrientation, position: image.imagePosition))
             }
         }
         self.slices = slices
@@ -121,16 +123,16 @@ final class SeriesStack: Identifiable {
               let descriptor = try? file.pixelDescriptor,
               let frame = try? file.frame(ref.frame) else { return nil }
         let d = file.dataset
-        let window: Window
+        let window: VOIWindow
         if case .grayscale(let values) = frame {
             if let center = d.number(.windowCenter), let width = d.number(.windowWidth), width > 1 {
-                window = Window(center: center, width: width)
+                window = VOIWindow(center: center, width: width)
             } else {
                 let range = Renderer.range(values)
-                window = Window(center: Double(range.low + range.high) / 2, width: Double(range.high - range.low) + 1)
+                window = VOIWindow(center: Double(range.low + range.high) / 2, width: Double(range.high - range.low) + 1)
             }
         } else {
-            window = Window(center: 128, width: 256)
+            window = VOIWindow(center: 128, width: 256)
         }
         var spacing = d.numbers(.pixelSpacing)
         if spacing.count < 2 { spacing = d.numbers(.imagerPixelSpacing) }

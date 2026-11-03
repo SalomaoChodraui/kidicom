@@ -6,7 +6,7 @@ import Testing
 struct RenderTests {
     @Test("Vector windowing matches the DICOM linear function")
     func windowing() {
-        let window = Window(center: 40, width: 400)
+        let window = VOIWindow(center: 40, width: 400)
         let values: [Float] = [-1000, -160, -100, 0, 40, 100, 239, 240, 3000]
         let fast = Renderer.gray8(values, window: window, inverted: false)
         let slow = values.map { window.gray($0) }
@@ -18,8 +18,8 @@ struct RenderTests {
     @Test("Color frames get brightness and contrast per channel")
     func colorWindow() {
         let rgba: [UInt8] = [10, 128, 250, 255]
-        #expect(Renderer.color(rgba, window: Window(center: 128, width: 256)) == rgba)
-        let narrow = Renderer.color(rgba, window: Window(center: 128, width: 64))
+        #expect(Renderer.color(rgba, window: VOIWindow(center: 128, width: 256)) == rgba)
+        let narrow = Renderer.color(rgba, window: VOIWindow(center: 128, width: 64))
         #expect(narrow[0] == 0 && narrow[2] == 255 && narrow[3] == 255)
         #expect(abs(Int(narrow[1]) - 129) <= 2)
     }

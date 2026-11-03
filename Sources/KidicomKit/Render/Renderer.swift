@@ -5,7 +5,7 @@ import Foundation
 /// Turns decoded frames into images on screen.
 public enum Renderer {
     /// Applies a window to modality values: DICOM linear function, vectorized.
-    public static func gray8(_ values: [Float], window: Window, inverted: Bool) -> [UInt8] {
+    public static func gray8(_ values: [Float], window: VOIWindow, inverted: Bool) -> [UInt8] {
         let count = values.count
         guard count > 0 else { return [] }
         // y = ((x - (c - 0.5)) / (w - 1) + 0.5), clamped to 0...1, times 255.
@@ -25,7 +25,7 @@ public enum Renderer {
         return out
     }
 
-    public static func image(_ frame: Frame, width: Int, height: Int, window: Window, inverted: Bool) -> CGImage? {
+    public static func image(_ frame: Frame, width: Int, height: Int, window: VOIWindow, inverted: Bool) -> CGImage? {
         switch frame {
         case .grayscale(let values):
             return grayImage(gray8(values, window: window, inverted: inverted), width: width, height: height)
@@ -36,8 +36,8 @@ public enum Renderer {
 
     /// Brightness and contrast for color frames: the same linear window on
     /// each of R, G, and B (0...255). The default 128/256 leaves pixels as is.
-    public static func color(_ rgba: [UInt8], window: Window) -> [UInt8] {
-        if window == Window(center: 128, width: 256) { return rgba }
+    public static func color(_ rgba: [UInt8], window: VOIWindow) -> [UInt8] {
+        if window == VOIWindow(center: 128, width: 256) { return rgba }
         let table = gray8((0 ..< 256).map(Float.init), window: window, inverted: false)
         var out = rgba
         out.withUnsafeMutableBufferPointer { pixels in
@@ -78,17 +78,17 @@ public enum Renderer {
     }
 }
 
-/// Window presets by key: 1 Soft Tissue, 2 Lung, 3 Bone, 4 Brain, 0 file default.
+/// VOIWindow presets by key: 1 Soft Tissue, 2 Lung, 3 Bone, 4 Brain, 0 file default.
 public enum WindowPreset: Int, CaseIterable, Sendable {
     case fileDefault = 0, softTissue, lung, bone, brain
 
-    public var window: Window? {
+    public var window: VOIWindow? {
         switch self {
         case .fileDefault: nil
-        case .softTissue: Window(center: 40, width: 400)
-        case .lung: Window(center: -600, width: 1500)
-        case .bone: Window(center: 400, width: 1800)
-        case .brain: Window(center: 40, width: 80)
+        case .softTissue: VOIWindow(center: 40, width: 400)
+        case .lung: VOIWindow(center: -600, width: 1500)
+        case .bone: VOIWindow(center: 400, width: 1800)
+        case .brain: VOIWindow(center: 40, width: 80)
         }
     }
 }

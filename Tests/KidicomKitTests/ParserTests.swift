@@ -144,7 +144,7 @@ struct PixelTests {
         let file = try DicomParser.parse(grayImage(stored: [0, 0, 0, 0], photometric: "MONOCHROME1"))
         let descriptor = try file.pixelDescriptor
         #expect(descriptor.isInverted)
-        let window = Window(center: 50, width: 101)
+        let window = VOIWindow(center: 50, width: 101)
         // Below and above the window clamp to black and white; inverted swaps them.
         #expect(window.gray(-10, inverted: true) == 255)
         #expect(window.gray(110, inverted: true) == 0)

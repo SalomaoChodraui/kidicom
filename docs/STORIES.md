@@ -209,7 +209,10 @@ Acceptance:
 - [unit] Detecta espaçamento irregular e cortes faltando, avisando no overlay.
 - [unit] Séries com orientações misturadas não habilitam MPR.
 - [self] Um volume de 512x512x600 em 16 bits monta em menos de 2 s.
-Status: todo
+UX:
+- Flow: built when MPR starts; progress "Building volume…"; refusal inline: "This series mixes image orientations and can't be reformatted."
+- Words: overlay warnings "n gaps between slices", "Uneven slice spacing"
+Status: done
 
 ### S-021 Ver MPR axial, coronal e sagital
 Como usuário, ativo MPR e vejo três viewports com os três planos e linhas de referência cruzadas.
@@ -218,7 +221,12 @@ Depends: S-020, S-010
 Acceptance:
 - [snap] Cada plano mostra as linhas dos outros dois; clicar move o cruzamento.
 - [self] Rolar em um plano atualiza as linhas nos outros a 60 fps.
-Status: todo
+UX:
+- Flow: toolbar MPR toggle on the active series -> three viewports side by side: the acquired plane and two reformats, named Axial, Coronal, Sagittal by their real orientation -> scroll any plane; colored reference lines show the other two -> click (no drag) moves the other planes there -> W/L follows across the three -> MPR toggle again restores the previous layout
+- Surface: toolbar toggle; viewports
+- Words: "MPR", tooltip "Reformat the active series in three planes (MPR)", "Leave MPR"
+- Access: reformats follow reading conventions whatever the acquisition: head up (anterior up in axial), patient right on screen left, anterior left in sagittal
+Status: done
 
 ### S-022 Ligar MIP com espessura ajustável
 Como usuário, ativo MIP em qualquer viewport do MPR e ajusto a espessura em mm com um controle deslizante.
@@ -227,7 +235,10 @@ Depends: S-021
 Acceptance:
 - [snap] O overlay mostra "MIP 10 mm".
 - [unit] O MIP de espessura igual a um corte é idêntico ao corte original.
-Status: todo
+UX:
+- Flow: toolbar Slab button on an MPR plane -> popover with "Maximum Intensity Projection (MIP)" and Thickness 1 to 50 mm -> the plane updates live; overlay "MIP 20 mm" and "Thk 20,0 mm"
+- Surface: popover (a few related choices tied to one control)
+Status: done
 
 ### S-023 Ver reconstrução 3D com janelamento
 Como usuário, abro a visão 3D de uma série axial, giro o volume com o mouse e ajusto a janela.

@@ -199,9 +199,9 @@ enum Color {
     static func clamp(_ v: Float) -> UInt8 { UInt8(max(0, min(255, v.rounded()))) }
 }
 
-/// Window center and width to 8-bit gray, by the DICOM linear function
+/// VOIWindow center and width to 8-bit gray, by the DICOM linear function
 /// (PS3.3 C.11.2.1.2).
-public struct Window: Sendable, Equatable {
+public struct VOIWindow: Sendable, Equatable {
     public var center: Double
     public var width: Double
 
@@ -223,12 +223,12 @@ public struct Window: Sendable, Equatable {
     }
 
     /// The window stored in the file, or one that spans the frame's values.
-    public static func initial(for dataset: DicomDataset, values: [Float]) -> Window {
+    public static func initial(for dataset: DicomDataset, values: [Float]) -> VOIWindow {
         if let center = dataset.number(.windowCenter), let width = dataset.number(.windowWidth), width > 0 {
-            return Window(center: center, width: width)
+            return VOIWindow(center: center, width: width)
         }
         let low = values.min() ?? 0
         let high = values.max() ?? 1
-        return Window(center: Double(low + high) / 2, width: Double(high - low) + 1)
+        return VOIWindow(center: Double(low + high) / 2, width: Double(high - low) + 1)
     }
 }

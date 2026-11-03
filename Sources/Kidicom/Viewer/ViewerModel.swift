@@ -1,3 +1,4 @@
+import KidicomKit
 import SwiftUI
 
 /// How the image area is split.
@@ -46,6 +47,13 @@ final class ViewerModel {
     var layout: ViewerLayout = .single {
         didSet { fillEmptyViewports() }
     }
+    /// The MPR session, while it is on.
+    private(set) var mpr: MPRSession?
+    /// Progress while a volume builds, 0...1.
+    private(set) var buildProgress: Double?
+    /// Why the last MPR request failed, shown inline.
+    var mprMessage: String?
+
     /// Shows the DICOM tags of the active image (⌘I).
     var showsTags = false
     /// The left-button tool, shared by every viewport.
@@ -64,6 +72,9 @@ final class ViewerModel {
     static var nextMeasured = false
     /// Snapshot mode: open the tag inspector in the next viewer.
     static var nextShowsTags = false
+    /// Snapshot mode: open MPR in the next viewer; with MIP, a 20 mm MIP on the second plane.
+    static var nextMPR = false
+    static var nextMIP = false
 
     func load(_ study: Study) {
         guard stacks.isEmpty else { return }
@@ -81,6 +92,18 @@ final class ViewerModel {
         }
         fillEmptyViewports()
         for stack in stacks { Task { await stack.makeThumbnail() } }
+        if Self.nextMPR {
+            Self.nextMPR = false
+            let mip = Self.nextMIP
+            Self.nextMIP = false
+            Task {
+                await enterMPR()
+                if mip, let source = viewports[1].source as? ReformatSource {
+                    source.setSlab(20, mip: true)
+                    viewports[1].reload()
+                }
+            }
+        }
         if Self.nextMeasured {
             Self.nextMeasured = false
             let viewport = viewports[0]
@@ -124,6 +147,82 @@ final class ViewerModel {
         activeIndex = target
     }
 
+    // MARK: MPR (S-020 to S-022)
+
+    /// The series MPR would use: the active viewport's series of files.
+    var mprCandidate: SeriesStack? {
+        guard let stack = active?.stack, stack.count >= 3, !stack.isCine else { return nil }
+        return stack
+    }
+
+    func toggleMPR() {
+        if mpr != nil { exitMPR() } else { Task { await enterMPR() } }
+    }
+
+    func enterMPR() async {
+        guard mpr == nil, buildProgress == nil, let stack = mprCandidate, let current = active else { return }
+        mprMessage = nil
+        buildProgress = 0
+        defer { buildProgress = nil }
+        let volume: Volume
+        do {
+            volume = try await stack.buildVolume { self.buildProgress = $0 }
+        } catch VolumeError.mixedOrientations {
+            mprMessage = String(localized: "This series mixes image orientations and can't be reformatted.")
+            return
+        } catch {
+            mprMessage = String(localized: "This series can't be reformatted. It needs at least three parallel images with position data.")
+            return
+        }
+        let window = current.effectiveWindow ?? VOIWindow(center: 40, width: 400)
+        let sources = VolumePlane.allCases.map {
+            ReformatSource(volume: volume, plane: $0, seriesID: stack.id, modality: stack.modality, window: window)
+        }
+        mpr = MPRSession(volume: volume, sources: sources, previousLayout: layout,
+                         previousSources: viewports.map(\.source), previousIndexes: viewports.map(\.index))
+        // Center each plane on the image the person was looking at.
+        let nativeIndex = volume.depth - 1 - min(volume.depth - 1, current.index)
+        let personWindow = current.window
+        for (i, source) in sources.enumerated() {
+            let viewport = viewports[i]
+            viewport.show(source, at: i == 0 ? nativeIndex : source.count / 2)
+            viewport.setWindowQuietly(personWindow)
+            viewport.onWindowChange = { [weak self] window in self?.syncWindow(window, from: viewport) }
+        }
+        // Sources first, then the layout, so no viewport loads a series on the way.
+        layout = .three
+        activeIndex = 0
+    }
+
+    func exitMPR() {
+        guard let session = mpr else { return }
+        mpr = nil
+        for (i, viewport) in viewports.enumerated() {
+            viewport.onWindowChange = nil
+            if let previous = session.previousSources[i] { viewport.show(previous, at: session.previousIndexes[i]) }
+        }
+        layout = session.previousLayout
+        activeIndex = 0
+    }
+
+    /// W/L follows across the three planes.
+    private func syncWindow(_ window: VOIWindow?, from origin: Viewport) {
+        guard mpr != nil else { return }
+        for viewport in viewports.prefix(3) where viewport !== origin {
+            viewport.setWindowQuietly(window)
+        }
+    }
+
+    /// A click (no drag) in an MPR plane moves the other two planes there.
+    func click(at point: CGPoint, in viewport: Viewport) {
+        guard let session = mpr, let mine = viewport.source as? ReformatSource else { return }
+        for (i, other) in session.sources.enumerated() where other !== mine {
+            if let index = session.volume.index(of: other.plane, at: (Double(point.x), Double(point.y)), in: mine.plane) {
+                viewports[i].go(to: index)
+            }
+        }
+    }
+
     /// New viewports get the series not shown yet, in strip order.
     private func fillEmptyViewports() {
         if activeIndex >= layout.count { activeIndex = 0 }
@@ -161,7 +260,9 @@ struct ViewportGrid: View {
     private func cell(_ viewport: Viewport) -> some View {
         let isActive = viewer.active === viewport && viewer.layout.count > 1
         return ViewportView(viewport: viewport, isActive: isActive, onActivate: { viewer.activate(viewport) },
-                            onEscape: { viewer.tool = .navigate })
+                            onEscape: { viewer.tool = .navigate },
+                            onClick: { point in viewer.click(at: point, in: viewport) })
+            .overlay { CrosshairOverlay(viewer: viewer, viewport: viewport) }
             .overlay { MeasurementOverlay(viewport: viewport) }
             .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
             .overlay {

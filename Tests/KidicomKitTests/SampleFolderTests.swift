@@ -113,3 +113,39 @@ struct ReferenceDecoderTests {
         return process.terminationStatus == 0
     }
 }
+
+/// Builds a volume from the largest series in KIDICOM_SAMPLES and times it.
+@Suite("Volume timing", .enabled(if: ProcessInfo.processInfo.environment["KIDICOM_SAMPLES"] != nil))
+struct VolumeTimingTests {
+    @Test("Largest series builds a volume and reformats quickly")
+    func timing() async throws {
+        let root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["KIDICOM_SAMPLES"]!)
+        let scan = try ImportScanner.scan([root], temporaryRoot: FileManager.default.temporaryDirectory)
+        let records = scan.files.compactMap { try? InstanceRecord(contentsOf: $0) }
+        let bySeries = Dictionary(grouping: records.filter { $0.modality == "CT" || $0.modality == "MR" }, by: \.seriesUID)
+        guard let series = bySeries.values.max(by: { $0.count < $1.count }) else { return }
+        let clock = ContinuousClock()
+        let started = clock.now
+        let slices = await withTaskGroup(of: VolumeSlice?.self) { group in
+            for record in series {
+                group.addTask {
+                    guard let file = try? DicomParser.parse(contentsOf: record.url), case .grayscale(let values) = try? file.frame(0) else { return nil }
+                    return VolumeSlice(values: values, width: record.columns, height: record.rows, position: record.imagePosition,
+                                       orientation: record.imageOrientation, pixelSpacing: file.dataset.numbers(.pixelSpacing))
+                }
+            }
+            var out: [VolumeSlice] = []
+            for await slice in group { if let slice { out.append(slice) } }
+            return out
+        }
+        let decoded = clock.now
+        let volume = try Volume.build(slices)
+        let built = clock.now
+        let coronal = volume.reslice(.alongRows, at: volume.height / 2)
+        let resliced = clock.now
+        let mip = volume.reslice(.alongRows, at: volume.height / 2, slab: 20, mode: .mip)
+        let mipped = clock.now
+        print("VOLUME \(volume.width)x\(volume.height)x\(volume.depth) spacing \(volume.spacing) warnings \(volume.warnings)")
+        print("  decode \(decoded - started), build \(built - decoded), reformat \(resliced - built) (\(coronal.width)x\(coronal.height)), mip 20 mm \(mipped - resliced) (\(mip.width)x\(mip.height))")
+    }
+}

@@ -38,6 +38,28 @@ struct ViewerView: View {
                 .frame(width: 148)
             Divider()
             ViewportGrid(viewer: viewer, study: study)
+                .overlay {
+                    if let progress = viewer.buildProgress {
+                        VStack(spacing: Space.sm) {
+                            ProgressView(value: progress).frame(width: 200)
+                            Text("Building volume…")
+                        }
+                        .padding(Space.lg)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card))
+                    }
+                }
+                .overlay(alignment: .top) {
+                    if let message = viewer.mprMessage {
+                        HStack(spacing: Space.sm) {
+                            Image(systemName: "exclamationmark.triangle")
+                            Text(message)
+                            Button("Close") { viewer.mprMessage = nil }.controlSize(.small)
+                        }
+                        .padding(Space.sm)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card))
+                        .padding(Space.lg)
+                    }
+                }
         }
         .inspector(isPresented: Bindable(viewer).showsTags) {
             TagInspector(viewport: viewer.active)
@@ -75,6 +97,16 @@ struct ViewerView: View {
                     Label("Orientation", systemImage: "rotate.right")
                 }
                 .help("Rotate or flip the active viewport (R, Shift-R, H, V)")
+            }
+            ToolbarItem {
+                Toggle(isOn: Binding(get: { viewer.mpr != nil }, set: { _ in viewer.toggleMPR() })) {
+                    Label("MPR", systemImage: "square.stack.3d.up")
+                }
+                .help(viewer.mpr == nil ? "Reformat the active series in three planes (MPR)" : "Leave MPR")
+                .disabled(viewer.mpr == nil && viewer.mprCandidate == nil || viewer.buildProgress != nil)
+            }
+            ToolbarItem {
+                SlabButton(viewer: viewer)
             }
             ToolbarItem {
                 Button("DICOM Tags", systemImage: "info.circle") { viewer.showsTags.toggle() }
@@ -203,6 +235,15 @@ struct ViewportOverlay: View {
     private var bottomLeft: [String?] {
         guard viewport.count > 0 else { return [] }
         var lines = [String(localized: "Im \(viewport.index + 1)/\(viewport.count)")]
+        if let source = viewport.source as? ReformatSource {
+            if source.isMIP { lines.append(String(localized: "MIP \(Int(source.slab)) mm")) }
+            for warning in source.volume.warnings {
+                switch warning {
+                case .gaps(let n): lines.append(String(localized: "\(n) gaps between slices"))
+                case .unevenSpacing: lines.append(String(localized: "Uneven slice spacing"))
+                }
+            }
+        }
         if let location = viewport.location, viewport.count > 1 {
             lines.append(String(localized: "Pos \(location.formatted(.number.precision(.fractionLength(1)))) mm"))
         }
@@ -256,5 +297,23 @@ struct RightClickCatcher: NSViewRepresentable {
         }
 
         override func rightMouseDown(with event: NSEvent) { action() }
+    }
+}
+
+/// Opens the slab and MIP controls for the active reformatted plane.
+struct SlabButton: View {
+    let viewer: ViewerModel
+    @State private var isPresented = false
+
+    var body: some View {
+        let source = viewer.active?.source as? ReformatSource
+        Button("Slab", systemImage: "square.3.layers.3d") { isPresented.toggle() }
+            .help("Thickness and MIP for the active plane")
+            .disabled(source == nil)
+            .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+                if let source, let viewport = viewer.active {
+                    SlabControls(source: source, viewport: viewport)
+                }
+            }
     }
 }

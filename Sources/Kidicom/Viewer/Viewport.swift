@@ -11,7 +11,21 @@ final class Viewport: Identifiable {
     var stack: SeriesStack? { source as? SeriesStack }
     private(set) var index = 0
     /// The person's window; nil follows each frame's own default.
-    var window: Window? { didSet { render() } }
+    var window: VOIWindow? {
+        didSet {
+            render()
+            if !quietWindow { onWindowChange?(window) }
+        }
+    }
+    /// Called when the person changes the window (MPR keeps planes in sync).
+    @ObservationIgnored var onWindowChange: ((VOIWindow?) -> Void)?
+    @ObservationIgnored private var quietWindow = false
+
+    func setWindowQuietly(_ newValue: VOIWindow?) {
+        quietWindow = true
+        window = newValue
+        quietWindow = false
+    }
     var zoom: CGFloat = 1
     var pan: CGSize = .zero
     /// Clockwise quarter turns of the displayed image.
@@ -79,6 +93,9 @@ final class Viewport: Identifiable {
             pause()
             measurements = []
             draft = nil
+            renderTask?.cancel()
+            slice = nil
+            image = nil
             source = stack
             window = nil
             resetView()
@@ -88,7 +105,7 @@ final class Viewport: Identifiable {
 
     var count: Int { source?.count ?? 0 }
 
-    var effectiveWindow: Window? { window ?? slice?.defaultWindow }
+    var effectiveWindow: VOIWindow? { window ?? slice?.defaultWindow }
 
     func go(to newIndex: Int) {
         guard let stack = source, stack.count > 0 else { return }
@@ -117,7 +134,7 @@ final class Viewport: Identifiable {
         guard let current = effectiveWindow else { return }
         let width = min(100_000, max(2, current.width * exp(Double(dx) * 0.004)))
         let center = current.center - Double(dy) * current.width * 0.002
-        window = Window(center: center, width: width)
+        window = VOIWindow(center: center, width: width)
     }
 
     /// Presets are in Hounsfield units, so they apply to grayscale only;
