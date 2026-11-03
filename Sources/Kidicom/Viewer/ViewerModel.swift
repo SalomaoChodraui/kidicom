@@ -45,7 +45,10 @@ final class ViewerModel {
     let viewports: [Viewport] = (0 ..< 4).map { _ in Viewport() }
     var activeIndex = 0
     var layout: ViewerLayout = .single {
-        didSet { fillEmptyViewports() }
+        didSet {
+            maximized = nil
+            fillEmptyViewports()
+        }
     }
     /// The MPR session, while it is on.
     private(set) var mpr: MPRSession?
@@ -53,6 +56,27 @@ final class ViewerModel {
     private(set) var buildProgress: Double?
     /// Why the last MPR request failed, shown inline.
     var mprMessage: String?
+
+    /// The viewport shown alone over the whole image area (double-click), or nil.
+    private(set) var maximized: Viewport?
+
+    /// Double-click in a viewport: maximize it in a split layout, restore
+    /// it when maximized, reset it in a single layout.
+    func doubleClick(_ viewport: Viewport) {
+        activate(viewport)
+        if maximized != nil {
+            maximized = nil
+        } else if layout.count > 1 {
+            maximized = viewport
+        } else {
+            viewport.reset()
+        }
+    }
+
+    /// Esc: leave the maximized viewport first, then the measuring tool.
+    func escape() {
+        if maximized != nil { maximized = nil } else { tool = .navigate }
+    }
 
     /// Shows the DICOM tags of the active image (⌘I).
     var showsTags = false
@@ -245,6 +269,14 @@ struct ViewportGrid: View {
 
     var body: some View {
         let layout = viewer.layout
+        if let maximized = viewer.maximized {
+            cell(maximized)
+        } else {
+            grid(layout)
+        }
+    }
+
+    private func grid(_ layout: ViewerLayout) -> some View {
         Grid(horizontalSpacing: 2, verticalSpacing: 2) {
             ForEach(0 ..< layout.rows, id: \.self) { row in
                 GridRow {
@@ -258,10 +290,11 @@ struct ViewportGrid: View {
     }
 
     private func cell(_ viewport: Viewport) -> some View {
-        let isActive = viewer.active === viewport && viewer.layout.count > 1
+        let isActive = viewer.active === viewport && viewer.layout.count > 1 && viewer.maximized == nil
         return ViewportView(viewport: viewport, isActive: isActive, onActivate: { viewer.activate(viewport) },
-                            onEscape: { viewer.tool = .navigate },
-                            onClick: { point in viewer.click(at: point, in: viewport) })
+                            onEscape: { viewer.escape() },
+                            onClick: { point in viewer.click(at: point, in: viewport) },
+                            onDoubleClick: { viewer.doubleClick(viewport) })
             .overlay { CrosshairOverlay(viewer: viewer, viewport: viewport) }
             .overlay { MeasurementOverlay(viewport: viewport) }
             .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }

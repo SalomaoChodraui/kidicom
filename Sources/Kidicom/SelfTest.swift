@@ -170,6 +170,13 @@ enum SelfTest {
                     check("a third right-click shows four, one per quadrant", viewer.layout == .grid && viewer.activeIndex == 3)
                     viewer.compare(stack)
                     check("with four open, right-click replaces the active one", viewer.layout == .grid)
+                    viewer.doubleClick(viewer.viewports[2])
+                    check("double-click in a split layout shows that viewport alone", viewer.maximized === viewer.viewports[2] && viewer.activeIndex == 2)
+                    viewer.escape()
+                    check("Esc returns to the split layout", viewer.maximized == nil && viewer.layout == .grid)
+                    viewer.doubleClick(viewer.viewports[1])
+                    viewer.doubleClick(viewer.viewports[1])
+                    check("a second double-click also returns", viewer.maximized == nil)
                     viewer.layout = .single
                 }
 

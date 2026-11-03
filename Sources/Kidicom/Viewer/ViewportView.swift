@@ -11,6 +11,7 @@ struct ViewportView: NSViewRepresentable {
     var onActivate: () -> Void
     var onEscape: () -> Void = {}
     var onClick: (CGPoint) -> Void = { _ in }
+    var onDoubleClick: () -> Void = {}
 
     func makeNSView(context: Context) -> ViewportNSView {
         let view = ViewportNSView()
@@ -18,6 +19,7 @@ struct ViewportView: NSViewRepresentable {
         view.onActivate = onActivate
         view.onEscape = onEscape
         view.onClick = onClick
+        view.onDoubleClick = onDoubleClick
         return view
     }
 
@@ -26,6 +28,7 @@ struct ViewportView: NSViewRepresentable {
         view.onActivate = onActivate
         view.onEscape = onEscape
         view.onClick = onClick
+        view.onDoubleClick = onDoubleClick
         _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical)
         view.update(image: viewport.image)
     }
@@ -37,6 +40,8 @@ final class ViewportNSView: NSView {
     var onEscape: () -> Void = {}
     /// A left click without a drag, in image pixels.
     var onClick: (CGPoint) -> Void = { _ in }
+    /// Double-click: maximize in a split layout, reset in a single one.
+    var onDoubleClick: () -> Void = {}
     private var dragged = false
     private let imageLayer = CALayer()
     private var scrollRemainder: CGFloat = 0
@@ -115,7 +120,7 @@ final class ViewportNSView: NSView {
             viewport.pointerDown(at: point, scale: scale)
             measuring = viewport.dragging != nil
         }
-        if !measuring && event.clickCount == 2 { viewport.reset() }
+        if !measuring && event.clickCount == 2 { onDoubleClick() }
     }
 
     override func mouseUp(with event: NSEvent) {
