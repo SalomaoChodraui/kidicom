@@ -54,7 +54,7 @@ struct ContentView: View {
             Label { Text(page.title) } icon: { Image(systemName: page.symbol) }
                 .tag(page)
         }
-        .navigationSplitViewColumnWidth(min: 180, ideal: 212)
+        .navigationSplitViewColumnWidth(min: 200, ideal: 240)
     }
 }
 

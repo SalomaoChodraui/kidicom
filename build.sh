@@ -46,6 +46,11 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   fi
   cp -X "$car" "$here/Resources/AppIcon.icns" "$app/Contents/Resources/"
 fi
+# Strings: English and Portuguese from the String Catalog.
+catalog="$here/Resources/Localization/Localizable.xcstrings"
+if [[ -f "$catalog" ]]; then
+  xcrun xcstringstool compile "$catalog" --output-directory "$app/Contents/Resources" >/dev/null
+fi
 xattr -cr "$app"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
 echo "installed $app (signed: ${identity})"

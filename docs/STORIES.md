@@ -288,9 +288,12 @@ Status: done
 ### S-040 Usar o app em inglês ou português
 Como usuário, vejo a interface no idioma do sistema, inglês ou português.
 Acceptance:
-- [unit] Toda string visível está no String Catalog com as duas línguas.
+- [self] tools/localize.sh lista zero strings sem tradução.
 - [snap] Snapshots em pt-BR e en.
-Status: todo
+UX:
+- English in code, Portuguese (Brazil) in Resources/Localization/Localizable.xcstrings; tools/localize.sh refreshes the catalog from the code and lists any string without a translation; build.sh compiles it into the app
+- Words follow docs/GLOSSARY.md (Study = Exame, Viewport = Quadro, Library = Biblioteca)
+Status: done
 
 ### S-041 Abrir arquivos pelo Finder
 Como usuário, arrasto uma pasta para o ícone do Dock ou uso "Abrir com" e ela vai para a importação.

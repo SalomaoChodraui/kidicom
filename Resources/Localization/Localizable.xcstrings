@@ -1,0 +1,1716 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@  %@  %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@  %2$@  %3$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@  %2$@  %3$@"
+          }
+        }
+      }
+    },
+    "%@ already picks %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ already picks %2$@."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ já escolhe %2$@."
+          }
+        }
+      }
+    },
+    "%@ is already used by the viewer.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ já é usada pelo visualizador."
+          }
+        }
+      }
+    },
+    "%@ mm": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ mm"
+          }
+        }
+      }
+    },
+    "%@ · ^[%lld image](inflect: true)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · ^[%2$lld image](inflect: true)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · ^[%lld imagem](inflect: true)"
+          }
+        }
+      }
+    },
+    "%@°": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@°"
+          }
+        }
+      }
+    },
+    "%lld  %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld  %2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld  %@"
+          }
+        }
+      }
+    },
+    "%lld files could not be read.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld arquivos não puderam ser lidos."
+          }
+        }
+      }
+    },
+    "%lld files that are not DICOM images will be skipped.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld arquivos que não são imagens DICOM serão ignorados."
+          }
+        }
+      }
+    },
+    "%lld gaps between slices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld falhas entre os cortes"
+          }
+        }
+      }
+    },
+    "%lld images are already in the worklist and will be skipped.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld imagens já estão na lista e serão ignoradas."
+          }
+        }
+      }
+    },
+    "%lld items": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld itens"
+          }
+        }
+      }
+    },
+    "%lld mm": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld mm"
+          }
+        }
+      }
+    },
+    "%lld of %lld images": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld of %2$lld images"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld de %2$lld imagens"
+          }
+        }
+      }
+    },
+    "%lld px": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld px"
+          }
+        }
+      }
+    },
+    "%lld were already in the worklist.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld já estavam na lista."
+          }
+        }
+      }
+    },
+    "1 Viewport": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Quadro"
+          }
+        }
+      }
+    },
+    "2 Side by Side": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 Lado a Lado"
+          }
+        }
+      }
+    },
+    "2 Stacked": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 Empilhados"
+          }
+        }
+      }
+    },
+    "3 Side by Side": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 Lado a Lado"
+          }
+        }
+      }
+    },
+    "3D": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3D"
+          }
+        }
+      }
+    },
+    "3D needs a Mac with Metal.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O 3D precisa de um Mac com Metal."
+          }
+        }
+      }
+    },
+    "4 Viewports": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 Quadros"
+          }
+        }
+      }
+    },
+    "Accent color": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cor de destaque"
+          }
+        }
+      }
+    },
+    "All Studies": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos os Exames"
+          }
+        }
+      }
+    },
+    "Always do this": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sempre fazer isso"
+          }
+        }
+      }
+    },
+    "Angle": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ângulo"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aparência"
+          }
+        }
+      }
+    },
+    "Ask Each Time": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perguntar Sempre"
+          }
+        }
+      }
+    },
+    "Ask before deleting a study": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perguntar antes de apagar um exame"
+          }
+        }
+      }
+    },
+    "Automatic": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático"
+          }
+        }
+      }
+    },
+    "Axial": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Axial"
+          }
+        }
+      }
+    },
+    "Bone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osso"
+          }
+        }
+      }
+    },
+    "Brain": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cérebro"
+          }
+        }
+      }
+    },
+    "Building volume…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Montando o volume…"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        }
+      }
+    },
+    "Choose DICOM files, folders, or zips to import.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha arquivos DICOM, pastas ou zips para importar."
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fechar"
+          }
+        }
+      }
+    },
+    "Compare": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparar"
+          }
+        }
+      }
+    },
+    "Copied files go to the Trash. Files kept in place are not touched. You can undo with ⌘Z.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os arquivos copiados vão para o Lixo. Arquivos mantidos no local não são tocados. Dá para desfazer com ⌘Z."
+          }
+        }
+      }
+    },
+    "Copy to Library": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar para a Biblioteca"
+          }
+        }
+      }
+    },
+    "Coronal": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coronal"
+          }
+        }
+      }
+    },
+    "Current Window": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Janela Atual"
+          }
+        }
+      }
+    },
+    "DICOM Tags": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags DICOM"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar"
+          }
+        }
+      }
+    },
+    "Delete %lld studies?": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar %lld exames?"
+          }
+        }
+      }
+    },
+    "Delete Studies": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar Exames"
+          }
+        }
+      }
+    },
+    "Delete Study": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar Exame"
+          }
+        }
+      }
+    },
+    "Delete the study of %@?": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar o exame de %@?"
+          }
+        }
+      }
+    },
+    "Delete…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar…"
+          }
+        }
+      }
+    },
+    "Description": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descrição"
+          }
+        }
+      }
+    },
+    "Distance": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distância"
+          }
+        }
+      }
+    },
+    "Drag: rotate · Shift-drag or ⌘-drag: window/level · Right-drag: zoom · Wheel button: pan": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrastar: girar · Shift ou ⌘ + arrastar: janela · Botão direito: zoom · Rodinha: mover"
+          }
+        }
+      }
+    },
+    "Drop DICOM files, folders, or zips here.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solte aqui arquivos DICOM, pastas ou zips."
+          }
+        }
+      }
+    },
+    "File Window": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Janela do Arquivo"
+          }
+        }
+      }
+    },
+    "Files": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arquivos"
+          }
+        }
+      }
+    },
+    "Files from zips are always copied.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arquivos de zips são sempre copiados."
+          }
+        }
+      }
+    },
+    "Files stay available if the original folder is moved or removed.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os arquivos continuam disponíveis se a pasta original for movida ou apagada."
+          }
+        }
+      }
+    },
+    "Flip Horizontal": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espelhar na Horizontal"
+          }
+        }
+      }
+    },
+    "Flip Vertical": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espelhar na Vertical"
+          }
+        }
+      }
+    },
+    "General": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geral"
+          }
+        }
+      }
+    },
+    "Hide the series of this study": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar as séries deste exame"
+          }
+        }
+      }
+    },
+    "Im %lld/%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Im %1$lld/%2$lld"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "Images": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagens"
+          }
+        }
+      }
+    },
+    "Import": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar"
+          }
+        }
+      }
+    },
+    "Import %lld Images": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar %lld Imagens"
+          }
+        }
+      }
+    },
+    "Import DICOM files, folders, or zips (⌘O)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar arquivos DICOM, pastas ou zips (⌘O)"
+          }
+        }
+      }
+    },
+    "Imported %lld studies, %lld images.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Imported %1$lld studies, %2$lld images."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importados %1$lld exames, %2$lld imagens."
+          }
+        }
+      }
+    },
+    "Importing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importando"
+          }
+        }
+      }
+    },
+    "Importing %lld of %lld images": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Importing %1$lld of %2$lld images"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importando %1$lld de %2$lld imagens"
+          }
+        }
+      }
+    },
+    "Import…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar…"
+          }
+        }
+      }
+    },
+    "In Place": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Local"
+          }
+        }
+      }
+    },
+    "Keep in Place": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manter no Local"
+          }
+        }
+      }
+    },
+    "Key": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tecla"
+          }
+        }
+      }
+    },
+    "Key for %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tecla para %@"
+          }
+        }
+      }
+    },
+    "Keys 1 to 4 apply these to grayscale images; 0 returns to the window in the file.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As teclas 1 a 4 aplicam estas janelas em imagens em tons de cinza; 0 volta à janela do arquivo."
+          }
+        }
+      }
+    },
+    "Kidicom": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kidicom"
+          }
+        }
+      }
+    },
+    "Layout": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divisão"
+          }
+        }
+      }
+    },
+    "Leave 3D (Esc)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sair do 3D (Esc)"
+          }
+        }
+      }
+    },
+    "Leave MPR": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sair do MPR"
+          }
+        }
+      }
+    },
+    "Left button: window/level (%@), scroll (%@), distance (%@), or angle (%@). Esc returns to window/level.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Left button: window/level (%1$@), scroll (%2$@), distance (%3$@), or angle (%4$@). Esc returns to window/level."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Botão esquerdo: janela (%1$@), rolar (%2$@), distância (%3$@) ou ângulo (%4$@). Esc volta para janela."
+          }
+        }
+      }
+    },
+    "Left-Button Tools": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ferramentas do Botão Esquerdo"
+          }
+        }
+      }
+    },
+    "Library": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biblioteca"
+          }
+        }
+      }
+    },
+    "Looking for DICOM files…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Procurando arquivos DICOM…"
+          }
+        }
+      }
+    },
+    "Lung": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pulmão"
+          }
+        }
+      }
+    },
+    "MIP %lld mm": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIP %lld mm"
+          }
+        }
+      }
+    },
+    "MPR": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MPR"
+          }
+        }
+      }
+    },
+    "Maximum Intensity Projection (MIP)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projeção de Intensidade Máxima (MIP)"
+          }
+        }
+      }
+    },
+    "Modality": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modalidade"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome"
+          }
+        }
+      }
+    },
+    "No DICOM images found in the selection. Skipped %lld files.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhuma imagem DICOM na seleção. %lld arquivos ignorados."
+          }
+        }
+      }
+    },
+    "No Image": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem Imagem"
+          }
+        }
+      }
+    },
+    "No Studies": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum Exame"
+          }
+        }
+      }
+    },
+    "No other studies of this patient": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum outro exame deste paciente"
+          }
+        }
+      }
+    },
+    "Oblique": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oblíquo"
+          }
+        }
+      }
+    },
+    "Offline": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indisponível"
+          }
+        }
+      }
+    },
+    "Open a prior study of this patient beside the current one, and set what scrolls together": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir um exame anterior deste paciente ao lado do atual e escolher o que rola junto"
+          }
+        }
+      }
+    },
+    "Orientation": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orientação"
+          }
+        }
+      }
+    },
+    "Patient": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paciente"
+          }
+        }
+      }
+    },
+    "Patient ID": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ID do Paciente"
+          }
+        }
+      }
+    },
+    "Pause": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar"
+          }
+        }
+      }
+    },
+    "Pause the cine (Space)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar o cine (Espaço)"
+          }
+        }
+      }
+    },
+    "Play": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocar"
+          }
+        }
+      }
+    },
+    "Play the images as a cine (Space)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocar as imagens como cine (Espaço)"
+          }
+        }
+      }
+    },
+    "Pos %@ mm": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pos %@ mm"
+          }
+        }
+      }
+    },
+    "Press the key in a viewport to pick the tool. Right button zooms, wheel button pans, wheel scrolls.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperte a tecla num quadro para escolher a ferramenta. Botão direito dá zoom, rodinha move, roda rola."
+          }
+        }
+      }
+    },
+    "Preview of the accent color": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prévia da cor de destaque"
+          }
+        }
+      }
+    },
+    "Recently Imported": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importados Recentemente"
+          }
+        }
+      }
+    },
+    "Reformat the active series in three planes (MPR)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reformatar a série ativa em três planos (MPR)"
+          }
+        }
+      }
+    },
+    "Reset View": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar Imagem"
+          }
+        }
+      }
+    },
+    "Restore Defaults": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar Padrões"
+          }
+        }
+      }
+    },
+    "Rotate Left": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girar à Esquerda"
+          }
+        }
+      }
+    },
+    "Rotate Right": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girar à Direita"
+          }
+        }
+      }
+    },
+    "Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girar ou espelhar o quadro ativo (⌃R, ⌃L, H, V); ⌘R restaura a imagem"
+          }
+        }
+      }
+    },
+    "Sagittal": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sagital"
+          }
+        }
+      }
+    },
+    "Scroll": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rolar"
+          }
+        }
+      }
+    },
+    "Search patient, ID, or description": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar paciente, ID ou descrição"
+          }
+        }
+      }
+    },
+    "Search tag, name, or value": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar tag, nome ou valor"
+          }
+        }
+      }
+    },
+    "Search tags": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar tags"
+          }
+        }
+      }
+    },
+    "Series %lld": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Série %lld"
+          }
+        }
+      }
+    },
+    "Show %@. Right-click to open it beside the others to compare.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar %@. Clique com o botão direito para abrir ao lado e comparar."
+          }
+        }
+      }
+    },
+    "Show in Finder": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar no Finder"
+          }
+        }
+      }
+    },
+    "Show the DICOM tags of the image (⌘I)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar as tags DICOM da imagem (⌘I)"
+          }
+        }
+      }
+    },
+    "Show the active series as a 3D volume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar a série ativa como volume 3D"
+          }
+        }
+      }
+    },
+    "Show the series of this study. Right-click a thumbnail to open it beside the current images.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar as séries deste exame. Clique com o botão direito numa miniatura para abrir ao lado das imagens atuais."
+          }
+        }
+      }
+    },
+    "Skipped %lld files.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld arquivos ignorados."
+          }
+        }
+      }
+    },
+    "Slab": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espessura"
+          }
+        }
+      }
+    },
+    "Soft Tissue": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partes Moles"
+          }
+        }
+      }
+    },
+    "Split the image area into up to four viewports": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dividir a área de imagem em até quatro quadros"
+          }
+        }
+      }
+    },
+    "Studies": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exames"
+          }
+        }
+      }
+    },
+    "Study Date": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data do Exame"
+          }
+        }
+      }
+    },
+    "Study Not Found": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exame Não Encontrado"
+          }
+        }
+      }
+    },
+    "Study Offline": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exame Indisponível"
+          }
+        }
+      }
+    },
+    "Sync": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizar"
+          }
+        }
+      }
+    },
+    "Sync Scrolling": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizar Rolagem"
+          }
+        }
+      }
+    },
+    "Sync Window/Level": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizar Janela"
+          }
+        }
+      }
+    },
+    "Sync Δ %@ mm": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sinc Δ %@ mm"
+          }
+        }
+      }
+    },
+    "Tag": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag"
+          }
+        }
+      }
+    },
+    "The files of this study were moved or removed.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os arquivos deste exame foram movidos ou apagados."
+          }
+        }
+      }
+    },
+    "The files stay where they were imported from.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os arquivos ficam onde estavam na importação."
+          }
+        }
+      }
+    },
+    "Thickness": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espessura"
+          }
+        }
+      }
+    },
+    "Thickness and MIP for the active plane": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espessura e MIP do plano ativo"
+          }
+        }
+      }
+    },
+    "This series can't be reformatted. It needs at least three parallel images with position data.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta série não pode ser reformatada. Ela precisa de pelo menos três imagens paralelas com posição."
+          }
+        }
+      }
+    },
+    "This series mixes image orientations and can't be reformatted.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta série mistura orientações de imagem e não pode ser reformatada."
+          }
+        }
+      }
+    },
+    "Thk %@ mm": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esp %@ mm"
+          }
+        }
+      }
+    },
+    "Tool": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ferramenta"
+          }
+        }
+      }
+    },
+    "Tools": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ferramentas"
+          }
+        }
+      }
+    },
+    "Unable to open %@. The zip may be damaged.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível abrir %@. O zip pode estar danificado."
+          }
+        }
+      }
+    },
+    "Uneven slice spacing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espaçamento irregular entre cortes"
+          }
+        }
+      }
+    },
+    "Use one letter.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use uma letra."
+          }
+        }
+      }
+    },
+    "Uses no extra disk space. The study goes offline if the files move.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não ocupa espaço extra. O exame fica indisponível se os arquivos mudarem de lugar."
+          }
+        }
+      }
+    },
+    "VR": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VR"
+          }
+        }
+      }
+    },
+    "Value": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valor"
+          }
+        }
+      }
+    },
+    "Vascular": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vascular"
+          }
+        }
+      }
+    },
+    "Viewer": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visualizador"
+          }
+        }
+      }
+    },
+    "WL": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WL"
+          }
+        }
+      }
+    },
+    "WL %lld WW %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "WL %1$lld WW %2$lld"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WL %1$lld WW %2$lld"
+          }
+        }
+      }
+    },
+    "WW": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WW"
+          }
+        }
+      }
+    },
+    "When importing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ao importar"
+          }
+        }
+      }
+    },
+    "Which tissues the 3D view shows": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quais tecidos o 3D mostra"
+          }
+        }
+      }
+    },
+    "Window Presets": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Janelas Predefinidas"
+          }
+        }
+      }
+    },
+    "Window/Level": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Janela"
+          }
+        }
+      }
+    },
+    "Windows": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Janelas"
+          }
+        }
+      }
+    },
+    "Zoom %lld%%": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom %lld%%"
+          }
+        }
+      }
+    },
+    "▶ %lld fps": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "▶ %lld qps"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
