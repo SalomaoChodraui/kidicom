@@ -363,7 +363,7 @@ final class ViewerModel {
         guard let session = mpr, let mine = viewport.source as? ReformatSource else { return }
         let n = mine.plane.normal
         let c = session.frame.center
-        session.frame.center = c + (mine.position(viewport.index) - simd_dot(c, n)) * n
+        session.frame.center = c + (mine.position(viewport.index) - simd_dot(c, n)) * n  // grid: ok math, not layout
     }
 
     /// The volume point under a canvas pixel, at the crossing's exact depth
