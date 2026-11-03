@@ -57,7 +57,8 @@ enum Snapshot {
             let studies = (try? model.container.mainContext.fetch(FetchDescriptor<Study>(sortBy: [SortDescriptor(\.studyDate, order: .reverse)]))) ?? []
             let pages: [(String, String, ViewerLayout)] = [
                 ("viewer-ct", "CT", .single), ("viewer-ct-turned", "CT", .single), ("viewer-ct-measure", "CT", .single), ("viewer-ct-tags", "CT", .single), ("viewer-ct-mpr", "CT", .single), ("viewer-ct-mip", "CT", .single),
-                ("viewer-mr-mpr", "MR", .single), ("viewer-ct-3d", "CT", .single), ("viewer-mr-3d", "MR", .single), ("viewer-ct-2x2", "CT", .grid), ("viewer-mr", "MR", .single),
+                ("viewer-mr-mpr", "MR", .single), ("viewer-ct-3d", "CT", .single), ("viewer-mr-3d", "MR", .single),
+                ("viewer-pt-compare", "PT", .single), ("viewer-ct-2x2", "CT", .grid), ("viewer-mr", "MR", .single),
                 ("viewer-mr-1x2", "MR", .sideBySide), ("viewer-us", "US", .single), ("viewer-cr", "CR", .single),
             ]
             for (name, modality, layout) in pages where only == nil || only?.contains(name) == true {
@@ -69,9 +70,10 @@ enum Snapshot {
                 ViewerModel.nextMPR = name.hasSuffix("mpr") || name.hasSuffix("mip")
                 ViewerModel.nextMIP = name.hasSuffix("mip")
                 ViewerModel.next3D = name.hasSuffix("3d")
+                ViewerModel.nextComparePrior = name.hasSuffix("compare")
                 let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet && $0.isVisible }
                 openWindow(id: "viewer", value: study.uid)
-                try? await Task.sleep(for: .seconds(name.hasSuffix("mpr") || name.hasSuffix("mip") || name.hasSuffix("3d") ? 6 : 2))
+                try? await Task.sleep(for: .seconds(name.hasSuffix("mpr") || name.hasSuffix("mip") || name.hasSuffix("3d") || name.hasSuffix("compare") ? 6 : 2))
                 let viewer = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet && $0.canBecomeMain }
                 viewer?.setContentSize(NSSize(width: 1000, height: 720))
                 for mode in ["light", "dark"] {

@@ -19,6 +19,12 @@ final class Viewport: Identifiable {
     }
     /// Called when the person changes the window (MPR keeps planes in sync).
     @ObservationIgnored var onWindowChange: ((VOIWindow?) -> Void)?
+    /// Called after the person moves to another frame (scroll sync, S-031).
+    @ObservationIgnored var onScroll: ((Viewport) -> Void)?
+    /// Called after Shift-scroll moved this viewport alone, to keep its new offset.
+    @ObservationIgnored var onAdjust: ((Viewport) -> Void)?
+    /// mm added to this viewport's slice location when scrolling in sync.
+    var syncOffset: Double = 0
     @ObservationIgnored private var quietWindow = false
 
     func setWindowQuietly(_ newValue: VOIWindow?) {
@@ -125,7 +131,17 @@ final class Viewport: Identifiable {
         stack.prefetch(around: index)
     }
 
-    func step(_ delta: Int) { go(to: index + delta) }
+    /// A move by the person: scroll, keys, cine. Others follow when synced.
+    func step(_ delta: Int) {
+        go(to: index + delta)
+        onScroll?(self)
+    }
+
+    /// Shift-scroll: move this viewport alone and keep the new alignment.
+    func stepAlone(_ delta: Int) {
+        go(to: index + delta)
+        onAdjust?(self)
+    }
 
     /// Left-drag window/level: right widens, left narrows, up raises the
     /// level. Width changes by a factor, so a long drag never collapses it

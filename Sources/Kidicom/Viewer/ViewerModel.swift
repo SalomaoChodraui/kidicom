@@ -61,6 +61,19 @@ final class ViewerModel {
     /// Volumes already built, by series id, shared by MPR and 3D.
     @ObservationIgnored private var volumes: [String: Volume] = [:]
 
+    /// Prior studies opened to compare, shown below the series strip.
+    var priors: [PriorStudy] = []
+    /// Scroll follows across parallel viewports (S-031). On by default.
+    var syncScroll = true
+    /// W/L follows across viewports. Off by default.
+    var syncWindowLevel = false {
+        didSet { connectWindowSync() }
+    }
+
+    init() {
+        connectSync()
+    }
+
     /// The viewport shown alone over the whole image area (double-click), or nil.
     private(set) var maximized: Viewport?
 
@@ -104,6 +117,8 @@ final class ViewerModel {
     static var nextMPR = false
     static var nextMIP = false
     static var next3D = false
+    /// Snapshot mode: open the newest prior beside the next viewer's study.
+    static var nextComparePrior = false
 
     func load(_ study: Study) {
         guard stacks.isEmpty else { return }
@@ -159,7 +174,11 @@ final class ViewerModel {
 
     func show(_ stack: SeriesStack) {
         active?.show(stack)
+        if let active, layout.count > 1 { alignNewViewport(active) }
     }
+
+    /// The current study's series and those of opened priors.
+    var allStacks: [SeriesStack] { stacks + priors.flatMap(\.stacks) }
 
     /// Right-click on a thumbnail: show the series in one more viewport to
     /// compare, 1 -> 2 side by side -> 3 side by side -> 2x2. With four
@@ -172,12 +191,17 @@ final class ViewerModel {
         case 3: next = .grid
         default: next = nil
         }
-        guard let next else { active?.show(stack); return }
+        guard let next else {
+            active?.show(stack)
+            if let active { alignNewViewport(active) }
+            return
+        }
         let target = layout.count
         // Keep the open viewports, then fill the new one with this series.
         viewports[target].show(stack)
         layout = next
         activeIndex = target
+        alignNewViewport(viewports[target])
     }
 
     // MARK: MPR (S-020 to S-022)
@@ -264,6 +288,7 @@ final class ViewerModel {
         }
         layout = session.previousLayout
         activeIndex = 0
+        connectWindowSync()
     }
 
     /// W/L follows across the three planes.
@@ -345,9 +370,10 @@ struct ViewportGrid: View {
             }
             .clipped()
             .dropDestination(for: String.self) { ids, _ in
-                guard let id = ids.first, let stack = viewer.stacks.first(where: { $0.id == id }) else { return false }
+                guard let id = ids.first, let stack = viewer.allStacks.first(where: { $0.id == id }) else { return false }
                 viewer.activate(viewport)
                 viewport.show(stack)
+                viewer.alignNewViewport(viewport)
                 return true
             }
     }

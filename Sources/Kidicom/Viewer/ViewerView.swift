@@ -7,7 +7,14 @@ import SwiftUI
 struct ViewerView: View {
     let studyUID: UUID
     @Query private var studies: [Study]
+    @Query(sort: \Study.studyDate, order: .reverse) private var allStudies: [Study]
     @State private var viewer = ViewerModel()
+
+    /// Other studies of the same patient, newest first.
+    private func priors(of study: Study) -> [Study] {
+        guard !study.patientID.isEmpty else { return [] }
+        return allStudies.filter { $0.patientID == study.patientID && $0.uid != study.uid && !$0.isOffline }
+    }
 
     init(studyUID: UUID) {
         self.studyUID = studyUID
@@ -66,6 +73,28 @@ struct ViewerView: View {
                 .inspectorColumnWidth(min: 400, ideal: 600, max: 1000)
         }
         .toolbar {
+            ToolbarItem {
+                let others = priors(of: study)
+                Menu {
+                    if others.isEmpty {
+                        Text("No other studies of this patient")
+                    }
+                    ForEach(others, id: \.uid) { prior in
+                        Button {
+                            viewer.openPrior(prior)
+                        } label: {
+                            Text("\(prior.studyDate.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")  \(prior.modalities)  \(prior.studyDescription)")
+                        }
+                    }
+                    Divider()
+                    Toggle("Sync Scrolling", isOn: Bindable(viewer).syncScroll)
+                    Toggle("Sync Window/Level", isOn: Bindable(viewer).syncWindowLevel)
+                } label: {
+                    Label("Compare", systemImage: "clock.arrow.circlepath")
+                }
+                .help("Open a prior study of this patient beside the current one, and set what scrolls together")
+                .badge(others.count)
+            }
             ToolbarItem {
                 Picker("Tool", selection: Bindable(viewer).tool) {
                     ForEach(MeasureTool.allCases) { tool in
@@ -147,7 +176,14 @@ struct ViewerView: View {
         }
         .navigationTitle(study.displayName)
         .navigationSubtitle(study.studyDescription)
-        .task(id: study.uid) { viewer.load(study) }
+        .task(id: study.uid) {
+            viewer.load(study)
+            if ViewerModel.nextComparePrior, let prior = priors(of: study).first {
+                ViewerModel.nextComparePrior = false
+                try? await Task.sleep(for: .milliseconds(300))
+                viewer.openPrior(prior)
+            }
+        }
     }
 }
 
@@ -155,17 +191,30 @@ struct ViewerView: View {
 struct SeriesStrip: View {
     let viewer: ViewerModel
 
+    private func thumbnail(_ stack: SeriesStack) -> some View {
+        Button { viewer.show(stack) } label: {
+            SeriesThumbnail(stack: stack, isShown: viewer.active?.source?.id == stack.id)
+        }
+        .buttonStyle(.plain)
+        .overlay { RightClickCatcher { viewer.compare(stack) } }
+        .draggable(stack.id)
+        .help(Text("Show \(stack.title). Right-click to open it beside the others to compare."))
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: Space.sm) {
-                ForEach(viewer.stacks) { stack in
-                    Button { viewer.show(stack) } label: {
-                        SeriesThumbnail(stack: stack, isShown: viewer.active?.source?.id == stack.id)
+                ForEach(viewer.stacks) { stack in thumbnail(stack) }
+                ForEach(viewer.priors) { prior in
+                    VStack(alignment: .leading, spacing: 0) {
+                        Divider()
+                        Text("Prior · \(prior.date.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")")
+                            .font(.caption.weight(.semibold))
+                            .padding(.top, Space.sm)
+                        Text(prior.description).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                     }
-                    .buttonStyle(.plain)
-                    .overlay { RightClickCatcher { viewer.compare(stack) } }
-                    .draggable(stack.id)
-                    .help(Text("Show \(stack.title). Right-click to open it beside the others to compare."))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    ForEach(prior.stacks) { stack in thumbnail(stack) }
                 }
             }
             .padding(Space.sm)
@@ -239,7 +288,7 @@ struct ViewportOverlay: View {
     private var corners: some View {
         VStack {
             HStack(alignment: .top) {
-                corner([study.displayName, study.patientID, study.studyDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
+                corner([study.displayName, study.patientID, shownDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
                 Spacer()
                 corner([study.studyDescription, viewport.source?.title], alignment: .trailing)
             }
@@ -251,6 +300,12 @@ struct ViewportOverlay: View {
             }
         }
         .padding(Space.sm)
+    }
+
+    /// The date of the study this viewport shows, which may be a prior.
+    private var shownDate: Date? {
+        if let stack = viewport.stack, stack.studyUID != nil { return stack.studyDate }
+        return study.studyDate
     }
 
     private var bottomLeft: [String?] {
@@ -267,6 +322,9 @@ struct ViewportOverlay: View {
         }
         if let location = viewport.location, viewport.count > 1 {
             lines.append(String(localized: "Pos \(location.formatted(.number.precision(.fractionLength(1)))) mm"))
+        }
+        if viewport.syncOffset != 0 && viewport.stack != nil && abs(viewport.syncOffset) >= 0.05 {
+            lines.append(String(localized: "Sync Δ \(viewport.syncOffset.formatted(.number.precision(.fractionLength(1)))) mm"))
         }
         if let thickness = viewport.slice?.sliceThickness, thickness > 0 {
             lines.append(String(localized: "Thk \(thickness.formatted(.number.precision(.fractionLength(1)))) mm"))

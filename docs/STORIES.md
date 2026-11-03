@@ -264,7 +264,11 @@ Depends: S-010
 Acceptance:
 - [self] O menu "Anteriores" lista os outros estudos com o mesmo Patient ID, do mais recente ao mais antigo.
 - [snap] O overlay de cada viewport mostra a data do estudo.
-Status: todo
+UX:
+- Flow: toolbar Compare menu (badge with the count) lists the patient's other studies, newest first -> choosing one opens its series most like the active one (same modality and plane, closest image count) beside the current images; its series appear in the strip under "Prior · <date>"
+- Surface: toolbar menu
+- Words: "Compare", "No other studies of this patient", tooltip "Open a prior study of this patient beside the current one, and set what scrolls together"; each viewport shows its own study date
+Status: done
 
 ### S-031 Sincronizar a rolagem entre exames
 Como usuário, rolo um exame e o outro acompanha pela posição anatômica.
@@ -274,7 +278,10 @@ Acceptance:
 - [unit] O corte correspondente é o de posição mais próxima no mesmo Frame of Reference ou, se diferente, pela posição relativa.
 - [manual] Um botão liga e desliga o sincronismo; com Shift-roda rolo só um lado para ajustar o deslocamento, que fica guardado.
 - [self] Janela/nível podem ser sincronizados à parte.
-Status: todo
+UX:
+- Flow: scrolling a viewport moves every visible viewport in a parallel plane to the nearest position; the same frame of reference aligns by absolute position, others by relative position when opened; Shift-scroll or Shift-↑↓ moves one viewport alone and keeps the new offset; Compare menu toggles "Sync Scrolling" (on) and "Sync Window/Level" (off)
+- Words: overlay "Sync Δ 12,5 mm" when an offset is kept
+Status: done
 
 ## M5 Acabamento
 

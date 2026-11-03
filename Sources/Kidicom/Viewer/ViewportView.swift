@@ -175,12 +175,15 @@ final class ViewportNSView: NSView {
             zoom(by: 1 + event.scrollingDeltaY * 0.01, around: convert(event.locationInWindow, from: nil))
             return
         }
-        // Trackpads send many small deltas, wheels a few large ones.
+        // Trackpads send many small deltas, wheels a few large ones. With
+        // Shift held, macOS turns a mouse wheel into horizontal scrolling.
+        let alone = event.modifierFlags.contains(.shift)
+        let raw = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : (alone ? event.scrollingDeltaX : 0)
         let unit: CGFloat = event.hasPreciseScrollingDeltas ? 8 : 1
-        scrollRemainder += event.scrollingDeltaY / unit
+        scrollRemainder += raw / unit
         let steps = Int(scrollRemainder)
         if steps != 0 {
-            viewport.step(-steps)
+            alone ? viewport.stepAlone(-steps) : viewport.step(-steps)
             scrollRemainder -= CGFloat(steps)
         }
     }
@@ -215,12 +218,12 @@ final class ViewportNSView: NSView {
         }
         switch event.specialKey {
         case .delete, .deleteForward, .backspace: viewport.deleteSelected()
-        case .upArrow: viewport.step(-1)
-        case .downArrow: viewport.step(1)
+        case .upArrow: event.modifierFlags.contains(.shift) ? viewport.stepAlone(-1) : viewport.step(-1)
+        case .downArrow: event.modifierFlags.contains(.shift) ? viewport.stepAlone(1) : viewport.step(1)
         case .pageUp: viewport.step(-10)
         case .pageDown: viewport.step(10)
-        case .home: viewport.go(to: 0)
-        case .end: viewport.go(to: viewport.count - 1)
+        case .home: viewport.step(-viewport.index)
+        case .end: viewport.step(viewport.count - 1 - viewport.index)
         default:
             let key = event.charactersIgnoringModifiers ?? ""
             if let digit = Int(key), let preset = WindowPreset(rawValue: digit) {

@@ -181,6 +181,7 @@ enum SelfTest {
                 }
 
                 await mprChecks(ct)
+                await compareChecks(ct, prior: studies().first { $0.patientID == ct.patientID && $0.uid != ct.uid })
 
                 viewer.layout = .grid
                 check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.source != nil })
@@ -306,6 +307,32 @@ enum SelfTest {
         viewer.exitMPR()
         check("leaving MPR restores the previous layout and series", viewer.mpr == nil && viewer.layout == .single && viewer.viewports[0].stack != nil)
 
+    }
+
+    static func compareChecks(_ ct: Study, prior: Study?) async {
+        guard let prior else { check("the sample CT has a prior", false); return }
+        let viewer = ViewerModel()
+        viewer.load(ct)
+        let current = viewer.viewports[0]
+        current.go(to: 10)
+        viewer.openPrior(prior)
+        let other = viewer.viewports[1]
+        check("a prior opens beside the current study", viewer.layout == .sideBySide && other.stack?.studyUID == prior.uid)
+        check("the prior starts at the same relative position", other.index == 10)
+        current.step(3)
+        check("scrolling the current study moves the prior with it", other.index == 13)
+        other.stepAlone(2)
+        check("Shift-scroll moves only the prior", other.index == 15 && current.index == 13)
+        current.step(-1)
+        check("after Shift-scroll the two keep the new offset", other.index == 14 && current.index == 12, "\(other.index)")
+        viewer.syncScroll = false
+        current.step(-2)
+        check("with Sync Scrolling off the prior stays put", other.index == 14)
+        viewer.syncWindowLevel = true
+        let started = Date.now
+        while current.slice == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+        current.adjustWindow(dx: 50, dy: 0)
+        check("Sync Window/Level copies the window to the prior", other.window == current.window && current.window != nil)
     }
 
     private static func brightest(_ slice: DecodedSlice?) -> Float {

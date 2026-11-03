@@ -44,6 +44,10 @@ final class SeriesStack: Identifiable {
     let title: String
     let modality: String
     let slices: [SliceRef]
+    let frameOfReferenceUID: String
+    /// The study this series belongs to, for the overlay and comparisons.
+    let studyUID: UUID?
+    let studyDate: Date?
     /// Rendered middle frame for the series strip.
     var thumbnail: CGImage?
 
@@ -57,6 +61,9 @@ final class SeriesStack: Identifiable {
         id = series.seriesUID
         number = series.number
         modality = series.modality
+        frameOfReferenceUID = series.frameOfReferenceUID
+        studyUID = series.study?.uid
+        studyDate = series.study?.studyDate
         title = series.seriesDescription.isEmpty ? String(localized: "Series \(series.number)") : series.seriesDescription
         let images = series.images
         let order = SliceOrder.order(images.map {
