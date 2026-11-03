@@ -109,6 +109,27 @@ struct ViewerView: View {
                 SlabButton(viewer: viewer)
             }
             ToolbarItem {
+                Toggle(isOn: Binding(get: { viewer.volume3D != nil }, set: { _ in viewer.toggle3D() })) {
+                    Label("3D", systemImage: "cube")
+                }
+                .help(viewer.volume3D == nil ? "Show the active series as a 3D volume" : "Leave 3D (Esc)")
+                .disabled(viewer.volume3D == nil && viewer.mprCandidate == nil && viewer.mpr == nil || viewer.buildProgress != nil)
+            }
+            if let session = viewer.volume3D {
+                ToolbarItem {
+                    Menu {
+                        ForEach(VolumePreset.allCases) { preset in
+                            Button { session.apply(preset) } label: { Text(preset.title) }
+                        }
+                    } label: {
+                        Label { Text(session.camera.preset.title) } icon: { Image(systemName: "paintpalette") }
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .fixedSize()
+                    .help("Which tissues the 3D view shows")
+                }
+            }
+            ToolbarItem {
                 Button("DICOM Tags", systemImage: "info.circle") { viewer.showsTags.toggle() }
                     .keyboardShortcut("i")
                     .help("Show the DICOM tags of the image (⌘I)")

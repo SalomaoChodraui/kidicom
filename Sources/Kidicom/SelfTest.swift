@@ -284,6 +284,25 @@ enum SelfTest {
             let mip = brightest(coronal.slice)
             check("a 40 mm MIP is at least as bright as the single plane", mip >= plain && source.isMIP)
         }
+        // S-023: 3D of the same volume, rendered offscreen.
+        if let volume = viewer.mpr?.volume, let session = VolumeSession(volume: volume, title: "CT", window: VOIWindow(center: 40, width: 400), modality: "CT") {
+            func lit(_ image: CGImage?) -> Int {
+                guard let data = image?.dataProvider?.data as Data? else { return -1 }
+                return stride(from: 0, to: data.count, by: 4).filter { data[$0] > 20 || data[$0 + 1] > 20 }.count
+            }
+            func bytes(_ image: CGImage?) -> Data? { image?.dataProvider?.data as Data? }
+            session.renderer.camera = session.camera
+            let front = session.renderer.renderImage(width: 96, height: 96)
+            check("3D renders the CT with the bone preset", session.camera.preset == .bone && lit(front) > 50, "\(lit(front)) lit pixels")
+            session.rotate(dx: 157, dy: 0)
+            session.renderer.camera = session.camera
+            check("dragging rotates the 3D view", bytes(session.renderer.renderImage(width: 96, height: 96)) != bytes(front))
+            session.apply(.softTissue)
+            session.renderer.camera = session.camera
+            check("the soft tissue preset shows more of the body than bone", lit(session.renderer.renderImage(width: 96, height: 96)) > lit(front))
+        } else {
+            check("3D renders the CT with the bone preset", false, "no Metal renderer")
+        }
         viewer.exitMPR()
         check("leaving MPR restores the previous layout and series", viewer.mpr == nil && viewer.layout == .single && viewer.viewports[0].stack != nil)
 

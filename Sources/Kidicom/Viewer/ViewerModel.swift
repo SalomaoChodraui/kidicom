@@ -54,8 +54,12 @@ final class ViewerModel {
     private(set) var mpr: MPRSession?
     /// Progress while a volume builds, 0...1.
     private(set) var buildProgress: Double?
-    /// Why the last MPR request failed, shown inline.
+    /// Why the last MPR or 3D request failed, shown inline.
     var mprMessage: String?
+    /// The 3D view, while it is on.
+    private(set) var volume3D: VolumeSession?
+    /// Volumes already built, by series id, shared by MPR and 3D.
+    @ObservationIgnored private var volumes: [String: Volume] = [:]
 
     /// The viewport shown alone over the whole image area (double-click), or nil.
     private(set) var maximized: Viewport?
@@ -73,9 +77,9 @@ final class ViewerModel {
         }
     }
 
-    /// Esc: leave the maximized viewport first, then the measuring tool.
+    /// Esc: leave 3D or the maximized viewport first, then the measuring tool.
     func escape() {
-        if maximized != nil { maximized = nil } else { tool = .navigate }
+        if volume3D != nil { volume3D = nil } else if maximized != nil { maximized = nil } else { tool = .navigate }
     }
 
     /// Shows the DICOM tags of the active image (⌘I).
@@ -99,6 +103,7 @@ final class ViewerModel {
     /// Snapshot mode: open MPR in the next viewer; with MIP, a 20 mm MIP on the second plane.
     static var nextMPR = false
     static var nextMIP = false
+    static var next3D = false
 
     func load(_ study: Study) {
         guard stacks.isEmpty else { return }
@@ -116,6 +121,10 @@ final class ViewerModel {
         }
         fillEmptyViewports()
         for stack in stacks { Task { await stack.makeThumbnail() } }
+        if Self.next3D {
+            Self.next3D = false
+            Task { await enter3D() }
+        }
         if Self.nextMPR {
             Self.nextMPR = false
             let mip = Self.nextMIP
@@ -188,16 +197,7 @@ final class ViewerModel {
         mprMessage = nil
         buildProgress = 0
         defer { buildProgress = nil }
-        let volume: Volume
-        do {
-            volume = try await stack.buildVolume { self.buildProgress = $0 }
-        } catch VolumeError.mixedOrientations {
-            mprMessage = String(localized: "This series mixes image orientations and can't be reformatted.")
-            return
-        } catch {
-            mprMessage = String(localized: "This series can't be reformatted. It needs at least three parallel images with position data.")
-            return
-        }
+        guard let volume = await volume(for: stack) else { return }
         let window = current.effectiveWindow ?? VOIWindow(center: 40, width: 400)
         let sources = VolumePlane.allCases.map {
             ReformatSource(volume: volume, plane: $0, seriesID: stack.id, modality: stack.modality, window: window)
@@ -216,6 +216,43 @@ final class ViewerModel {
         // Sources first, then the layout, so no viewport loads a series on the way.
         layout = .three
         activeIndex = 0
+    }
+
+    /// Builds or reuses the volume of a series, reporting why it can't be built.
+    private func volume(for stack: SeriesStack) async -> Volume? {
+        if let cached = volumes[stack.id] { return cached }
+        buildProgress = 0
+        defer { buildProgress = nil }
+        do {
+            let volume = try await stack.buildVolume { self.buildProgress = $0 }
+            volumes = [stack.id: volume]   // keep one volume in memory
+            return volume
+        } catch VolumeError.mixedOrientations {
+            mprMessage = String(localized: "This series mixes image orientations and can't be reformatted.")
+        } catch {
+            mprMessage = String(localized: "This series can't be reformatted. It needs at least three parallel images with position data.")
+        }
+        return nil
+    }
+
+    // MARK: 3D (S-023)
+
+    func toggle3D() {
+        if volume3D != nil { volume3D = nil } else { Task { await enter3D() } }
+    }
+
+    func enter3D() async {
+        guard volume3D == nil, buildProgress == nil else { return }
+        let stack = mprCandidate ?? (mpr.flatMap { session in stacks.first { $0.id == session.sources.first?.id.split(separator: "#").first.map(String.init) } })
+        guard let stack else { return }
+        mprMessage = nil
+        let window = active?.effectiveWindow ?? VOIWindow(center: 40, width: 400)
+        guard let volume = await volume(for: stack) else { return }
+        guard let session = VolumeSession(volume: volume, title: stack.title, window: window, modality: stack.modality) else {
+            mprMessage = String(localized: "3D needs a Mac with Metal.")
+            return
+        }
+        volume3D = session
     }
 
     func exitMPR() {
@@ -269,7 +306,10 @@ struct ViewportGrid: View {
 
     var body: some View {
         let layout = viewer.layout
-        if let maximized = viewer.maximized {
+        if let session = viewer.volume3D {
+            VolumePane(session: session, study: study)
+                .onKeyPress(.escape) { viewer.escape(); return .handled }
+        } else if let maximized = viewer.maximized {
             cell(maximized)
         } else {
             grid(layout)

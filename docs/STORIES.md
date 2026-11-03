@@ -248,8 +248,12 @@ Depends: S-020
 Acceptance:
 - [self] Volume rendering em Metal acima de 30 fps durante a rotação num volume de 512x512x600.
 - [snap] Presets: Osso, Partes moles, Pulmão, Vascular.
-- [manual] O arraste horizontal e vertical com o botão esquerdo gira; o direito ajusta a janela.
-Status: todo
+- [manual] O arraste com o botão esquerdo gira; Shift + esquerdo ajusta a janela; o direito dá zoom e o da rodinha move, como no 2D.
+UX:
+- Flow: toolbar 3D toggle on the active series (or the MPR series) -> builds or reuses the volume -> front view, head up, patient right on screen left -> left-drag rotates, Shift-left-drag sets the window, right-drag or wheel zooms, wheel-button drag pans, double-click resets the camera -> palette menu picks Bone, Soft Tissue, Lung, Vascular, Automatic (MR default, from the volume's values), Current Window -> 3D toggle or Esc leaves
+- Surface: replaces the image area; toolbar toggle and menu
+- Words: "3D", "Leave 3D (Esc)", presets above; hint line "Drag to rotate · Shift-drag: window · Right-drag: zoom · Wheel button: pan"
+Status: done
 
 ## M4 Comparação
 
