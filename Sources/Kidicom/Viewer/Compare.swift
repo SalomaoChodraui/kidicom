@@ -65,6 +65,7 @@ extension ViewerModel {
         for viewport in viewports {
             viewport.onScroll = { [weak self] v in self?.follow(v) }
             viewport.onAdjust = { [weak self] v in self?.realign(v) }
+            viewport.onViewChange = { [weak self] v in self?.followView(v) }
         }
     }
 
@@ -95,6 +96,14 @@ extension ViewerModel {
                 }
             }
             viewport.go(to: best)
+        }
+    }
+
+    /// Copies zoom and pan to the other viewports in the same plane.
+    func followView(_ leader: Viewport) {
+        guard syncZoom, mpr == nil, let plane = plane(of: leader) else { return }
+        for viewport in visible where viewport !== leader && self.plane(of: viewport) == plane {
+            viewport.setViewQuietly(zoom: leader.zoom, pan: leader.pan)
         }
     }
 

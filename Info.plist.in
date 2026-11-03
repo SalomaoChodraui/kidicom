@@ -15,7 +15,7 @@
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
-<key>CFBundleLocalizations</key><array><string>en</string><string>pt-BR</string></array>
+<key>CFBundleLocalizations</key><array><string>en</string><string>pt</string><string>pt-BR</string></array>
 <key>CFBundleDocumentTypes</key>
 <array>
   <dict>

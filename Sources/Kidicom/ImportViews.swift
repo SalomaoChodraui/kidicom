@@ -29,10 +29,10 @@ struct ImportSheet: View {
                     Label("Files from zips are always copied.", systemImage: "doc.zipper")
                 }
                 if model.importer.alreadyImported > 0 {
-                    Label("\(model.importer.alreadyImported) images are already in the worklist and will be skipped.", systemImage: "checkmark.circle")
+                    Label("Already in the worklist and skipped: ^[\(model.importer.alreadyImported) image](inflect: true).", systemImage: "checkmark.circle")
                 }
                 if model.importer.pendingSkipped > 0 {
-                    Label("\(model.importer.pendingSkipped) files that are not DICOM images will be skipped.", systemImage: "doc")
+                    Label("Not DICOM images, skipped: ^[\(model.importer.pendingSkipped) file](inflect: true).", systemImage: "doc")
                 }
             }
             .font(.callout)
@@ -115,7 +115,7 @@ struct ImportStatusBar: View {
             Text(summaryText(summary))
         case .nothingFound(let skipped):
             Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary)
-            Text("No DICOM images found in the selection. Skipped \(skipped) files.")
+            Text("No DICOM images found in the selection. Skipped: ^[\(skipped) file](inflect: true).")
             closeButton
         case .failed(let message):
             Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary)
@@ -127,10 +127,12 @@ struct ImportStatusBar: View {
     }
 
     private func summaryText(_ s: ImportSummary) -> String {
-        var parts = [String(localized: "Imported \(s.studies) studies, \(s.images) images.")]
-        if s.duplicates > 0 { parts.append(String(localized: "\(s.duplicates) were already in the worklist.")) }
-        if s.skipped > 0 { parts.append(String(localized: "Skipped \(s.skipped) files.")) }
-        if s.failed > 0 { parts.append(String(localized: "\(s.failed) files could not be read.")) }
+        // Inflection makes "1 study" and "2 studies" agree, in each language.
+        func text(_ value: AttributedString) -> String { String(value.characters) }
+        var parts = [text(AttributedString(localized: "Imported ^[\(s.studies) study](inflect: true), ^[\(s.images) image](inflect: true)."))]
+        if s.duplicates > 0 { parts.append(text(AttributedString(localized: "Already in the worklist: ^[\(s.duplicates) image](inflect: true)."))) }
+        if s.skipped > 0 { parts.append(text(AttributedString(localized: "Skipped: ^[\(s.skipped) file](inflect: true)."))) }
+        if s.failed > 0 { parts.append(text(AttributedString(localized: "Unreadable: ^[\(s.failed) file](inflect: true)."))) }
         return parts.joined(separator: " ")
     }
 

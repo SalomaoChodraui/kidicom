@@ -35,7 +35,10 @@ final class Study {
         self.studyUID = studyUID
     }
 
-    var displayName: String { PersonName.display(patientName) }
+    var displayName: String {
+        let name = PersonName.display(patientName)
+        return name.isEmpty ? String(localized: "Anonymous") : name
+    }
 
     /// Sort key for Study Date; studies without a date sort as oldest.
     var sortDate: Date { studyDate ?? .distantPast }

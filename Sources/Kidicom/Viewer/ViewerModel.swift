@@ -42,7 +42,7 @@ enum ViewerLayout: String, CaseIterable, Identifiable {
 final class ViewerModel {
     private(set) var stacks: [SeriesStack] = []
     /// Four viewports always exist; the layout decides how many show.
-    let viewports: [Viewport] = (0 ..< 4).map { _ in Viewport() }
+    private(set) var viewports: [Viewport] = (0 ..< 4).map { _ in Viewport() }
     var activeIndex = 0
     var layout: ViewerLayout = .single {
         didSet {
@@ -67,6 +67,10 @@ final class ViewerModel {
     var expandedPriors: Set<UUID> = []
     /// Scroll follows across parallel viewports (S-031). On by default.
     var syncScroll = true
+    /// Zoom and pan follow across parallel viewports. On by default.
+    var syncZoom = true {
+        didSet { if syncZoom, let active { followView(active) } }
+    }
     /// W/L follows across viewports. Off by default.
     var syncWindowLevel = false {
         didSet { connectWindowSync() }
@@ -90,6 +94,29 @@ final class ViewerModel {
         } else {
             viewport.reset()
         }
+    }
+
+    /// ⌘W in the viewer: leave 3D or MPR, else close the active viewport
+    /// when several show. Returns false when only one shows, so the window
+    /// closes as usual.
+    func closeActiveViewport() -> Bool {
+        if volume3D != nil { volume3D = nil; return true }
+        if mpr != nil { exitMPR(); return true }
+        guard layout.count > 1, viewports.indices.contains(activeIndex) else { return false }
+        maximized = nil
+        let closing = viewports.remove(at: activeIndex)
+        closing.clear()
+        viewports.append(closing)
+        let smaller: ViewerLayout
+        switch layout.count {
+        case 4: smaller = .three
+        case 3: smaller = .sideBySide
+        default: smaller = .single
+        }
+        let next = min(activeIndex, smaller.count - 1)
+        layout = smaller
+        activeIndex = next
+        return true
     }
 
     /// Esc: leave 3D or the maximized viewport first, then the measuring tool.

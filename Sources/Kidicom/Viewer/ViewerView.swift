@@ -88,6 +88,7 @@ struct ViewerView: View {
                     }
                     Divider()
                     Toggle("Sync Scrolling", isOn: Bindable(viewer).syncScroll)
+                    Toggle("Sync Zoom", isOn: Bindable(viewer).syncZoom)
                     Toggle("Sync Window/Level", isOn: Bindable(viewer).syncWindowLevel)
                 } label: {
                     Label("Compare", systemImage: "clock.arrow.circlepath")
@@ -181,6 +182,7 @@ struct ViewerView: View {
         }
         .navigationTitle(study.displayName)
         .navigationSubtitle(study.studyDescription)
+        .background(CloseKeyCatcher { viewer.closeActiveViewport() })
         .task(id: study.uid) {
             viewer.load(study)
             if ViewerModel.nextComparePrior, let prior = priors(of: study).first {
@@ -408,7 +410,7 @@ struct SlabButton: View {
 
     var body: some View {
         let source = viewer.active?.source as? ReformatSource
-        Button("Slab", systemImage: "square.3.layers.3d") { isPresented.toggle() }
+        Button("Slab and MIP", systemImage: "square.3.layers.3d") { isPresented.toggle() }
             .help("Thickness and MIP for the active plane")
             .disabled(source == nil)
             .popover(isPresented: $isPresented, arrowEdge: .bottom) {
@@ -416,5 +418,41 @@ struct SlabButton: View {
                     SlabControls(source: source, viewport: viewport)
                 }
             }
+    }
+}
+
+/// Catches ⌘W in the viewer window before the window closes: the viewer
+/// closes one viewport (or leaves MPR or 3D) and only lets the window close
+/// when one viewport is left.
+struct CloseKeyCatcher: NSViewRepresentable {
+    let close: () -> Bool
+
+    func makeNSView(context: Context) -> CatcherView {
+        let view = CatcherView()
+        view.close = close
+        return view
+    }
+
+    func updateNSView(_ view: CatcherView, context: Context) { view.close = close }
+
+    final class CatcherView: NSView {
+        var close: () -> Bool = { false }
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, let window = self.window, event.window === window,
+                      event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                      event.charactersIgnoringModifiers?.lowercased() == "w" else { return event }
+                return self.close() ? nil : event
+            }
+        }
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        // The monitor goes away in viewDidMoveToWindow when the view leaves its window.
     }
 }

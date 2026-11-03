@@ -213,6 +213,13 @@ enum SelfTest {
                     viewer.doubleClick(viewer.viewports[1])
                     viewer.doubleClick(viewer.viewports[1])
                     check("a second double-click also returns", viewer.maximized == nil)
+                    // ⌘W closes the active viewport while several show.
+                    viewer.activate(viewer.viewports[1])
+                    let kept = viewer.viewports[2]
+                    check("⌘W in a 2x2 closes one viewport", viewer.closeActiveViewport() && viewer.layout == .three && viewer.viewports[1] === kept)
+                    _ = viewer.closeActiveViewport()
+                    _ = viewer.closeActiveViewport()
+                    check("down to one viewport, ⌘W lets the window close", viewer.layout == .single && !viewer.closeActiveViewport())
                     viewer.layout = .single
                 }
 
@@ -337,7 +344,7 @@ enum SelfTest {
         await viewer.enterMPR()
         let planes = viewer.mpr?.sources.map(\.title) ?? []
         check("MPR builds a 64x64x24 volume", viewer.mpr?.volume.width == 64 && viewer.mpr?.volume.depth == 24, "\(String(describing: viewer.mprMessage))")
-        check("MPR shows axial, coronal, and sagittal side by side", viewer.layout == .three && planes == [PatientPlane.axial, .coronal, .sagittal].map(ReformatSource.name), "\(planes)")
+        check("MPR shows axial, coronal, and sagittal side by side", viewer.layout == .three && viewer.mpr?.sources.map({ PatientPlane(orientation: $0.volume.orientation($0.plane)) }) == [.axial, .coronal, .sagittal], "\(planes)")
         let axial = viewer.viewports[0], coronal = viewer.viewports[1], sagittal = viewer.viewports[2]
         let started = Date.now
         while coronal.image == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
@@ -421,6 +428,12 @@ enum SelfTest {
         check("Shift-scroll moves only the prior", other.index == 15 && current.index == 13)
         current.step(-1)
         check("after Shift-scroll the two keep the new offset", other.index == 14 && current.index == 12, "\(other.index)")
+        current.zoom = 1.6
+        current.pan = CGSize(width: 20, height: -10)
+        check("Sync Zoom copies zoom and pan to the prior", other.zoom == 1.6 && other.pan == CGSize(width: 20, height: -10))
+        viewer.syncZoom = false
+        current.zoom = 2
+        check("with Sync Zoom off the prior keeps its zoom", other.zoom == 1.6)
         viewer.syncScroll = false
         current.step(-2)
         check("with Sync Scrolling off the prior stays put", other.index == 14)

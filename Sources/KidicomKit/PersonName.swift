@@ -4,7 +4,7 @@ import Foundation
 /// three groups split by "=" (alphabetic, ideographic, phonetic).
 public enum PersonName {
     /// Readable form of the alphabetic group: "SILVA^MARIA^C" becomes
-    /// "Silva, Maria C". An empty name becomes "Anonymous".
+    /// "Silva, Maria C". An empty name stays empty; the app shows its own word.
     public static func display(_ raw: String) -> String {
         let alphabetic = raw.split(separator: "=", omittingEmptySubsequences: false).first.map(String.init) ?? ""
         let parts = alphabetic.split(separator: "^", omittingEmptySubsequences: false)
@@ -12,7 +12,7 @@ public enum PersonName {
         let family = parts.first.map(capitalize) ?? ""
         let rest = parts.dropFirst().prefix(2).filter { !$0.isEmpty }.map(capitalize).joined(separator: " ")
         switch (family.isEmpty, rest.isEmpty) {
-        case (true, true): return "Anonymous"
+        case (true, true): return ""
         case (false, true): return family
         case (true, false): return rest
         case (false, false): return "\(family), \(rest)"

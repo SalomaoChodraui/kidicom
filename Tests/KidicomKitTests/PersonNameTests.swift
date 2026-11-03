@@ -6,8 +6,8 @@ import Testing
     ("SILVA^MARIA", "Silva, Maria"),
     ("SILVA", "Silva"),
     ("^MARIA", "Maria"),
-    ("", "Anonymous"),
-    ("^^", "Anonymous"),
+    ("", ""),
+    ("^^", ""),
     ("McDonald^Ann", "McDonald, Ann"),
     ("YAMADA^TARO=山田^太郎", "Yamada, Taro"),
 ])

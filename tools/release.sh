@@ -40,9 +40,17 @@ ln -s /Applications "$stage/Applications"
 dmg="dist/Kidicom-$version.dmg"
 rm -f "$dmg"
 hdiutil create -volname "Kidicom $version" -srcfolder "$stage" -format UDZO -ov "$dmg" >/dev/null
-[[ "$identity" == "-" ]] || codesign --force --sign "$identity" "$dmg"
+if [[ "$identity" == Developer\ ID* ]]; then
+  codesign --force --timestamp --sign "$identity" "$dmg"
+elif [[ "$identity" != "-" ]]; then
+  codesign --force --sign "$identity" "$dmg"
+fi
 
-if [[ -n "${NOTARY_PROFILE:-}" && "$identity" == Developer\ ID* ]]; then
+if [[ -n "${NOTARY_PROFILE:-}" && "$identity" != Developer\ ID* ]]; then
+  echo "NOTARY_PROFILE is set but there is no Developer ID Application certificate: cannot notarize." >&2
+  exit 1
+fi
+if [[ -n "${NOTARY_PROFILE:-}" ]]; then
   xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
   xcrun stapler staple "$dmg"
   spctl --assess --type open --context context:primary-signature --verbose "$dmg"

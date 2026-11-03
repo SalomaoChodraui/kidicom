@@ -95,42 +95,12 @@
         }
       }
     },
-    "%lld files could not be read.": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld arquivos não puderam ser lidos."
-          }
-        }
-      }
-    },
-    "%lld files that are not DICOM images will be skipped.": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld arquivos que não são imagens DICOM serão ignorados."
-          }
-        }
-      }
-    },
     "%lld gaps between slices": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld falhas entre os cortes"
-          }
-        }
-      }
-    },
-    "%lld images are already in the worklist and will be skipped.": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld imagens já estão na lista e serão ignoradas."
           }
         }
       }
@@ -177,16 +147,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld px"
-          }
-        }
-      }
-    },
-    "%lld were already in the worklist.": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld já estavam na lista."
           }
         }
       }
@@ -271,12 +231,62 @@
         }
       }
     },
+    "Add to Album": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar ao Álbum"
+          }
+        }
+      }
+    },
+    "Album": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Álbum"
+          }
+        }
+      }
+    },
+    "Albums": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Álbuns"
+          }
+        }
+      }
+    },
     "All Studies": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Todos os Exames"
+          }
+        }
+      }
+    },
+    "Already in the worklist and skipped: ^[%lld image](inflect: true).": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Já na lista, ignoradas: ^[%lld imagem](inflect: true)."
+          }
+        }
+      }
+    },
+    "Already in the worklist: ^[%lld image](inflect: true).": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Já estavam na lista: ^[%lld imagem](inflect: true)."
           }
         }
       }
@@ -297,6 +307,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ângulo"
+          }
+        }
+      }
+    },
+    "Anonymous": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anônimo"
           }
         }
       }
@@ -361,6 +381,16 @@
         }
       }
     },
+    "Bone Density": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Densitometria"
+          }
+        }
+      }
+    },
     "Brain": {
       "localizations": {
         "pt-BR": {
@@ -377,6 +407,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Montando o volume…"
+          }
+        }
+      }
+    },
+    "CT": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomografia"
           }
         }
       }
@@ -451,6 +491,16 @@
         }
       }
     },
+    "Create": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criar"
+          }
+        }
+      }
+    },
     "Current Window": {
       "localizations": {
         "pt-BR": {
@@ -481,12 +531,12 @@
         }
       }
     },
-    "Delete %lld studies?": {
+    "Delete Album": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apagar %lld exames?"
+            "value": "Apagar Álbum"
           }
         }
       }
@@ -507,6 +557,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apagar Exame"
+          }
+        }
+      }
+    },
+    "Delete ^[%lld study](inflect: true)?": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar ^[%lld exame](inflect: true)?"
           }
         }
       }
@@ -547,6 +607,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Distância"
+          }
+        }
+      }
+    },
+    "Drag studies from the list to the album, or right-click them.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arraste exames da lista para o álbum, ou use o clique direito neles."
           }
         }
       }
@@ -707,18 +777,18 @@
         }
       }
     },
-    "Imported %lld studies, %lld images.": {
+    "Imported ^[%lld study](inflect: true), ^[%lld image](inflect: true).": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "new",
-            "value": "Imported %1$lld studies, %2$lld images."
+            "value": "Imported ^[%1$lld study](inflect: true), ^[%2$lld image](inflect: true)."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Importados %1$lld exames, %2$lld imagens."
+            "value": "Importados ^[%1$lld exame](inflect: true), ^[%2$lld imagem](inflect: true)."
           }
         }
       }
@@ -925,12 +995,52 @@
         }
       }
     },
+    "MR": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ressonância"
+          }
+        }
+      }
+    },
+    "Make an album to group studies, like teaching cases": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crie um álbum para agrupar exames, como casos de ensino"
+          }
+        }
+      }
+    },
+    "Mammography": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mamografia"
+          }
+        }
+      }
+    },
     "Maximum Intensity Projection (MIP)": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Projeção de Intensidade Máxima (MIP)"
+          }
+        }
+      }
+    },
+    "Modalities": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modalidades"
           }
         }
       }
@@ -955,12 +1065,32 @@
         }
       }
     },
-    "No DICOM images found in the selection. Skipped %lld files.": {
+    "New Album": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nenhuma imagem DICOM na seleção. %lld arquivos ignorados."
+            "value": "Novo Álbum"
+          }
+        }
+      }
+    },
+    "New Album with Selection…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Novo Álbum com a Seleção…"
+          }
+        }
+      }
+    },
+    "No DICOM images found in the selection. Skipped: ^[%lld file](inflect: true).": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhuma imagem DICOM na seleção. Ignorados: ^[%lld arquivo](inflect: true)."
           }
         }
       }
@@ -991,6 +1121,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nenhum outro exame deste paciente"
+          }
+        }
+      }
+    },
+    "Not DICOM images, skipped: ^[%lld file](inflect: true).": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não são imagens DICOM, ignorados: ^[%lld arquivo](inflect: true)."
+          }
+        }
+      }
+    },
+    "Nuclear Medicine": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medicina Nuclear"
           }
         }
       }
@@ -1031,6 +1181,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Orientação"
+          }
+        }
+      }
+    },
+    "Other": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outros"
           }
         }
       }
@@ -1125,6 +1285,26 @@
         }
       }
     },
+    "Private Creator": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Criador Privado"
+          }
+        }
+      }
+    },
+    "Private Tag": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag Privada"
+          }
+        }
+      }
+    },
     "Recently Imported": {
       "localizations": {
         "pt-BR": {
@@ -1141,6 +1321,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reformatar a série ativa em três planos (MPR)"
+          }
+        }
+      }
+    },
+    "Remove from Album": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remover do Álbum"
+          }
+        }
+      }
+    },
+    "Rename": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renomear"
+          }
+        }
+      }
+    },
+    "Rename Album": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renomear Álbum"
+          }
+        }
+      }
+    },
+    "Rename…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renomear…"
           }
         }
       }
@@ -1305,22 +1525,22 @@
         }
       }
     },
-    "Skipped %lld files.": {
+    "Skipped: ^[%lld file](inflect: true).": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld arquivos ignorados."
+            "value": "Ignorados: ^[%lld arquivo](inflect: true)."
           }
         }
       }
     },
-    "Slab": {
+    "Slab and MIP": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Espessura"
+            "value": "Espessura e MIP"
           }
         }
       }
@@ -1411,6 +1631,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sincronizar Janela"
+          }
+        }
+      }
+    },
+    "Sync Zoom": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizar Zoom"
           }
         }
       }
@@ -1525,6 +1755,16 @@
         }
       }
     },
+    "Ultrasound": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ultrassom"
+          }
+        }
+      }
+    },
     "Unable to open %@. The zip may be damaged.": {
       "localizations": {
         "pt-BR": {
@@ -1541,6 +1781,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Espaçamento irregular entre cortes"
+          }
+        }
+      }
+    },
+    "Unknown Tag": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag Desconhecida"
+          }
+        }
+      }
+    },
+    "Unreadable: ^[%lld file](inflect: true).": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ilegíveis: ^[%lld arquivo](inflect: true)."
+          }
+        }
+      }
+    },
+    "Untitled Album": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Álbum sem Nome"
           }
         }
       }
@@ -1687,6 +1957,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Janelas"
+          }
+        }
+      }
+    },
+    "X-Ray": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raio X"
           }
         }
       }

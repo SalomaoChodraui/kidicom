@@ -7,17 +7,26 @@ here=${0:A:h}
 repo=${here:h}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-swift build --package-path "$repo" --scratch-path "$HOME/Library/Developer/Kidicom/l10n-build" --product Kidicom \
-  -Xswiftc -emit-localized-strings -Xswiftc -emit-localized-strings-path -Xswiftc "$work" 2>&1 | grep -E "error" || true
+if ! swift build --package-path "$repo" --scratch-path "$HOME/Library/Developer/Kidicom/l10n-build" --product Kidicom \
+  -Xswiftc -emit-localized-strings -Xswiftc -emit-localized-strings-path -Xswiftc "$work" > "$work/build.log" 2>&1; then
+  grep -E "error" "$work/build.log" | head -20
+  echo "localize: the build failed, catalog left unchanged" >&2
+  exit 1
+fi
+setopt nullglob
+data=("$work"/*.stringsdata)
+(( ${#data} > 0 )) || { echo "localize: no strings were extracted" >&2; exit 1; }
 catalog="$repo/Resources/Localization/Localizable.xcstrings"
-xcrun xcstringstool sync "$catalog" --stringsdata "$work"/*.stringsdata
+xcrun xcstringstool sync "$catalog" --stringsdata "${data[@]}"
 python3 -I - "$catalog" "$here/translations_pt.py" <<'PY'
 import json, sys, runpy
 catalog, table = sys.argv[1], sys.argv[2]
 pt = runpy.run_path(table)["PT"]
 d = json.load(open(catalog))
-for key, value in pt.items():
-    d["strings"].setdefault(key, {})
+# Keys the code no longer uses are marked stale by sync: drop them.
+stale = [k for k, e in d["strings"].items() if e.get("extractionState") == "stale"]
+for key in stale:
+    del d["strings"][key]
 missing = []
 for key, entry in d["strings"].items():
     if key in pt:
@@ -25,5 +34,6 @@ for key, entry in d["strings"].items():
     elif key.strip():
         missing.append(key)
 json.dump(d, open(catalog, "w"), ensure_ascii=False, indent=2, sort_keys=True)
-print(f"{len(pt)} translated; missing: {missing}")
+unused = sorted(set(pt) - set(d["strings"]))
+print(f"{len(d['strings'])} strings; removed {len(stale)} stale; missing: {missing}; unused translations: {unused}")
 PY

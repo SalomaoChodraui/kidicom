@@ -131,6 +131,7 @@ UX:
 - Flow: toolbar layout control (1, 2 side by side, 2 stacked, 4) -> empty viewports get the next series not shown, skipping scouts -> click a viewport to make it active -> thumbnail click or drag fills the active or target viewport
 - Surface: segmented control in the viewer toolbar
 - Double-click a viewport in a split layout: it fills the whole image area; Esc or another double-click returns. In a single layout, double-click resets the view
+- ⌘W closes the active viewport while several show (MPR and 3D leave their mode first); with one left, ⌘W closes the study window
 - Right-click a thumbnail: the series opens beside the others to compare, 1 -> 2 side by side -> 3 side by side -> 2x2; with four open it replaces the active viewport
 - Words: "1 Viewport", "2 Side by Side", "3 Side by Side", "2 Stacked", "4 Viewports"; tooltip "Split the image area into up to four viewports"
 - Access: the active viewport has an accent outline; the viewer is always dark
@@ -279,7 +280,7 @@ Acceptance:
 - [manual] Um botão liga e desliga o sincronismo; com Shift-roda rolo só um lado para ajustar o deslocamento, que fica guardado.
 - [self] Janela/nível podem ser sincronizados à parte.
 UX:
-- Flow: scrolling a viewport moves every visible viewport in a parallel plane to the nearest position; the same frame of reference aligns by absolute position, others by relative position when opened; Shift-scroll or Shift-↑↓ moves one viewport alone and keeps the new offset; Compare menu toggles "Sync Scrolling" (on) and "Sync Window/Level" (off)
+- Flow: scrolling a viewport moves every visible viewport in a parallel plane to the nearest position; the same frame of reference aligns by absolute position, others by relative position when opened; Shift-scroll or Shift-↑↓ moves one viewport alone and keeps the new offset; Compare menu toggles "Sync Scrolling" (on), "Sync Zoom" (on, zoom and pan), and "Sync Window/Level" (off)
 - Words: overlay "Sync Δ 12,5 mm" when an offset is kept
 Status: done
 

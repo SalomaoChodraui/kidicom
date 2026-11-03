@@ -32,6 +32,17 @@ if [[ -n "$stale" ]]; then
   exit 1
 fi
 
+# Strings: English and Portuguese from the String Catalog, compiled before the
+# old app is removed, so a bad catalog never leaves a broken install.
+strings="$scratch/strings"
+rm -rf "$strings"; mkdir -p "$strings"
+catalog="$here/Resources/Localization/Localizable.xcstrings"
+if [[ -f "$catalog" ]]; then
+  xcrun xcstringstool compile "$catalog" --output-directory "$strings" >/dev/null || { echo "build failed: $catalog does not compile"; exit 1; }
+  # Portuguese for every region (pt, pt-PT), not only Brazil.
+  [[ -d "$strings/pt-BR.lproj" ]] && cp -R "$strings/pt-BR.lproj" "$strings/pt.lproj"
+fi
+
 app="$HOME/Applications/$name.app"
 mkdir -p "$HOME/Applications"
 rm -rf "$app"
@@ -46,11 +57,7 @@ if [[ -d "$here/Icon/AppIcon.icon" ]]; then
   fi
   cp -X "$car" "$here/Resources/AppIcon.icns" "$app/Contents/Resources/"
 fi
-# Strings: English and Portuguese from the String Catalog.
-catalog="$here/Resources/Localization/Localizable.xcstrings"
-if [[ -f "$catalog" ]]; then
-  xcrun xcstringstool compile "$catalog" --output-directory "$app/Contents/Resources" >/dev/null
-fi
+cp -R "$strings"/*.lproj "$app/Contents/Resources/" 2>/dev/null || true
 xattr -cr "$app"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
 echo "installed $app (signed: ${identity})"

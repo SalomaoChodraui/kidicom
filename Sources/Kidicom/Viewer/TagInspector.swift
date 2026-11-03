@@ -37,7 +37,7 @@ struct TagInspector: View {
             }
             .width(min: 88, ideal: 92)
             TableColumn("Name") { row in
-                Text(row.name)
+                Text(Self.localizedName(row.name))
                     .padding(.leading, CGFloat(row.depth) * Space.md)
                     .help(row.name)
             }
@@ -61,6 +61,16 @@ struct TagInspector: View {
         .task(id: url) {
             guard let url else { rows = []; return }
             rows = await Self.load(url)
+        }
+    }
+
+    /// Names the Kit gives for tags outside the dictionary, in the app's language.
+    static func localizedName(_ name: String) -> String {
+        switch name {
+        case "Private Tag": String(localized: "Private Tag")
+        case "Private Creator": String(localized: "Private Creator")
+        case "Unknown Tag": String(localized: "Unknown Tag")
+        default: name
         }
     }
 

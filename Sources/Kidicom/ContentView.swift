@@ -203,7 +203,7 @@ extension StudyTable {
     private var deleteTitle: String {
         pendingDelete.count == 1
             ? String(localized: "Delete the study of \(pendingDelete[0].displayName)?")
-            : String(localized: "Delete \(pendingDelete.count) studies?")
+            : String(AttributedString(localized: "Delete ^[\(pendingDelete.count) study](inflect: true)?").characters)
     }
 
     private func askToDelete(_ chosen: [Study]) {

@@ -32,8 +32,19 @@ final class Viewport: Identifiable {
         window = newValue
         quietWindow = false
     }
-    var zoom: CGFloat = 1
-    var pan: CGSize = .zero
+    var zoom: CGFloat = 1 { didSet { if !quietView && zoom != oldValue { onViewChange?(self) } } }
+    var pan: CGSize = .zero { didSet { if !quietView && pan != oldValue { onViewChange?(self) } } }
+    /// Called when the person zooms or pans (Sync Zoom).
+    @ObservationIgnored var onViewChange: ((Viewport) -> Void)?
+    @ObservationIgnored private var quietView = false
+
+    /// Copies zoom and pan without telling the others again.
+    func setViewQuietly(zoom: CGFloat, pan: CGSize) {
+        quietView = true
+        self.zoom = zoom
+        self.pan = pan
+        quietView = false
+    }
     /// Clockwise quarter turns of the displayed image.
     var quarterTurns = 0
     /// Mirrors, applied before the rotation.
@@ -158,6 +169,20 @@ final class Viewport: Identifiable {
     func apply(_ preset: WindowPreset) {
         if slice?.isColor == true && preset != .fileDefault { return }
         window = WindowPresets.shared.window(for: preset)
+    }
+
+    /// Empties the viewport (its slot closed with ⌘W).
+    func clear() {
+        pause()
+        renderTask?.cancel()
+        source = nil
+        slice = nil
+        image = nil
+        window = nil
+        measurements = []
+        draft = nil
+        syncOffset = 0
+        resetView()
     }
 
     func resetView() {
