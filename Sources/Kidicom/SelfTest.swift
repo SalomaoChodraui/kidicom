@@ -155,7 +155,7 @@ enum SelfTest {
                         viewport.measurements.removeLast()
                         let here = viewport.index
                         viewport.go(to: here == 0 ? 1 : here - 1)
-                        check("measurements show only on their own image", viewport.visibleMeasurements.isEmpty)
+                        check("measurements stay on screen while scrolling", viewport.visibleMeasurements.count == viewport.measurements.count && !viewport.measurements.isEmpty)
                         viewport.go(to: here)
                         viewport.tool = .navigate
                     }

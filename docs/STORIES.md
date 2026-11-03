@@ -170,7 +170,7 @@ Screens: viewer-1x1
 Depends: S-006
 Acceptance:
 - [unit] Usa Pixel Spacing; em US, Sequence of Ultrasound Regions; sem calibração, mostra "px".
-- [manual] Delete apaga a medida selecionada; as medidas somem ao fechar o exame.
+- [self] Delete apaga a medida selecionada; as medidas continuam na tela ao rolar a série e somem ao trocar a série ou fechar o exame.
 UX:
 - Flow: toolbar Distance tool -> press and drag from one point to the other -> label shows mm (px without calibration) -> drag a handle to adjust -> click a measurement to select, Delete removes -> Esc returns to Window/Level
 - Surface: tool in the toolbar, drawing on the image

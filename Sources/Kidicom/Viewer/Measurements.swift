@@ -83,7 +83,8 @@ final class ToolKeys {
 
 /// A distance (two points), an angle (arm, vertex, arm), or an area (a
 /// closed freehand outline) on one frame, in image pixel coordinates.
-/// Measurements live until the window closes.
+/// Measurements stay visible on every image of the series in their
+/// viewport, until deleted, the series changes, or the window closes.
 struct Measurement: Identifiable, Equatable {
     enum Kind { case distance, angle, area }
     let id = UUID()
@@ -128,7 +129,7 @@ extension Viewport {
         }
         // Grab a handle of a measurement on this frame; an area moves whole,
         // grabbed by its outline or from inside.
-        for measurement in measurements where measurement.slice == index {
+        for measurement in measurements {
             if measurement.kind == .area {
                 let onEdge = measurement.points.contains { hypot($0.x - p.x, $0.y - p.y) < grabRadius(scale: scale) }
                 if onEdge || measurement.contains(p) {
@@ -217,7 +218,8 @@ extension Viewport {
     }
 
     var visibleMeasurements: [Measurement] {
-        measurements.filter { $0.slice == index } + (draft.map { [$0] } ?? [])
+        // Measurements stay on screen while scrolling through the series.
+        measurements + (draft.map { [$0] } ?? [])
     }
 
     func calibration(for measurement: Measurement) -> Calibration {
