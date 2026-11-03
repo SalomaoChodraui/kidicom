@@ -20,6 +20,20 @@ final class Viewport: Identifiable {
     private(set) var image: CGImage?
     private(set) var slice: DecodedSlice?
 
+    // Measurements (S-013, S-014); see Measurements.swift.
+    var tool: MeasureTool = .navigate
+    var measurements: [Measurement] = []
+    var draft: Measurement?
+    var selected: UUID?
+    @ObservationIgnored var dragging: (UUID, Int)?
+
+    /// Where the current image sits in a view of this size.
+    func geometry(in size: CGSize) -> ViewportGeometry? {
+        guard let slice, size.width > 0 else { return nil }
+        return ViewportGeometry(imageSize: CGSize(width: slice.width, height: slice.height), viewSize: size, zoom: zoom,
+                                pan: pan, quarterTurns: quarterTurns, flipHorizontal: flipHorizontal, flipVertical: flipVertical)
+    }
+
     @ObservationIgnored private var renderTask: Task<Void, Never>?
     @ObservationIgnored private var playTask: Task<Void, Never>?
     private(set) var isPlaying = false
@@ -61,6 +75,8 @@ final class Viewport: Identifiable {
     func show(_ stack: SeriesStack, at index: Int? = nil) {
         if self.stack?.id != stack.id {
             pause()
+            measurements = []
+            draft = nil
             self.stack = stack
             window = nil
             resetView()

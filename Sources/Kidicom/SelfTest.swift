@@ -101,6 +101,40 @@ enum SelfTest {
                     view.mouseDown(with: send(.leftMouseDown, 200, 200))
                     view.mouseDragged(with: send(.leftMouseDragged, 260, 200))
                     check("left-drag right widens the window", (viewport.effectiveWindow?.width ?? 0) > width)
+                    // S-013, S-014: draw a distance and an angle with the mouse.
+                    viewport.reset()
+                    let height = view.bounds.height
+                    if let geometry = viewport.geometry(in: view.bounds.size) {
+                        func at(_ x: CGFloat, _ y: CGFloat) -> (CGFloat, CGFloat) {
+                            let v = geometry.toView(CGPoint(x: x, y: y))
+                            return (v.x, height - v.y)  // window coordinates grow upward
+                        }
+                        viewport.tool = .distance
+                        var p = at(10, 32); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        p = at(30, 32); view.mouseDragged(with: send(.leftMouseDragged, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        let ruler = viewport.measurements.first
+                        let mm = ruler.map { Measure.distance($0.points[0], $0.points[1], calibration: viewport.calibration(for: $0)) }
+                        check("a distance across 20 pixels of 5 mm reads 100 mm", abs((mm ?? 0) - 100) < 0.5, "\(mm ?? -1)")
+                        viewport.tool = .angle
+                        p = at(40, 10); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        p = at(40, 30); view.mouseDragged(with: send(.leftMouseDragged, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        p = at(60, 30); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        let angle = viewport.measurements.last
+                        let degrees = angle.flatMap { $0.points.count == 3 ? Measure.angle($0.points[0], vertex: $0.points[1], $0.points[2], calibration: viewport.calibration(for: $0)) : nil }
+                        check("an angle drawn as an L reads 90 degrees", viewport.measurements.count == 2 && abs((degrees ?? 0) - 90) < 0.5, "\(degrees ?? -1)")
+                        check("the new angle is selected", viewport.selected == angle?.id)
+                        view.keyDown(with: NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: number,
+                                                            context: nil, characters: "\u{7F}", charactersIgnoringModifiers: "\u{7F}", isARepeat: false, keyCode: 51)!)
+                        check("Delete removes the selected measurement", viewport.measurements.count == 1)
+                        let here = viewport.index
+                        viewport.go(to: here == 0 ? 1 : here - 1)
+                        check("measurements show only on their own image", viewport.visibleMeasurements.isEmpty)
+                        viewport.go(to: here)
+                        viewport.tool = .navigate
+                    }
                     let pan = viewport.pan
                     view.otherMouseDown(with: send(.otherMouseDown, 200, 200))
                     view.otherMouseDragged(with: send(.otherMouseDragged, 230, 200))

@@ -38,6 +38,10 @@ final class ViewerModel {
     var layout: ViewerLayout = .single {
         didSet { fillEmptyViewports() }
     }
+    /// The left-button tool, shared by every viewport.
+    var tool: MeasureTool = .navigate {
+        didSet { for viewport in viewports { viewport.tool = tool } }
+    }
 
     var visible: ArraySlice<Viewport> { viewports.prefix(layout.count) }
     var active: Viewport? { viewports.indices.contains(activeIndex) ? viewports[activeIndex] : nil }
@@ -46,6 +50,8 @@ final class ViewerModel {
     static var nextLayout: ViewerLayout?
     /// Snapshot mode: rotate right and flip the first viewport of the next viewer.
     static var nextTransformed = false
+    /// Snapshot mode: add a distance and an angle once the first image shows.
+    static var nextMeasured = false
 
     func load(_ study: Study) {
         guard stacks.isEmpty else { return }
@@ -62,6 +68,20 @@ final class ViewerModel {
         }
         fillEmptyViewports()
         for stack in stacks { Task { await stack.makeThumbnail() } }
+        if Self.nextMeasured {
+            Self.nextMeasured = false
+            let viewport = viewports[0]
+            Task {
+                while viewport.slice == nil { try? await Task.sleep(for: .milliseconds(20)) }
+                guard let slice = viewport.slice else { return }
+                let w = CGFloat(slice.width), h = CGFloat(slice.height)
+                viewport.measurements = [
+                    Measurement(kind: .distance, points: [CGPoint(x: w * 0.3, y: h * 0.45), CGPoint(x: w * 0.6, y: h * 0.45)], slice: viewport.index),
+                    Measurement(kind: .angle, points: [CGPoint(x: w * 0.55, y: h * 0.7), CGPoint(x: w * 0.65, y: h * 0.85), CGPoint(x: w * 0.8, y: h * 0.75)], slice: viewport.index),
+                ]
+                viewport.selected = viewport.measurements[1].id
+            }
+        }
     }
 
     func activate(_ viewport: Viewport) {
@@ -108,7 +128,9 @@ struct ViewportGrid: View {
 
     private func cell(_ viewport: Viewport) -> some View {
         let isActive = viewer.active === viewport && viewer.layout.count > 1
-        return ViewportView(viewport: viewport, isActive: isActive) { viewer.activate(viewport) }
+        return ViewportView(viewport: viewport, isActive: isActive, onActivate: { viewer.activate(viewport) },
+                            onEscape: { viewer.tool = .navigate })
+            .overlay { MeasurementOverlay(viewport: viewport) }
             .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
             .overlay {
                 Rectangle()

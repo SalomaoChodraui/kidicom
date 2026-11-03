@@ -9,17 +9,21 @@ struct ViewportView: NSViewRepresentable {
     let viewport: Viewport
     var isActive: Bool
     var onActivate: () -> Void
+    var onEscape: () -> Void = {}
 
     func makeNSView(context: Context) -> ViewportNSView {
         let view = ViewportNSView()
         view.viewport = viewport
         view.onActivate = onActivate
+        view.onEscape = onEscape
         return view
     }
 
     func updateNSView(_ view: ViewportNSView, context: Context) {
         view.viewport = viewport
         view.onActivate = onActivate
+        view.onEscape = onEscape
+        _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical)
         view.update(image: viewport.image)
     }
 }
@@ -27,6 +31,7 @@ struct ViewportView: NSViewRepresentable {
 final class ViewportNSView: NSView {
     var viewport: Viewport?
     var onActivate: () -> Void = {}
+    var onEscape: () -> Void = {}
     private let imageLayer = CALayer()
     private var scrollRemainder: CGFloat = 0
     private var zoomAnchor: CGPoint?
@@ -65,15 +70,17 @@ final class ViewportNSView: NSView {
 
     /// Fits the image, then applies zoom, pan, flips, and rotation around its center.
     private func layoutImage() {
-        guard let viewport, imageSize.width > 0, bounds.width > 0 else { imageLayer.bounds = .zero; return }
-        let turned = viewport.quarterTurns % 2 == 1
-        let shown = turned ? CGSize(width: imageSize.height, height: imageSize.width) : imageSize
-        let fit = min(bounds.width / shown.width, bounds.height / shown.height) * viewport.zoom
-        imageLayer.bounds = CGRect(x: 0, y: 0, width: imageSize.width * fit, height: imageSize.height * fit)
-        imageLayer.position = CGPoint(x: bounds.midX + viewport.pan.width, y: bounds.midY + viewport.pan.height)
-        var transform = CATransform3DMakeRotation(CGFloat(viewport.quarterTurns) * .pi / 2, 0, 0, 1)
-        transform = CATransform3DScale(transform, viewport.flipHorizontal ? -1 : 1, viewport.flipVertical ? -1 : 1, 1)
+        guard let geometry = viewport?.geometry(in: bounds.size) else { imageLayer.bounds = .zero; return }
+        imageLayer.bounds = CGRect(x: 0, y: 0, width: geometry.imageSize.width * geometry.scale, height: geometry.imageSize.height * geometry.scale)
+        imageLayer.position = geometry.center
+        var transform = CATransform3DMakeRotation(CGFloat(geometry.quarterTurns) * .pi / 2, 0, 0, 1)
+        transform = CATransform3DScale(transform, geometry.flipHorizontal ? -1 : 1, geometry.flipVertical ? -1 : 1, 1)
         imageLayer.transform = transform
+    }
+
+    private func imagePoint(_ event: NSEvent) -> (CGPoint, CGFloat)? {
+        guard let geometry = viewport?.geometry(in: bounds.size) else { return nil }
+        return (geometry.toImage(convert(event.locationInWindow, from: nil)), geometry.scale)
     }
 
     // MARK: Mouse
@@ -91,9 +98,22 @@ final class ViewportNSView: NSView {
         lastPoint = convert(event.locationInWindow, from: nil)
     }
 
+    /// True while the left button draws or moves a measurement.
+    private var measuring = false
+
     override func mouseDown(with event: NSEvent) {
         begin(event)
-        if event.clickCount == 2 { viewport?.reset() }
+        guard let viewport else { return }
+        if let (point, scale) = imagePoint(event), !event.modifierFlags.contains(.command) {
+            viewport.pointerDown(at: point, scale: scale)
+            measuring = viewport.dragging != nil
+        }
+        if !measuring && event.clickCount == 2 { viewport.reset() }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if measuring, let (_, scale) = imagePoint(event) { viewport?.pointerUp(scale: scale) }
+        measuring = false
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -107,6 +127,10 @@ final class ViewportNSView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         guard let viewport else { return }
+        if measuring, let (point, _) = imagePoint(event) {
+            viewport.pointerDragged(to: point)
+            return
+        }
         let d = delta(event)
         if event.modifierFlags.contains(.command) {
             viewport.pan.width += d.width
@@ -167,7 +191,13 @@ final class ViewportNSView: NSView {
 
     override func keyDown(with event: NSEvent) {
         guard let viewport else { return super.keyDown(with: event) }
+        if event.keyCode == 53 {  // Escape
+            viewport.cancelDraft()
+            onEscape()
+            return
+        }
         switch event.specialKey {
+        case .delete, .deleteForward, .backspace: viewport.deleteSelected()
         case .upArrow: viewport.step(-1)
         case .downArrow: viewport.step(1)
         case .pageUp: viewport.step(-10)

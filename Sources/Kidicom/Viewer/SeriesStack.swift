@@ -26,6 +26,8 @@ struct DecodedSlice: Sendable {
     var frameTime: Double?
     /// Frames per second from Cine Rate, or nil.
     var cineRate: Double?
+    /// Calibrated ultrasound areas, for measurements without Pixel Spacing.
+    var regions: [UltrasoundRegion] = []
     var isColor: Bool {
         if case .color = frame { return true }
         return false
@@ -134,7 +136,8 @@ final class SeriesStack: Identifiable {
         return DecodedSlice(
             frame: frame, width: descriptor.columns, height: descriptor.rows,
             inverted: descriptor.isInverted, defaultWindow: window, pixelSpacing: spacing,
-            sliceThickness: d.number(.sliceThickness), frameTime: d.number(.frameTime), cineRate: d.number(.cineRate)
+            sliceThickness: d.number(.sliceThickness), frameTime: d.number(.frameTime), cineRate: d.number(.cineRate),
+            regions: UltrasoundRegion.regions(in: d)
         )
     }
 }

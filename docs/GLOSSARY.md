@@ -15,3 +15,8 @@ Strings are written in English in code and translated to Portuguese in the Strin
 | Worklist | Lista de Exames | The window that lists every study | database, browser |
 | Recently Imported | Importados Recentemente | Studies imported in the last seven days | new, latest |
 | Skipped | Ignorados | Files in an import that are not DICOM images (JPG, PDF, system files) | failed, rejected |
+| Viewport | Viewport | One image area of the viewer; the viewer shows one to four | pane, panel |
+| Window/Level | Janela | The gray mapping: level (center) and width | brightness, contrast (except on color images) |
+| Distance | Distância | A two-point length measurement in mm, or px without calibration | ruler, line |
+| Angle | Ângulo | A three-point angle measurement in degrees | |
+| Cine | Cine | Playing the frames of a series in a loop | movie, video |

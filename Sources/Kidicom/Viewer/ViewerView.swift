@@ -40,6 +40,16 @@ struct ViewerView: View {
         }
         .toolbar {
             ToolbarItem {
+                Picker("Tool", selection: Bindable(viewer).tool) {
+                    ForEach(MeasureTool.allCases) { tool in
+                        Label { Text(tool.title) } icon: { Image(systemName: tool.symbol) }.tag(tool)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelStyle(.iconOnly)
+                .help("Left button: window/level, measure a distance, or measure an angle (Esc returns to window/level)")
+            }
+            ToolbarItem {
                 let playing = viewer.active?.isPlaying == true
                 Button(playing ? "Pause" : "Play", systemImage: playing ? "pause.fill" : "play.fill") {
                     viewer.active?.togglePlay()

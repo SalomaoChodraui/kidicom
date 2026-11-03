@@ -168,7 +168,12 @@ Depends: S-006
 Acceptance:
 - [unit] Usa Pixel Spacing; em US, Sequence of Ultrasound Regions; sem calibração, mostra "px".
 - [manual] Delete apaga a medida selecionada; as medidas somem ao fechar o exame.
-Status: todo
+UX:
+- Flow: toolbar Distance tool -> press and drag from one point to the other -> label shows mm (px without calibration) -> drag a handle to adjust -> click a measurement to select, Delete removes -> Esc returns to Window/Level
+- Surface: tool in the toolbar, drawing on the image
+- Words: tools "Window/Level", "Distance", "Angle"; labels "118,2 mm", "4,35 mm", "120 px"
+- Access: selected measurement in cyan, others yellow; handles stay editable with any tool
+Status: done
 
 ### S-014 Medir ângulo
 Como usuário, marco três pontos e vejo o ângulo em graus.
@@ -176,7 +181,10 @@ Screens: viewer-1x1
 Depends: S-013
 Acceptance:
 - [unit] O ângulo usa o espaçamento real do pixel, com pixels não quadrados.
-Status: todo
+UX:
+- Flow: toolbar Angle tool -> drag the first arm ending at the vertex -> click the end of the second arm (drag to adjust) -> label at the vertex in degrees
+- Words: label "90,0°"
+Status: done
 
 ### S-015 Ver informações DICOM
 Como usuário, abro um painel com as tags do arquivo atual.
