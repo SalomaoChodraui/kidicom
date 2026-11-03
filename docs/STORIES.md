@@ -297,7 +297,10 @@ Como usuário, arrasto uma pasta para o ícone do Dock ou uso "Abrir com" e ela 
 Depends: S-003
 Acceptance:
 - [manual] O app aceita pastas, `.dcm`, `.zip` e `DICOMDIR`.
-Status: todo
+UX:
+- Flow: drop files, folders, zips, or DICOMDIR on the Dock icon, or Open With > Kidicom in the Finder -> requests in a burst become one Import sheet -> same flow as S-003
+- Access: no window activates per file; imports that arrive during another wait their turn
+Status: done
 
 ### S-042 Apagar um estudo
 Como usuário, apago um estudo da worklist; se foi copiado, os arquivos vão para o Lixo.

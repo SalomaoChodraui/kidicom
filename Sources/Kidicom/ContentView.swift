@@ -32,7 +32,14 @@ struct ContentView: View {
             ImportSheet()
                 .environment(model)
         }
-        .onAppear { model.openViewer = { openWindow(id: "viewer", value: $0) } }
+        .onAppear {
+            model.openViewer = { openWindow(id: "viewer", value: $0) }
+            AppDelegate.openFiles = { [model] urls in model.importer.gather(urls) }
+            if !AppDelegate.pending.isEmpty {
+                model.importer.gather(AppDelegate.pending)
+                AppDelegate.pending = []
+            }
+        }
         .task {
             await SeedData.insertIfRequested(into: model)
             SelfTest.runIfRequested(model: model)

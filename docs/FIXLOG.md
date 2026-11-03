@@ -20,3 +20,10 @@ Symptom: after zoom or pan, the ultrasound image drew over the series thumbnails
 Cause: the viewport's layer did not clip its image sublayer.
 Fix: `masksToBounds` on the viewport layer and `.clipped()` on the SwiftUI view.
 Rule: every image surface clips to its own bounds.
+
+## 2026-11-03 Opening thousands of files made the window flicker and resize
+
+Symptom: opening 8,671 files with Kidicom (Dock, Finder, `open -a`) made the worklist window flicker, resize, and stop answering; files sent while an import ran were dropped.
+Cause: SwiftUI's app delegate adaptor routes Open Documents through its window controller, which activates and orders a window once per file. The importer also ignored requests while busy.
+Fix: Kidicom installs its own Open Documents Apple event handler (before and after SwiftUI sets up), gathers bursts for half a second into one import, and queues requests that arrive during an import.
+Rule: file-open events go straight to the importer, never through SwiftUI's window routing; imports queue, never drop.

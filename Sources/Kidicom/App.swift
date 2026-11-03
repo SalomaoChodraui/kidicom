@@ -61,7 +61,41 @@ struct KidicomApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Set by the app once its model exists; files opened before that wait here.
+    static var openFiles: ([URL]) -> Void = { pending.append(contentsOf: $0) }
+    static var pending: [URL] = []
+
+    /// Files, folders, and zips dropped on the Dock icon or opened with
+    /// Kidicom arrive as an Open Documents Apple event. Kidicom handles it
+    /// itself: SwiftUI's handler activates a window per file, which makes
+    /// the window flicker and resize for thousands of files.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        installOpenHandler()
+    }
+
+    private func installOpenHandler() {
+        NSAppleEventManager.shared().setEventHandler(
+            self, andSelector: #selector(handleOpenDocuments(_:reply:)),
+            forEventClass: AEEventClass(kCoreEventClass), andEventID: AEEventID(kAEOpenDocuments)
+        )
+    }
+
+    @objc private func handleOpenDocuments(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
+        guard let list = event.paramDescriptor(forKeyword: keyDirectObject) else { return }
+        var urls: [URL] = []
+        if list.numberOfItems == 0 {
+            if let url = list.coerce(toDescriptorType: typeFileURL)?.fileURLValue { urls.append(url) }
+        } else {
+            for index in 1 ... list.numberOfItems {
+                if let url = list.atIndex(index)?.coerce(toDescriptorType: typeFileURL)?.fileURLValue { urls.append(url) }
+            }
+        }
+        Self.openFiles(urls)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Again after SwiftUI set up its own handlers.
+        installOpenHandler()
         // Started from a terminal, the process is not a foreground app yet.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()

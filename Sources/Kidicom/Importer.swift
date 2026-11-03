@@ -60,9 +60,34 @@ final class Importer {
         }
     }
 
-    /// Starts from a drop, the open panel, or the Dock.
+    @ObservationIgnored private var queued: [URL] = []
+    @ObservationIgnored private var gathering: Task<Void, Never>?
+
+    /// Files opened from the Finder or the Dock arrive in bursts of open
+    /// requests; gather them for half a second into one import.
+    func gather(_ urls: [URL]) {
+        queued.append(contentsOf: urls)
+        gathering?.cancel()
+        gathering = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            startQueued()
+        }
+    }
+
+    /// Runs what waited while another import was busy.
+    private func startQueued() {
+        guard !isBusy, !queued.isEmpty else { return }
+        let urls = queued
+        queued = []
+        begin(urls)
+    }
+
+    /// Starts from a drop, the open panel, or the Dock. While another import
+    /// runs, the new one waits its turn.
     func begin(_ urls: [URL]) {
-        guard !isBusy, !urls.isEmpty else { return }
+        guard !urls.isEmpty else { return }
+        guard !isBusy else { queued.append(contentsOf: urls); return }
         phase = .scanning
         task = Task {
             let temporary = Library.temporary
@@ -77,6 +102,7 @@ final class Importer {
             guard !scan.files.isEmpty else {
                 Self.cleanUp(scan)
                 phase = .nothingFound(skipped: scan.skipped)
+                startQueued()
                 return
             }
             pending = scan
@@ -115,6 +141,7 @@ final class Importer {
         if let scan = pending { Self.cleanUp(scan) }
         pending = nil
         phase = .idle
+        queued = []
     }
 
     func dismissMessage() {
@@ -199,6 +226,7 @@ final class Importer {
             model.selection = first.uid
         }
         phase = Task.isCancelled ? .idle : .finished(summary)
+        if !queued.isEmpty { Task { startQueued() } }
         return summary
     }
 

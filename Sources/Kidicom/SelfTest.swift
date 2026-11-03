@@ -250,6 +250,15 @@ enum SelfTest {
             let zipScan = try? ImportScanner.scan([zip], temporaryRoot: Library.temporary)
             check("a zip is recognized as an archive", zipScan?.containsArchives == true && zipScan?.files.count == 50)
 
+            // S-041: open requests in a burst become one import.
+            model.importer.gather([folder.appending(path: "cd/CT-1-1")])
+            model.importer.gather([folder.appending(path: "cd/CT-1-2")])
+            check("a burst of open requests waits to be gathered", model.importer.phase != .confirm && model.importer.phase != .scanning)
+            try? await Task.sleep(for: .milliseconds(700))
+            check("then shows one Import sheet for all of them", model.importer.phase == .confirm && model.importer.pendingCount == 2,
+                  "\(model.importer.phase) \(model.importer.pendingCount)")
+            model.importer.cancel()
+
             // Deleting a study removes its series and images.
             if let ct { context.delete(ct); try? context.save() }
             check("deleting a study removes its images", images().count == 27)
