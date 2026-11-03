@@ -429,8 +429,8 @@ enum SelfTest {
         current.step(-1)
         check("after Shift-scroll the two keep the new offset", other.index == 14 && current.index == 12, "\(other.index)")
         current.zoom = 1.6
-        current.pan = CGSize(width: 20, height: -10)
-        check("Sync Zoom copies zoom and pan to the prior", other.zoom == 1.6 && other.pan == CGSize(width: 20, height: -10))
+        current.pan = CGSize(width: 20, height: -12)
+        check("Sync Zoom copies zoom and pan to the prior", other.zoom == 1.6 && other.pan == CGSize(width: 20, height: -12))
         viewer.syncZoom = false
         current.zoom = 2
         check("with Sync Zoom off the prior keeps its zoom", other.zoom == 1.6)

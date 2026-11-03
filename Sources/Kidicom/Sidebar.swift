@@ -90,6 +90,8 @@ struct Sidebar: View {
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderless)
                     .help("Make an album to group studies, like teaching cases")
+                    // Line up with the count badges of the rows, not the sidebar edge.
+                    .padding(.trailing, Space.md)
             }
         }
     }

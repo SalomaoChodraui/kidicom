@@ -141,7 +141,7 @@ enum ModalityGroup: String, CaseIterable, Identifiable {
         switch self {
         case .ct: "circle.circle"
         case .mr: "brain.head.profile"
-        case .us: "waveform.path.ecg.rectangle"
+        case .us: "dot.radiowaves.forward"
         case .xray: "lungs"
         case .mammography: "circle.lefthalf.striped.horizontal"
         case .nuclear: "atom"
