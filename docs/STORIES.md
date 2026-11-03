@@ -308,8 +308,12 @@ Screens: worklist
 Depends: S-005
 Acceptance:
 - [self] Arquivos referenciados nunca são apagados, só o índice.
-- [manual] Confirmação antes de apagar, com Command-Z.
-Status: todo
+- [self] Confirmação antes de apagar, com ⌘Z para desfazer; remoção definitiva na próxima abertura.
+UX:
+- Flow: Delete key, or right-click > Delete… -> confirmation "Delete the study of Silva, Maria C?" (setting to skip it) -> the study leaves the worklist at once -> ⌘Z (Edit > Undo Delete Study) brings it back -> at the next launch it is removed; copied files go to the Trash, files kept in place are never touched
+- Surface: confirmation dialog (destroys data)
+- Words: "Delete…", "Delete", "Cancel", message "Copied files go to the Trash. Files kept in place are not touched. You can undo with ⌘Z."
+Status: done
 
 ### S-043 Ajustar preferências
 Como usuário, defino a pasta da base, a escolha padrão de importação e os presets de janela.

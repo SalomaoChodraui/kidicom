@@ -24,6 +24,9 @@ final class Study {
     /// image stays where it was imported from.
     var isCopied: Bool = true
     var importedAt: Date = Date.now
+    /// Set when the person deletes the study; it hides at once and is
+    /// removed for good at the next launch, so Undo can bring it back.
+    var trashedAt: Date?
     @Relationship(deleteRule: .cascade, inverse: \Series.study) var series: [Series] = []
 
     init(studyUID: String) {
@@ -118,8 +121,10 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     }
 
     /// Recently Imported shows studies imported in the last seven days.
+    /// Deleted studies show nowhere.
     func includes(_ study: Study, now: Date = .now) -> Bool {
-        switch self {
+        guard study.trashedAt == nil else { return false }
+        return switch self {
         case .all: true
         case .recent: study.importedAt > now.addingTimeInterval(-7 * 86_400)
         }
@@ -153,4 +158,32 @@ final class AppModel {
 
     /// Opens a study in the viewer (double-click, Return, File > Open).
     func open(_ uid: UUID) { openViewer(uid) }
+
+    /// Hides studies at once; Undo restores them. See `purgeTrash`.
+    func trash(_ studies: [Study], undoManager: UndoManager?) {
+        let now = Date.now
+        for study in studies { study.trashedAt = now }
+        if studies.contains(where: { $0.uid == selection }) { selection = nil }
+        try? container.mainContext.save()
+        undoManager?.registerUndo(withTarget: self) { model in
+            for study in studies { study.trashedAt = nil }
+            try? model.container.mainContext.save()
+        }
+        undoManager?.setActionName(studies.count == 1 ? String(localized: "Delete Study") : String(localized: "Delete Studies"))
+    }
+
+    /// Removes studies deleted in an earlier session: copied files go to the
+    /// Trash; files kept in place are never touched.
+    func purgeTrash() {
+        let context = container.mainContext
+        let trashed = (try? context.fetch(FetchDescriptor<Study>(predicate: #Predicate { $0.trashedAt != nil }))) ?? []
+        for study in trashed {
+            let folders = Set(study.series.flatMap(\.images).filter(\.isCopied).map { $0.fileURL.deletingLastPathComponent().deletingLastPathComponent() })
+            for folder in folders where folder.path.hasPrefix(Library.root.path) {
+                try? FileManager.default.trashItem(at: folder, resultingItemURL: nil)
+            }
+            context.delete(study)
+        }
+        if !trashed.isEmpty { try? context.save() }
+    }
 }

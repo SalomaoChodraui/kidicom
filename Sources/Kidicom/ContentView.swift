@@ -33,6 +33,7 @@ struct ContentView: View {
                 .environment(model)
         }
         .onAppear {
+            if !Store.isOverridden || ProcessInfo.processInfo.environment["APP_SEED"] == nil { model.purgeTrash() }
             model.openViewer = { openWindow(id: "viewer", value: $0) }
             AppDelegate.openFiles = { [model] urls in model.importer.gather(urls) }
             if !AppDelegate.pending.isEmpty {
@@ -61,6 +62,9 @@ struct StudyTable: View {
     @Environment(AppModel.self) private var model
     @Environment(\.modelContext) private var context
     @Query private var studies: [Study]
+    @Environment(\.undoManager) private var undoManager
+    @AppStorage("confirmDelete") private var confirmDelete = true
+    @State private var pendingDelete: [Study] = []
     @State private var isTargeted = false
     @State private var search = ""
     @State private var sortOrder = [KeyPathComparator(\Study.sortDate, order: .reverse)]
@@ -109,11 +113,23 @@ struct StudyTable: View {
             .width(min: 64, ideal: 80)
         }
         .contextMenu(forSelectionType: PersistentIdentifier.self) { selection in
-            Button("Delete", role: .destructive) {
-                for study in studies where selection.contains(study.persistentModelID) { context.delete(study) }
+            Button("Delete…", role: .destructive) {
+                askToDelete(studies.filter { selection.contains($0.persistentModelID) })
             }
         } primaryAction: { selection in
             if let study = studies.first(where: { selection.contains($0.persistentModelID) }) { model.open(study.uid) }
+        }
+        .onDeleteCommand {
+            askToDelete(studies.filter { $0.uid == model.selection })
+        }
+        .confirmationDialog(deleteTitle, isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+            Button("Delete", role: .destructive) {
+                model.trash(pendingDelete, undoManager: undoManager)
+                pendingDelete = []
+            }
+            Button("Cancel", role: .cancel) { pendingDelete = [] }
+        } message: {
+            Text("Copied files go to the Trash. Files kept in place are not touched. You can undo with ⌘Z.")
         }
         .searchable(text: $search, placement: .toolbar, prompt: Text("Search patient, ID, or description"))
         .overlay {
@@ -155,6 +171,19 @@ struct StudyTable: View {
 }
 
 /// Where a study's files are: Library, In Place, or Offline.
+extension StudyTable {
+    private var deleteTitle: String {
+        pendingDelete.count == 1
+            ? String(localized: "Delete the study of \(pendingDelete[0].displayName)?")
+            : String(localized: "Delete \(pendingDelete.count) studies?")
+    }
+
+    private func askToDelete(_ chosen: [Study]) {
+        guard !chosen.isEmpty else { return }
+        if confirmDelete { pendingDelete = chosen } else { model.trash(chosen, undoManager: undoManager) }
+    }
+}
+
 struct FilesLabel: View {
     let study: Study
 

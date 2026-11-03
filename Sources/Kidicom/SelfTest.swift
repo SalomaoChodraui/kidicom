@@ -259,9 +259,19 @@ enum SelfTest {
                   "\(model.importer.phase) \(model.importer.pendingCount)")
             model.importer.cancel()
 
-            // Deleting a study removes its series and images.
-            if let ct { context.delete(ct); try? context.save() }
-            check("deleting a study removes its images", images().count == 27)
+            // S-042: delete hides at once, Undo brings it back, the next launch purges.
+            if let ct {
+                let undo = UndoManager()
+                model.trash([ct], undoManager: undo)
+                check("a deleted study leaves the worklist", !SidebarItem.all.includes(ct))
+                undo.undo()
+                check("Undo brings the study back", SidebarItem.all.includes(ct))
+                model.trash([ct], undoManager: undo)
+                let libraryFolder = ct.series.first?.images.first?.fileURL.deletingLastPathComponent()
+                model.purgeTrash()
+                check("the next launch removes it and its images", images().count == 27 && studies().allSatisfy { $0.studyUID != "1.2.826.0.1.3680043.10.1.1" })
+                check("copied files of a deleted study go to the Trash", libraryFolder.map { !FileManager.default.fileExists(atPath: $0.path) } ?? false)
+            }
 
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)

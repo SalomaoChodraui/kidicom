@@ -184,6 +184,7 @@ final class Importer {
                         newStudies.insert(record.studyUID)
                         return study
                     }()
+                    study.trashedAt = nil   // importing again brings a deleted study back
                     fill(study, from: record)
                     let series = seriesByUID[record.seriesUID] ?? {
                         let series = Series(seriesUID: record.seriesUID)
