@@ -33,10 +33,10 @@ enum Snapshot {
             try? await Task.sleep(for: .seconds(1.5))
             for mode in ["light", "dark"] {
                 NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
-                for page in SidebarItem.allCases where only?.contains(page.rawValue) ?? true {
+                for page in SidebarItem.library + [.modality(.ct)] where only?.contains(page.id) ?? true {
                     model.sidebar = page
                     try? await Task.sleep(for: .seconds(0.8))
-                    capture(to: "\(dir)/\(page.rawValue)-\(mode).png")
+                    capture(to: "\(dir)/\(page.id)-\(mode).png")
                 }
             }
             if only == nil || only?.contains("import-sheet") == true {

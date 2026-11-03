@@ -255,6 +255,23 @@ enum SelfTest {
                 check("CT presets leave color images alone", viewport?.effectiveWindow != VOIWindow(center: -600, width: 1500))
             }
 
+            // Sidebar: modality pages and albums.
+            if let ct {
+                let all = studies()
+                check("the CT page lists only CT studies", all.filter { SidebarItem.modality(.ct).includes($0) }.count == 2)
+                check("the X-ray page includes the radiograph (CR)", all.contains { $0.modalities == "CR" && SidebarItem.modality(.xray).includes($0) })
+                check("no study lands in MR when there is none", !all.contains { SidebarItem.modality(.mr).includes($0) })
+                let album = model.newAlbum(named: "Ensino", with: [ct])
+                check("a new album holds the chosen study", SidebarItem.album(album.uid).includes(ct) && album.studies.count == 1)
+                model.add([ct], to: album)
+                check("adding the same study twice keeps one", album.studies.count == 1)
+                model.remove([ct], from: album)
+                check("removing a study from an album keeps the study", !SidebarItem.album(album.uid).includes(ct) && studies().contains { $0.uid == ct.uid })
+                model.add([ct], to: album)
+                model.deleteAlbum(album)
+                check("deleting an album keeps its studies", studies().contains { $0.uid == ct.uid } && ct.albums.isEmpty)
+            }
+
             // Importing the same files again adds nothing.
             let again = await model.importer.run(scan ?? ImportScan(), copy: true)
             check("importing twice does not duplicate images", again.images == 0 && again.duplicates == 50 && images().count == 50)

@@ -15,6 +15,14 @@ struct ContentView: View {
         } detail: {
             StudyTable(page: model.sidebar ?? .all)
         }
+        .alert("New Album", isPresented: $model.namingAlbum.isPresented) {
+            TextField("Name", text: $model.namingAlbum.name)
+            Button("Create") { model.finishNamingAlbum() }
+                .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) { model.namingAlbum = .init() }
+        } message: {
+            Text("Drag studies from the list to the album, or right-click them.")
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) { ImportStatusBar() }
         .fileImporter(
             isPresented: $model.showsOpenPanel,
@@ -49,12 +57,8 @@ struct ContentView: View {
     }
 
     private var sidebar: some View {
-        @Bindable var model = model
-        return List(SidebarItem.allCases, selection: $model.sidebar) { page in
-            Label { Text(page.title) } icon: { Image(systemName: page.symbol) }
-                .tag(page)
-        }
-        .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+        Sidebar()
+            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
     }
 }
 
@@ -62,6 +66,7 @@ struct StudyTable: View {
     @Environment(AppModel.self) private var model
     @Environment(\.modelContext) private var context
     @Query private var studies: [Study]
+    @Query(sort: \Album.name) private var albums: [Album]
     @Environment(\.undoManager) private var undoManager
     @AppStorage("confirmDelete") private var confirmDelete = true
     @State private var pendingDelete: [Study] = []
@@ -83,7 +88,7 @@ struct StudyTable: View {
             get: { rows.first { $0.uid == model.selection }?.persistentModelID },
             set: { id in model.selection = rows.first { $0.persistentModelID == id }?.uid }
         )
-        Table(rows, selection: selection, sortOrder: $sortOrder) {
+        Table(of: Study.self, selection: selection, sortOrder: $sortOrder) {
             TableColumn("Patient", value: \.displayName) { study in
                 Text(study.displayName).help(study.displayName)
             }
@@ -111,10 +116,28 @@ struct StudyTable: View {
                 FilesLabel(study: study)
             }
             .width(min: 64, ideal: 80)
+        } rows: {
+            ForEach(rows) { study in
+                // Drag rows to an album in the sidebar.
+                TableRow(study).draggable(study.uid.uuidString)
+            }
         }
         .contextMenu(forSelectionType: PersistentIdentifier.self) { selection in
+            let chosen = studies.filter { selection.contains($0.persistentModelID) }
+            Menu("Add to Album") {
+                ForEach(albums) { album in
+                    Button(album.name) { model.add(chosen, to: album) }
+                }
+                if !albums.isEmpty { Divider() }
+                Button("New Album with Selection…") { model.startNamingAlbum(with: chosen) }
+            }
+            .disabled(chosen.isEmpty)
+            if case .album(let uid) = page, let album = albums.first(where: { $0.uid == uid }) {
+                Button("Remove from Album") { model.remove(chosen, from: album) }
+            }
+            Divider()
             Button("Delete…", role: .destructive) {
-                askToDelete(studies.filter { selection.contains($0.persistentModelID) })
+                askToDelete(chosen)
             }
         } primaryAction: { selection in
             if let study = studies.first(where: { selection.contains($0.persistentModelID) }) { model.open(study.uid) }
@@ -159,7 +182,7 @@ struct StudyTable: View {
             model.importer.begin(urls)
             return true
         } isTargeted: { isTargeted = $0 }
-        .navigationTitle(Text(page.title))
+        .navigationTitle(pageTitle)
         .toolbar {
             ToolbarItem {
                 Button("Import…", systemImage: "plus") { model.importFiles() }
@@ -172,6 +195,11 @@ struct StudyTable: View {
 
 /// Where a study's files are: Library, In Place, or Offline.
 extension StudyTable {
+    private var pageTitle: Text {
+        if case .album(let uid) = page, let album = albums.first(where: { $0.uid == uid }) { return Text(album.name) }
+        return Text(page.title)
+    }
+
     private var deleteTitle: String {
         pendingDelete.count == 1
             ? String(localized: "Delete the study of \(pendingDelete[0].displayName)?")

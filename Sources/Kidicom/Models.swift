@@ -27,6 +27,8 @@ final class Study {
     /// Set when the person deletes the study; it hides at once and is
     /// removed for good at the next launch, so Undo can bring it back.
     var trashedAt: Date?
+    /// Albums this study is in.
+    var albums: [Album] = []
     @Relationship(deleteRule: .cascade, inverse: \Series.study) var series: [Series] = []
 
     init(studyUID: String) {
@@ -100,16 +102,85 @@ final class ImageFile {
     }
 }
 
-/// The sidebar pages. Snapshot mode walks through every case.
-enum SidebarItem: String, CaseIterable, Identifiable {
-    case all, recent
+/// Groups of modalities shown in the sidebar, one row per group in use.
+enum ModalityGroup: String, CaseIterable, Identifiable {
+    case ct, mr, us, xray, mammography, nuclear, boneDensity, other
 
     var id: String { rawValue }
+
+    var codes: Set<String> {
+        switch self {
+        case .ct: ["CT"]
+        case .mr: ["MR"]
+        case .us: ["US", "IVUS"]
+        case .xray: ["CR", "DX", "RF", "XA", "RG", "DR", "PX", "IO"]
+        case .mammography: ["MG"]
+        case .nuclear: ["PT", "NM"]
+        case .boneDensity: ["BMD", "BDUS"]
+        case .other: []
+        }
+    }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .ct: "CT"
+        case .mr: "MR"
+        case .us: "Ultrasound"
+        case .xray: "X-Ray"
+        case .mammography: "Mammography"
+        case .nuclear: "Nuclear Medicine"
+        case .boneDensity: "Bone Density"
+        case .other: "Other"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .ct: "circle.circle"
+        case .mr: "brain.head.profile"
+        case .us: "waveform.path.ecg.rectangle"
+        case .xray: "lungs"
+        case .mammography: "circle.lefthalf.striped.horizontal"
+        case .nuclear: "atom"
+        case .boneDensity: "figure.walk"
+        case .other: "square.dashed"
+        }
+    }
+
+    /// Groups a study belongs to, from its modality codes. Secondary
+    /// captures and other non-image codes (OT, SR, KO, PR) alone fall in Other.
+    static func groups(of study: Study) -> Set<ModalityGroup> {
+        let codes = Set(study.modalities.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).uppercased() })
+        var groups = Set(allCases.filter { !$0.codes.isDisjoint(with: codes) })
+        if groups.isEmpty { groups.insert(.other) }
+        return groups
+    }
+}
+
+/// A sidebar page: the library pages, a modality group, or an album.
+enum SidebarItem: Hashable, Identifiable {
+    case all, recent
+    case modality(ModalityGroup)
+    case album(UUID)
+
+    var id: String {
+        switch self {
+        case .all: "all"
+        case .recent: "recent"
+        case .modality(let group): "modality-\(group.rawValue)"
+        case .album(let uid): "album-\(uid.uuidString)"
+        }
+    }
+
+    /// The fixed pages; modality and album pages depend on the data.
+    static let library: [SidebarItem] = [.all, .recent]
 
     var title: LocalizedStringResource {
         switch self {
         case .all: "All Studies"
         case .recent: "Recently Imported"
+        case .modality(let group): group.title
+        case .album: "Album"
         }
     }
 
@@ -117,6 +188,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         switch self {
         case .all: "rectangle.stack"
         case .recent: "clock"
+        case .modality(let group): group.symbol
+        case .album: "rectangle.stack.badge.person.crop"
         }
     }
 
@@ -127,7 +200,23 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         return switch self {
         case .all: true
         case .recent: study.importedAt > now.addingTimeInterval(-7 * 86_400)
+        case .modality(let group): ModalityGroup.groups(of: study).contains(group)
+        case .album(let uid): study.albums.contains { $0.uid == uid }
         }
+    }
+}
+
+/// A collection of studies the person makes, like a folder of teaching cases.
+/// Studies can be in several albums; deleting an album keeps its studies.
+@Model
+final class Album {
+    var uid: UUID = UUID()
+    var name: String = ""
+    var createdAt: Date = Date.now
+    @Relationship(deleteRule: .nullify, inverse: \Study.albums) var studies: [Study] = []
+
+    init(name: String) {
+        self.name = name
     }
 }
 
@@ -158,6 +247,53 @@ final class AppModel {
 
     /// Opens a study in the viewer (double-click, Return, File > Open).
     func open(_ uid: UUID) { openViewer(uid) }
+
+    // MARK: Albums
+
+    /// The New Album alert: its name and the studies it will hold.
+    struct AlbumDraft {
+        var isPresented = false
+        var name = ""
+        var studies: [Study] = []
+    }
+
+    var namingAlbum = AlbumDraft()
+
+    func startNamingAlbum(with studies: [Study] = []) {
+        namingAlbum = AlbumDraft(isPresented: true, name: String(localized: "Untitled Album"), studies: studies)
+    }
+
+    func finishNamingAlbum() {
+        let album = newAlbum(named: namingAlbum.name, with: namingAlbum.studies)
+        namingAlbum = AlbumDraft()
+        sidebar = .album(album.uid)
+    }
+
+    @discardableResult
+    func newAlbum(named name: String, with studies: [Study] = []) -> Album {
+        let album = Album(name: name.trimmingCharacters(in: .whitespaces).isEmpty ? String(localized: "Untitled Album") : name)
+        container.mainContext.insert(album)
+        for study in studies where !album.studies.contains(where: { $0.uid == study.uid }) { album.studies.append(study) }
+        try? container.mainContext.save()
+        return album
+    }
+
+    func add(_ studies: [Study], to album: Album) {
+        for study in studies where !album.studies.contains(where: { $0.uid == study.uid }) { album.studies.append(study) }
+        try? container.mainContext.save()
+    }
+
+    func remove(_ studies: [Study], from album: Album) {
+        let gone = Set(studies.map(\.uid))
+        album.studies.removeAll { gone.contains($0.uid) }
+        try? container.mainContext.save()
+    }
+
+    func deleteAlbum(_ album: Album) {
+        if sidebar == .album(album.uid) { sidebar = .all }
+        container.mainContext.delete(album)
+        try? container.mainContext.save()
+    }
 
     /// Hides studies at once; Undo restores them. See `purgeTrash`.
     func trash(_ studies: [Study], undoManager: UndoManager?) {
