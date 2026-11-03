@@ -13,7 +13,7 @@ Acceptance:
 - [unit] O parser lê Part 10 com e sem preâmbulo, VR explícito e implícito, sequências de tamanho indefinido e o pixel data de 8 e 16 bits, com e sem sinal.
 - [unit] Rescale slope/intercept e MONOCHROME1 viram valores corretos (HU em TC).
 - [unit] Um arquivo truncado ou que não é DICOM gera erro, sem crash.
-Status: todo
+Status: done
 
 ### S-002 Ler JPEG Lossless, JPEG 2000, JPEG baseline e RLE
 Como usuário, abro exames comprimidos como os da minha base Horos.
@@ -23,7 +23,7 @@ Acceptance:
 - [unit] JPEG 2000 (`.4.90`, `.4.91`) de 16 bits decodifica via ImageIO com diferença máxima de 0 em lossless.
 - [unit] RLE e JPEG baseline (`.4.50`, US colorido YBR_FULL_422) decodificam.
 - [manual] 100 arquivos sorteados da base Horos abrem sem erro.
-Status: todo
+Status: doing
 
 ### S-003 Importar por botão + ou arrastar e soltar
 Como usuário, clico em + ou arrasto arquivos, pastas ou zips para a worklist e os exames aparecem agrupados por paciente e estudo.
