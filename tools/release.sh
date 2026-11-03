@@ -36,10 +36,11 @@ mkdir -p dist
 dmg="dist/Kidicom-$version.dmg"
 rm -f "$dmg"
 "$here/dmg/make_dmg.sh" "$app" "$dmg" "Kidicom"
+# Only a Developer ID signature helps a DMG. Signed with Apple Development,
+# Gatekeeper rejects the disk itself on other Macs and it won't even open;
+# unsigned, the disk opens and only the app asks for Open Anyway.
 if [[ "$identity" == Developer\ ID* ]]; then
   codesign --force --timestamp --sign "$identity" "$dmg"
-elif [[ "$identity" != "-" ]]; then
-  codesign --force --sign "$identity" "$dmg"
 fi
 
 if [[ -n "${NOTARY_PROFILE:-}" && "$identity" != Developer\ ID* ]]; then

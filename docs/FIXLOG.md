@@ -34,3 +34,10 @@ Symptom: the mounted Kidicom disk showed the generic disk icon.
 Cause: hdiutil drops hidden files given with -srcfolder, and on macOS 26 the Finder deletes `.VolumeIcon.icns` when the layout script opens the disk; the volume could also mount as "Kidicom 1" next to an older copy.
 Fix: tools/dmg/make_dmg.sh detaches any disk with the same name, reads the mount point from `hdiutil attach -plist`, runs the Finder layout, and only then copies `.VolumeIcon.icns` and sets the custom icon flag.
 Rule: anything the Finder must not touch goes into the disk after the Finder step.
+
+## 2026-11-03 The DMG would not open on another Mac
+
+Symptom: on another Mac, the downloaded DMG was refused before it mounted.
+Cause: release.sh signed the DMG with the Apple Development certificate; Gatekeeper assesses a signed, quarantined disk image and rejects anything but Developer ID.
+Fix: the DMG is signed only with Developer ID. Unsigned, it mounts, and only the app inside asks for Open Anyway (System Settings > Privacy & Security).
+Rule: never sign a DMG with a development certificate; test releases with a quarantined copy and `spctl --assess --type open`.
