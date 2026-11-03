@@ -1,6 +1,6 @@
 # Kidicom
 
-Visualizador DICOM leve e nativo para Macs com Apple Silicon, para quem lê ultrassom, raio X, TC e RM no próprio computador sem PACS.
+Visualizador DICOM leve e nativo para Macs com Apple Silicon, para quem lê ultrassom, raio X, mamografia, densitometria, TC e RM no próprio computador sem PACS.
 
 Bundle id: `com.salomao.kidicom`. Código aberto no GitHub, distribuído fora da Mac App Store (assinado e notarizado).
 
@@ -23,7 +23,10 @@ Horos e OsiriX para leitura local: abrir CDs e zips de laboratório, rolar séri
 Base em `~/Library/Application Support/Kidicom/` (SwiftData para o índice, pasta `Files/` para as cópias). Arquivos referenciados guardam o caminho e, se a pasta sumir, o exame aparece como offline.
 
 ## Shape
-Janela com sidebar (worklist) e janela de visualização por exame, macOS 15 ou mais novo, Apple Silicon. Dados locais, funciona offline, sem contas, sem conexão com PACS ou servidores DICOM.
+Janela com sidebar (worklist) e janela de visualização por exame, macOS 26 ou mais novo, Apple Silicon. Dados locais, funciona offline, sem contas, sem conexão com PACS ou servidores DICOM.
+
+## Import
+Zips de laboratório trazem estrutura de CD (`DICOMDIR`, pastas como `5WKSINVZ/KUHL4U42`, arquivos sem extensão), mais JPG, PDF de laudo e lixo do macOS (`__MACOSX`, `._*`). O importador reconhece DICOM pelo conteúdo (`DICM` no byte 128, com fallback para dataset sem preâmbulo), ignora o resto e informa quantos arquivos pulou. Amostra real: dossiê pessoal com 19 zips e 33 `DICOMDIR` (fora do repositório, nunca usado como fixture).
 
 ## Decoding (decided by the agent)
 Parser DICOM próprio em Swift. Decoders próprios para JPEG Lossless (`1.2.840.10008.1.2.4.70`) e RLE. ImageIO do sistema para JPEG baseline e JPEG 2000 (`.4.90/.4.91`). Renderização e volume rendering em Metal. Sem DCMTK. Se o JPEG 2000 de 16 bits falhar no ImageIO, entra OpenJPEG só para esse caso. Formatos medidos na base Horos do usuário: 68% sem compressão, 27% JPEG Lossless, 5% JPEG 2000.

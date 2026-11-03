@@ -2,7 +2,7 @@
 
 Fonte: `docs/BRIEF.md`. Páginas de snapshot citadas em `Screens:` são as do modo snapshot do app (`worklist`, `import-sheet`, `viewer-1x1`, `viewer-2x2`, `viewer-mpr`, `viewer-3d`, `viewer-compare`, `settings`).
 
-Dados de teste: base Horos do usuário (`~/Documents/Horos Data.nosync/Horos Data/DATABASE.noindex`, CT, MR, PT com JPEG Lossless e JPEG 2000) e um conjunto público pequeno em `Tests/Fixtures/` (US multiframe, CR/DX, RLE). Falta um zip real de laboratório.
+Dados de teste: base Horos do usuário (`~/Documents/Horos Data.nosync/Horos Data/DATABASE.noindex`, CT, MR, PT com JPEG Lossless e JPEG 2000) e um conjunto público pequeno em `Tests/Fixtures/` (US multiframe, CR/DX, RLE). Zips reais de laboratório: dossiê pessoal do usuário (US, RX, MG, densitometria, RM). Dados de pacientes ficam fora do repositório; testes automatizados usam só os fixtures públicos.
 
 ## M1 Núcleo: importar, listar, abrir
 
@@ -31,7 +31,7 @@ Screens: worklist, import-sheet
 Depends: S-001
 Acceptance:
 - [unit] Pastas são varridas recursivamente; `DICOMDIR` e arquivos sem extensão são reconhecidos pelo conteúdo.
-- [unit] Zips são extraídos para uma pasta temporária e importados; arquivos não DICOM dentro do zip são ignorados.
+- [unit] Zips são extraídos para uma pasta temporária e importados; JPG, PDF, `__MACOSX` e `._*` são ignorados e contados no resumo da importação.
 - [self] Importar 2.000 imagens não trava a interface e mostra progresso.
 - [unit] Importar o mesmo exame duas vezes não duplica instâncias (chave: SOP Instance UID).
 Status: todo
@@ -235,7 +235,7 @@ Status: todo
 ### S-044 Ícone e build para o GitHub
 Como mantenedor, gero um `.app` assinado e notarizado e publico no GitHub Releases.
 Acceptance:
-- [manual] O DMG abre no macOS 15 em Apple Silicon sem alerta do Gatekeeper.
+- [manual] O DMG abre no macOS 26 em Apple Silicon sem alerta do Gatekeeper.
 Status: todo
 
 ## Dropped
