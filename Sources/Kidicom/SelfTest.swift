@@ -348,15 +348,46 @@ enum SelfTest {
         await viewer.enterMPR()
         let planes = viewer.mpr?.sources.map(\.title) ?? []
         check("MPR builds a 64x64x24 volume", viewer.mpr?.volume.width == 64 && viewer.mpr?.volume.depth == 24, "\(String(describing: viewer.mprMessage))")
-        check("MPR shows axial, coronal, and sagittal side by side", viewer.layout == .three && viewer.mpr?.sources.map({ PatientPlane(orientation: $0.volume.orientation($0.plane)) }) == [.axial, .coronal, .sagittal], "\(planes)")
+        check("MPR shows axial, coronal, and sagittal side by side", viewer.layout == .three && viewer.mpr?.sources.map({ PatientPlane(orientation: $0.orientation(0)) }) == [.axial, .coronal, .sagittal], "\(planes)")
         let axial = viewer.viewports[0], coronal = viewer.viewports[1], sagittal = viewer.viewports[2]
         let started = Date.now
         while coronal.image == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
         check("the coronal reformat is square-pixel: 64 wide, 57.5 mm in 13 rows of 5 mm", coronal.slice?.width == 64 && coronal.slice?.height == 13, "\(coronal.slice?.width ?? 0)x\(coronal.slice?.height ?? 0)")
         check("coronal shows head at the top", coronal.edges?.top == "H" && coronal.edges?.left == "R")
         viewer.click(at: CGPoint(x: 10, y: 0), in: coronal)
-        check("clicking the top row of the coronal moves the axial to the top slice", axial.index == 23)
-        check("the same click moves the sagittal to column 10", sagittal.index == 10)
+        check("clicking the top row of the coronal moves the axial to the top slice", axial.index == 23, "\(axial.index)")
+        let sagittalAt = (sagittal.source as? ReformatSource).map { simd_dot($0.volumePoint(SIMD2(0, 0), at: sagittal.index), SIMD3(1, 0, 0)) }
+        check("the same click moves the sagittal to column 10 (50 mm)", sagittalAt.map { abs($0 - 50) < 0.01 } ?? false, "\(sagittalAt ?? -1)")
+
+        // Oblique: drag the coronal's line in the axial plane to tilt the other two planes.
+        if let session = viewer.mpr, let axialSource = axial.source as? ReformatSource, let coronalSource = coronal.source as? ReformatSource {
+            let c = axialSource.canvasPoint(session.frame.center, at: axial.index)
+            let d = ViewerModel.lineDirection(of: coronalSource, in: axialSource)
+            let onLine = CGPoint(x: c.x + d.x * 20, y: c.y + d.y * 20)
+            let grabbed = viewer.mprBegin(at: onLine, in: axial, scale: 4)
+            check("pressing on a reference line grabs it to tilt", { if case .rotate = grabbed { true } else { false } }())
+            // Turn 30 degrees around the crossing.
+            let turned = CGPoint(x: c.x + 20 * cos(atan2(d.y, d.x) + .pi / 6), y: c.y + 20 * sin(atan2(d.y, d.x) + .pi / 6))
+            viewer.mprDragged(to: turned, in: axial)
+            viewer.mprEnded()
+            let n = session.frame.planes.map(\.normal)
+            check("tilting keeps the three planes perpendicular", abs(simd_dot(n[0], n[1])) < 1e-9 && abs(simd_dot(n[1], n[2])) < 1e-9 && abs(simd_dot(n[0], n[2])) < 1e-9)
+            let tilt = acos(abs(simd_dot(n[1], SIMD3(0, 1, 0)))) * 180 / .pi
+            check("the coronal plane turned 30 degrees", abs(tilt - 30) < 0.5, "\(tilt)")
+            check("the axial plane itself did not move", abs(simd_dot(n[0], SIMD3(0, 0, 1)) - 1) < 1e-9)
+            check("a tilted plane is named Oblique", coronalSource.title == ReformatSource.name(.oblique) || PatientPlane(orientation: coronalSource.orientation(0)) != .oblique)
+            let center = session.frame.center
+            check("pressing on the crossing moves the planes", { if case .move = viewer.mprBegin(at: CGPoint(x: c.x, y: c.y), in: axial, scale: 4) { true } else { false } }())
+            viewer.mprDragged(to: CGPoint(x: c.x + 5, y: c.y), in: axial)
+            viewer.mprEnded()
+            check("dragging the crossing moves the center in the axial plane", simd_length(session.frame.center - center) > 1 && abs(session.frame.center.z - center.z) < 1e-9)
+            axial.reset()
+            check("⌘R straightens the planes", !session.frame.isTilted)
+            let waited = Date.now
+            while viewer.viewports.prefix(3).contains(where: { $0.slice == nil }) && Date.now.timeIntervalSince(waited) < 2 {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+        }
         axial.adjustWindow(dx: 40, dy: 0)
         check("window/level follows across the three planes", coronal.window == axial.window && sagittal.window == axial.window && axial.window != nil)
         if let source = coronal.source as? ReformatSource {

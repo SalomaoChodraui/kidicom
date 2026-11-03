@@ -21,6 +21,8 @@ final class Viewport: Identifiable {
     @ObservationIgnored var onWindowChange: ((VOIWindow?) -> Void)?
     /// Called after the person moves to another frame (scroll sync, S-031).
     @ObservationIgnored var onScroll: ((Viewport) -> Void)?
+    /// Called on ⌘R or double-click reset (MPR straightens its planes).
+    @ObservationIgnored var onReset: (() -> Void)?
     /// Called after Shift-scroll moved this viewport alone, to keep its new offset.
     @ObservationIgnored var onAdjust: ((Viewport) -> Void)?
     /// mm added to this viewport's slice location when scrolling in sync.
@@ -213,6 +215,7 @@ final class Viewport: Identifiable {
     func reset() {
         window = nil
         resetView()
+        onReset?()
     }
 
     var location: Double? { source?.location(index) }

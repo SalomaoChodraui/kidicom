@@ -228,6 +228,7 @@ UX:
 - Surface: toolbar toggle; viewports
 - Words: "MPR", tooltip "Reformat the active series in three planes (MPR)", "Leave MPR"
 - Access: reformats follow reading conventions whatever the acquisition: head up (anterior up in axial), patient right on screen left, anterior left in sagittal
+- Oblique: drag a reference line (away from the crossing) to tilt the other two planes around the plane you are in, always perpendicular; the pointer turns into the rotate icon over a line and the move icon over the crossing; drag the crossing to move all three; ⌘R straightens them
 Status: done
 
 ### S-022 Ligar MIP com espessura ajustável

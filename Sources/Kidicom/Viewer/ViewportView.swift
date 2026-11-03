@@ -5,6 +5,15 @@ import SwiftUI
 /// The image area of one viewport, with the mouse and keyboard of a
 /// radiology viewer: wheel and arrows scroll, left-drag window/level,
 /// right-drag zoom, middle-drag or Command-drag pan, pinch or Option-wheel zoom.
+/// MPR mouse handling the viewer supplies: tilt by a reference line, move
+/// by the crossing. Points are in image pixels; scale is view points per pixel.
+struct MPRMouse {
+    var hit: (CGPoint, CGFloat) -> ViewerModel.MPRDrag? = { _, _ in nil }
+    var begin: (CGPoint, CGFloat) -> ViewerModel.MPRDrag? = { _, _ in nil }
+    var drag: (CGPoint) -> Void = { _ in }
+    var end: () -> Void = {}
+}
+
 struct ViewportView: NSViewRepresentable {
     let viewport: Viewport
     var isActive: Bool
@@ -13,6 +22,7 @@ struct ViewportView: NSViewRepresentable {
     var onClick: (CGPoint) -> Void = { _ in }
     var onDoubleClick: () -> Void = {}
     var onTool: (MeasureTool) -> Void = { _ in }
+    var mpr = MPRMouse()
 
     func makeNSView(context: Context) -> ViewportNSView {
         let view = ViewportNSView()
@@ -22,6 +32,7 @@ struct ViewportView: NSViewRepresentable {
         view.onClick = onClick
         view.onDoubleClick = onDoubleClick
         view.onTool = onTool
+        view.mpr = mpr
         return view
     }
 
@@ -32,6 +43,7 @@ struct ViewportView: NSViewRepresentable {
         view.onClick = onClick
         view.onDoubleClick = onDoubleClick
         view.onTool = onTool
+        view.mpr = mpr
         view.setTool(viewport.tool)
         _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical)
         view.update(image: viewport.image)
@@ -51,6 +63,32 @@ final class ViewportNSView: NSView {
     private var dragged = false
     private var scrollDrag: CGFloat = 0
     private var tool: MeasureTool = .navigate
+    var mpr = MPRMouse()
+    /// True while the left button tilts or moves the MPR planes.
+    private var mprDragging = false
+    private var hoverCursor: NSCursor?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect], owner: self))
+    }
+
+    private func cursor(for drag: ViewerModel.MPRDrag?) -> NSCursor? {
+        switch drag {
+        case .move: ToolCursor.symbol("arrow.up.and.down.and.arrow.left.and.right")
+        case .rotate: ToolCursor.rotate
+        case nil: nil
+        }
+    }
+
+    /// Over a reference line the pointer turns into the tilt icon, over the crossing into move.
+    override func mouseMoved(with event: NSEvent) {
+        guard tool == .navigate, let (point, scale) = imagePoint(event) else { return }
+        let hover = cursor(for: mpr.hit(point, scale))
+        if let hover { hover.set() } else if hoverCursor != nil { ToolCursor.cursor(for: tool).set() }
+        hoverCursor = hover
+    }
 
     /// The pointer follows the left-button tool.
     func setTool(_ newTool: MeasureTool) {
@@ -140,6 +178,12 @@ final class ViewportNSView: NSView {
         begin(event)
         dragged = false
         guard let viewport else { return }
+        if tool == .navigate, !event.modifierFlags.contains(.command), event.clickCount == 1,
+           let (point, scale) = imagePoint(event), let drag = mpr.begin(point, scale) {
+            mprDragging = true
+            cursor(for: drag)?.set()
+            return
+        }
         if let (point, scale) = imagePoint(event), !event.modifierFlags.contains(.command) {
             viewport.pointerDown(at: point, scale: scale)
             measuring = viewport.dragging != nil
@@ -148,6 +192,12 @@ final class ViewportNSView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if mprDragging {
+            mprDragging = false
+            mpr.end()
+            restoreCursor()
+            return
+        }
         restoreCursor()
         if measuring, let (_, scale) = imagePoint(event) {
             viewport?.pointerUp(scale: scale)
@@ -175,6 +225,10 @@ final class ViewportNSView: NSView {
     override func mouseDragged(with event: NSEvent) {
         guard let viewport else { return }
         dragged = true
+        if mprDragging {
+            if let (point, _) = imagePoint(event) { mpr.drag(point) }
+            return
+        }
         if measuring, let (point, _) = imagePoint(event) {
             viewport.pointerDragged(to: point)
             return

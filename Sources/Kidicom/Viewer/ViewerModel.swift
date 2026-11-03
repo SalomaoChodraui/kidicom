@@ -1,5 +1,6 @@
 import KidicomKit
 import SwiftUI
+import simd
 
 /// How the image area is split.
 enum ViewerLayout: String, CaseIterable, Identifiable {
@@ -148,6 +149,8 @@ final class ViewerModel {
     static var nextMPR = false
     static var nextMIP = false
     static var next3D = false
+    /// Snapshot mode: tilt the MPR planes 20 degrees around the axial.
+    static var nextTilt = false
     /// Snapshot mode: open the newest prior beside the next viewer's study.
     static var nextComparePrior = false
 
@@ -175,8 +178,14 @@ final class ViewerModel {
             Self.nextMPR = false
             let mip = Self.nextMIP
             Self.nextMIP = false
+            let tilt = Self.nextTilt
+            Self.nextTilt = false
             Task {
                 await enterMPR()
+                if tilt, let session = mpr {
+                    session.frame.rotate(around: 0, by: .pi / 9)
+                    replanes(except: session.sources[0])
+                }
                 if mip, let source = viewports[1].source as? ReformatSource {
                     source.setSlab(20, mip: true)
                     viewports[1].reload()
@@ -254,19 +263,29 @@ final class ViewerModel {
         defer { buildProgress = nil }
         guard let volume = await volume(for: stack) else { return }
         let window = current.effectiveWindow ?? VOIWindow(center: 40, width: 400)
-        let sources = VolumePlane.allCases.map {
-            ReformatSource(volume: volume, plane: $0, seriesID: stack.id, modality: stack.modality, window: window)
+        let session = MPRSession(volume: volume, seriesID: stack.id, previousLayout: layout,
+                                 previousSources: viewports.map(\.source), previousIndexes: viewports.map(\.index))
+        session.sources = (0 ..< 3).map {
+            ReformatSource(session: session, planeIndex: $0, seriesID: stack.id, modality: stack.modality, window: window)
         }
-        mpr = MPRSession(volume: volume, sources: sources, previousLayout: layout,
-                         previousSources: viewports.map(\.source), previousIndexes: viewports.map(\.index))
-        // Center each plane on the image the person was looking at.
-        let nativeIndex = volume.depth - 1 - min(volume.depth - 1, current.index)
+        // Start on the image the person was looking at: its slice position, mid volume elsewhere.
+        if let location = current.location {
+            let nativeNormal = session.frame.planes[0].normal
+            let patientNormal = volume.patientDirection(nativeNormal)
+            let middle = volume.physicalCenter
+            let shift = location - simd_dot(volume.patientPoint(middle), patientNormal)
+            session.frame.center = middle + shift * nativeNormal
+        }
+        mpr = session
         let personWindow = current.window
-        for (i, source) in sources.enumerated() {
+        for (i, source) in session.sources.enumerated() {
             let viewport = viewports[i]
-            viewport.show(source, at: i == 0 ? nativeIndex : source.count / 2)
+            viewport.show(source, at: source.centerIndex)
             viewport.setWindowQuietly(personWindow)
             viewport.onWindowChange = { [weak self] window in self?.syncWindow(window, from: viewport) }
+            viewport.onScroll = { [weak self] v in self?.mprScrolled(v) }
+            viewport.onAdjust = { [weak self] v in self?.mprScrolled(v) }
+            viewport.onReset = { [weak self] in self?.resetObliques() }
         }
         // Sources first, then the layout, so no viewport loads a series on the way.
         layout = .three
@@ -298,7 +317,7 @@ final class ViewerModel {
 
     func enter3D() async {
         guard volume3D == nil, buildProgress == nil else { return }
-        let stack = mprCandidate ?? (mpr.flatMap { session in stacks.first { $0.id == session.sources.first?.id.split(separator: "#").first.map(String.init) } })
+        let stack = mprCandidate ?? (mpr.flatMap { session in stacks.first { $0.id == session.seriesID } })
         guard let stack else { return }
         mprMessage = nil
         let window = active?.effectiveWindow ?? VOIWindow(center: 40, width: 400)
@@ -313,8 +332,10 @@ final class ViewerModel {
     func exitMPR() {
         guard let session = mpr else { return }
         mpr = nil
+        connectSync()
         for (i, viewport) in viewports.enumerated() {
             viewport.onWindowChange = nil
+            viewport.onReset = nil
             if let previous = session.previousSources[i] { viewport.show(previous, at: session.previousIndexes[i]) }
         }
         layout = session.previousLayout
@@ -330,14 +351,106 @@ final class ViewerModel {
         }
     }
 
-    /// A click (no drag) in an MPR plane moves the other two planes there.
+    /// A click (no drag) in an MPR plane moves the crossing there.
     func click(at point: CGPoint, in viewport: Viewport) {
         guard let session = mpr, let mine = viewport.source as? ReformatSource else { return }
-        for (i, other) in session.sources.enumerated() where other !== mine {
-            if let index = session.volume.index(of: other.plane, at: (Double(point.x), Double(point.y)), in: mine.plane) {
-                viewports[i].go(to: index)
-            }
+        session.frame.center = pointOnPlane(SIMD2(Double(point.x), Double(point.y)), mine, viewport, keeping: session.frame.center)
+        followCenter(except: viewport)
+    }
+
+    /// Scrolling an MPR plane moves the crossing along that plane's normal.
+    private func mprScrolled(_ viewport: Viewport) {
+        guard let session = mpr, let mine = viewport.source as? ReformatSource else { return }
+        let n = mine.plane.normal
+        let c = session.frame.center
+        session.frame.center = c + (mine.position(viewport.index) - simd_dot(c, n)) * n
+    }
+
+    /// The volume point under a canvas pixel, at the crossing's exact depth
+    /// along this plane's normal (the shown slice is the nearest one).
+    private func pointOnPlane(_ pixel: SIMD2<Double>, _ source: ReformatSource, _ viewport: Viewport, keeping center: SIMD3<Double>) -> SIMD3<Double> {
+        let n = source.plane.normal
+        let p = source.volumePoint(pixel, at: viewport.index)
+        return p + (simd_dot(center, n) - simd_dot(p, n)) * n
+    }
+
+    /// Puts every other MPR viewport on the plane through the crossing.
+    private func followCenter(except moved: Viewport?) {
+        guard let session = mpr else { return }
+        for (i, source) in session.sources.enumerated() where viewports[i] !== moved {
+            viewports[i].go(to: source.centerIndex)
         }
+    }
+
+    /// In a plane's canvas, the direction of another plane's reference line.
+    static func lineDirection(of other: ReformatSource, in mine: ReformatSource) -> SIMD2<Double> {
+        let d = simd_cross(mine.plane.normal, other.plane.normal)
+        let v = SIMD2(simd_dot(d, mine.plane.across), simd_dot(d, mine.plane.down))
+        let length = simd_length(v)
+        return length > 1e-9 ? v / length : SIMD2(1, 0)
+    }
+
+    enum MPRDrag { case move, rotate(lastAngle: Double) }
+    @ObservationIgnored private var mprDrag: MPRDrag?
+
+    /// Left button pressed in an MPR plane: on the crossing it moves the
+    /// planes, on a reference line it tilts them; elsewhere it is not ours.
+    func mprBegin(at point: CGPoint, in viewport: Viewport, scale: CGFloat) -> MPRDrag? {
+        mprDrag = mprHit(at: point, in: viewport, scale: scale)
+        return mprDrag
+    }
+
+    /// What a press at this point would do, for the hover cursor too.
+    func mprHit(at point: CGPoint, in viewport: Viewport, scale: CGFloat) -> MPRDrag? {
+        guard let session = mpr, let mine = viewport.source as? ReformatSource else { return nil }
+        let c = mine.canvasPoint(session.frame.center, at: viewport.index)
+        let p = SIMD2(Double(point.x), Double(point.y))
+        let offset = p - c
+        let fromCenter = simd_length(offset) * Double(scale)   // view points
+        if fromCenter < 14 { return .move }
+        for other in session.sources where other !== mine {
+            let d = Self.lineDirection(of: other, in: mine)
+            let away = abs(offset.x * d.y - offset.y * d.x) * Double(scale)
+            if away < 8 && fromCenter > 24 { return .rotate(lastAngle: atan2(offset.y, offset.x)) }
+        }
+        return nil
+    }
+
+    func mprDragged(to point: CGPoint, in viewport: Viewport) {
+        guard let session = mpr, let mine = viewport.source as? ReformatSource, let drag = mprDrag else { return }
+        let p = SIMD2(Double(point.x), Double(point.y))
+        switch drag {
+        case .move:
+            session.frame.center = pointOnPlane(p, mine, viewport, keeping: session.frame.center)
+            followCenter(except: viewport)
+        case .rotate(let last):
+            let c = mine.canvasPoint(session.frame.center, at: viewport.index)
+            let angle = atan2(p.y - c.y, p.x - c.x)
+            var delta = angle - last
+            if delta > .pi { delta -= 2 * .pi } else if delta < -.pi { delta += 2 * .pi }
+            session.frame.rotate(around: mine.planeIndex, by: delta)
+            mprDrag = .rotate(lastAngle: angle)
+            replanes(except: mine)
+        }
+    }
+
+    func mprEnded() { mprDrag = nil }
+
+    /// After a tilt: the other planes draw again through the crossing.
+    private func replanes(except fixed: ReformatSource?) {
+        guard let session = mpr else { return }
+        for (i, source) in session.sources.enumerated() where source !== fixed {
+            source.invalidate()
+            viewports[i].go(to: source.centerIndex)
+            viewports[i].reload()
+        }
+    }
+
+    /// ⌘R in MPR: the planes go back to the volume's axes.
+    func resetObliques() {
+        guard let session = mpr, session.frame.isTilted else { return }
+        session.frame.resetRotation()
+        replanes(except: nil)
     }
 
     /// New viewports get the series not shown yet, in strip order.
@@ -391,7 +504,13 @@ struct ViewportGrid: View {
                             onEscape: { viewer.escape() },
                             onClick: { point in viewer.click(at: point, in: viewport) },
                             onDoubleClick: { viewer.doubleClick(viewport) },
-                            onTool: { viewer.tool = $0 })
+                            onTool: { viewer.tool = $0 },
+                            mpr: MPRMouse(
+                                hit: { point, scale in viewer.mprHit(at: point, in: viewport, scale: scale) },
+                                begin: { point, scale in viewer.mprBegin(at: point, in: viewport, scale: scale) },
+                                drag: { point in viewer.mprDragged(to: point, in: viewport) },
+                                end: { viewer.mprEnded() }
+                            ))
             .overlay { CrosshairOverlay(viewer: viewer, viewport: viewport) }
             .overlay { MeasurementOverlay(viewport: viewport) }
             .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
