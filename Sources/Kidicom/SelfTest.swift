@@ -50,6 +50,11 @@ enum SelfTest {
             check("copied files are in the Library", images().allSatisfy { $0.isCopied && FileManager.default.fileExists(atPath: $0.fileURL.path) })
             check("a new import is in Recently Imported", ct.map { SidebarItem.recent.includes($0) } ?? false)
 
+            // S-005: search ignores case and accents; Study Date sorts.
+            check("search finds by name, ID, and description", ct?.matches("maria") == true && ct?.matches("102938") == true && ct?.matches("tórax") == true && ct?.matches("abdome") == false)
+            let byDate = studies().sorted(using: KeyPathComparator(\Study.sortDate, order: .reverse))
+            check("the newest study sorts first", byDate.first?.studyDescription == "TC TORAX SEM CONTRASTE" && byDate.first?.studyDate == ct?.studyDate)
+
             // Importing the same files again adds nothing.
             let again = await model.importer.run(scan ?? ImportScan(), copy: true)
             check("importing twice does not duplicate images", again.images == 0 && again.duplicates == 50 && images().count == 50)

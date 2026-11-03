@@ -32,6 +32,22 @@ final class Study {
 
     var displayName: String { PersonName.display(patientName) }
 
+    /// Sort key for Study Date; studies without a date sort as oldest.
+    var sortDate: Date { studyDate ?? .distantPast }
+
+    /// Sort key for the Files column.
+    var filesOrder: Int { isCopied ? 0 : 1 }
+
+    /// Search over patient name, patient ID, and description, ignoring
+    /// case and accents.
+    func matches(_ text: String) -> Bool {
+        let query = text.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return true }
+        return [displayName, patientName, patientID, studyDescription, accessionNumber].contains {
+            $0.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
+    }
+
     /// A Keep in Place study whose files moved or were removed.
     var isOffline: Bool {
         guard !isCopied else { return false }
@@ -131,4 +147,7 @@ final class AppModel {
     var showsOpenPanel = false
 
     func importFiles() { showsOpenPanel = true }
+
+    /// Opens a study in the viewer. Filled in by S-006.
+    func open(_ uid: UUID) {}
 }

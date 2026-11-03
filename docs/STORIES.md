@@ -66,7 +66,13 @@ Acceptance:
 - [snap] Colunas: Paciente, ID, Data do estudo, Modalidade, Descrição, Imagens, Origem.
 - [self] O índice sobrevive a reiniciar o app.
 - [self] A busca filtra por nome, ID ou descrição enquanto digito.
-Status: todo
+UX:
+- Flow: worklist opens on All Studies -> type in the search field (⌘F) to filter -> click a column header to sort -> double-click or Return opens the study (S-006)
+- Surface: sidebar page with a table (a place people come back to)
+- States: empty "No Studies" with "Import…"; no search match "No Results for "silva""; long descriptions truncate with a tooltip; offline rows show "Offline" in the Files column
+- Words: columns "Patient", "Patient ID", "Study Date", "Modality", "Description", "Images", "Files"; Files values "Library", "In Place", "Offline"; search prompt "Search patient, ID, or description"
+- Access: arrow keys move the selection, Return opens, ⌘F focuses search, Delete removes (S-042)
+Status: done
 
 ### S-006 Abrir um exame no visualizador
 Como usuário, dou duplo clique (ou Return) num estudo e ele abre numa janela de visualização com as séries numa faixa lateral.

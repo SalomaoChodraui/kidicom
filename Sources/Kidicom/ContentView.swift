@@ -11,11 +11,8 @@ struct ContentView: View {
         @Bindable var importer = model.importer
         NavigationSplitView {
             sidebar
-        } content: {
-            StudyList(page: model.sidebar ?? .all)
-                .navigationSplitViewColumnWidth(min: 280, ideal: 340)
         } detail: {
-            StudyDetail()
+            StudyTable(page: model.sidebar ?? .all)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { ImportStatusBar() }
         .fileImporter(
@@ -51,32 +48,77 @@ struct ContentView: View {
     }
 }
 
-struct StudyList: View {
+struct StudyTable: View {
     @Environment(AppModel.self) private var model
     @Environment(\.modelContext) private var context
-    @Query(sort: \Study.importedAt, order: .reverse) private var studies: [Study]
+    @Query private var studies: [Study]
     @State private var isTargeted = false
+    @State private var search = ""
+    @State private var sortOrder = [KeyPathComparator(\Study.sortDate, order: .reverse)]
     let page: SidebarItem
 
-    private var visible: [Study] { studies.filter { page.includes($0) } }
+    private var visible: [Study] {
+        studies
+            .filter { page.includes($0) && $0.matches(search) }
+            .sorted(using: sortOrder)
+    }
 
     var body: some View {
-        @Bindable var model = model
-        List(visible, id: \.uid, selection: $model.selection) { study in
-            StudyRow(study: study)
-                .tag(study.uid)
-                .contextMenu {
-                    Button("Delete", role: .destructive) { context.delete(study) }
-                }
+        let rows = visible
+        // The table selects by the model id; the app keeps the stable uid.
+        let selection = Binding<PersistentIdentifier?>(
+            get: { rows.first { $0.uid == model.selection }?.persistentModelID },
+            set: { id in model.selection = rows.first { $0.persistentModelID == id }?.uid }
+        )
+        Table(rows, selection: selection, sortOrder: $sortOrder) {
+            TableColumn("Patient", value: \.displayName) { study in
+                Text(study.displayName).help(study.displayName)
+            }
+            .width(min: 140, ideal: 200)
+            TableColumn("Patient ID", value: \.patientID)
+                .width(min: 70, ideal: 90)
+            TableColumn("Study Date", value: \.sortDate) { study in
+                Text(study.studyDate.map { $0.formatted(date: .numeric, time: .omitted) } ?? "—")
+                    .monospacedDigit()
+            }
+            .width(min: 80, ideal: 96)
+            TableColumn("Modality", value: \.modalities)
+                .width(min: 56, ideal: 72)
+            TableColumn("Description", value: \.studyDescription) { study in
+                Text(study.studyDescription).help(study.studyDescription)
+            }
+            .width(min: 140, ideal: 260)
+            TableColumn("Images", value: \.imageCount) { study in
+                Text(study.imageCount.formatted())
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 52, ideal: 64)
+            TableColumn("Files", value: \.filesOrder) { study in
+                FilesLabel(study: study)
+            }
+            .width(min: 64, ideal: 80)
         }
+        .contextMenu(forSelectionType: PersistentIdentifier.self) { selection in
+            Button("Delete", role: .destructive) {
+                for study in studies where selection.contains(study.persistentModelID) { context.delete(study) }
+            }
+        } primaryAction: { selection in
+            if let study = studies.first(where: { selection.contains($0.persistentModelID) }) { model.open(study.uid) }
+        }
+        .searchable(text: $search, placement: .toolbar, prompt: Text("Search patient, ID, or description"))
         .overlay {
-            if visible.isEmpty {
-                ContentUnavailableView {
-                    Label("No Studies", systemImage: page.symbol)
-                } description: {
-                    Text("Drop DICOM files, folders, or zips here.")
-                } actions: {
-                    Button("Import…") { model.importFiles() }
+            if rows.isEmpty {
+                if search.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Studies", systemImage: page.symbol)
+                    } description: {
+                        Text("Drop DICOM files, folders, or zips here.")
+                    } actions: {
+                        Button("Import…") { model.importFiles() }
+                    }
+                } else {
+                    ContentUnavailableView.search(text: search)
                 }
             }
         }
@@ -103,65 +145,20 @@ struct StudyList: View {
     }
 }
 
-struct StudyRow: View {
+/// Where a study's files are: Library, In Place, or Offline.
+struct FilesLabel: View {
     let study: Study
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            HStack(spacing: Space.sm) {
-                Text(study.displayName)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if study.isOffline {
-                    Label("Offline", systemImage: "externaldrive.badge.xmark")
-                        .labelStyle(.titleAndIcon)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help("The files of this study were moved or removed.")
-                }
-            }
-            Text(subtitle)
+        if study.isOffline {
+            Label("Offline", systemImage: "externaldrive.badge.xmark")
                 .foregroundStyle(.secondary)
-                .font(.callout)
-                .lineLimit(2)
-        }
-        .help(study.studyDescription)
-    }
-
-    private var subtitle: String {
-        let date = study.studyDate.map { $0.formatted(date: .abbreviated, time: .omitted) }
-        return [study.modalities, date, study.studyDescription].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
-    }
-}
-
-struct StudyDetail: View {
-    @Environment(AppModel.self) private var model
-    @Query private var studies: [Study]
-
-    var body: some View {
-        if let study = studies.first(where: { $0.uid == model.selection }) {
-            Form {
-                LabeledContent("Patient", value: study.displayName)
-                LabeledContent("Patient ID", value: study.patientID)
-                LabeledContent("Study Date") {
-                    Text(study.studyDate.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "—")
-                }
-                LabeledContent("Description", value: study.studyDescription)
-                LabeledContent("Modalities", value: study.modalities)
-                LabeledContent("Images", value: study.imageCount.formatted())
-                LabeledContent("Series", value: study.series.count.formatted())
-                LabeledContent("Files") {
-                    if study.isOffline {
-                        Text("Offline")
-                    } else {
-                        Text(study.isCopied ? "Copied to Library" : "Kept in Place")
-                    }
-                }
-            }
-            .formStyle(.grouped)
+                .help("The files of this study were moved or removed.")
+        } else if study.isCopied {
+            Text("Library").foregroundStyle(.secondary)
         } else {
-            ContentUnavailableView("No Selection", systemImage: "sidebar.right")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Text("In Place").foregroundStyle(.secondary)
+                .help("The files stay where they were imported from.")
         }
     }
 }
