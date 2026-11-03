@@ -126,17 +126,21 @@ final class Viewport: Identifiable {
 
     var effectiveWindow: VOIWindow? { window ?? slice?.defaultWindow }
 
+    /// Bumped by every draw request; a result applies only if it is still the newest.
+    @ObservationIgnored private var requestID = 0
+
     func go(to newIndex: Int) {
         guard let stack = source, stack.count > 0 else { return }
+        requestID += 1
         index = min(max(0, newIndex), stack.count - 1)
         if let hit = stack.cached(index) {
             slice = hit
             render()
         } else {
             renderTask?.cancel()
-            let target = index
+            let target = index, id = requestID
             renderTask = Task {
-                guard let loaded = await stack.load(target), !Task.isCancelled, self.index == target else { return }
+                guard let loaded = await stack.load(target), !Task.isCancelled, self.index == target, id == self.requestID else { return }
                 self.slice = loaded
                 self.render()
             }
@@ -224,6 +228,36 @@ final class Viewport: Identifiable {
     func reload() {
         slice = nil
         go(to: index)
+    }
+
+    @ObservationIgnored private(set) var refreshing = false
+    @ObservationIgnored private var refreshAgain = false
+
+    /// Redraws while the source keeps changing (tilting MPR planes): the
+    /// old picture stays up, and only the newest request runs after the
+    /// one in flight, so the view never goes black mid-drag.
+    func refresh(to newIndex: Int) {
+        guard let source, source.count > 0 else { return }
+        index = min(max(0, newIndex), source.count - 1)
+        if refreshing { refreshAgain = true; return }
+        refreshing = true
+        renderTask?.cancel()
+        Task {
+            while true {
+                refreshAgain = false
+                requestID += 1
+                let id = requestID, target = index
+                let loaded = await source.load(target)
+                // A newer request (scroll, slab, another series) wins over this one.
+                guard id == requestID, self.source === source else { break }
+                if let loaded {
+                    self.slice = loaded
+                    self.render()
+                }
+                if !refreshAgain { break }
+            }
+            refreshing = false
+        }
     }
 
     private func render() {

@@ -441,8 +441,7 @@ final class ViewerModel {
         guard let session = mpr else { return }
         for (i, source) in session.sources.enumerated() where source !== fixed {
             source.invalidate()
-            viewports[i].go(to: source.centerIndex)
-            viewports[i].reload()
+            viewports[i].refresh(to: source.centerIndex)
         }
     }
 

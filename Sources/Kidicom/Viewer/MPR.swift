@@ -60,20 +60,29 @@ final class ReformatSource: FrameSource {
     func setSlab(_ mm: Double, mip: Bool) {
         slab = mm
         mode = mip ? .mip : .single
-        cache = [:]
+        invalidate()
     }
 
+    /// Bumped whenever the plane turns or the slab changes, so a picture
+    /// computed for an older plane never lands in the cache.
+    private(set) var generation = 0
+
     /// The plane turned: drop pictures of the old one.
-    func invalidate() { cache = [:] }
+    func invalidate() {
+        cache = [:]
+        generation += 1
+    }
 
     func cached(_ index: Int) -> DecodedSlice? { cache[index] }
 
     func load(_ index: Int) async -> DecodedSlice? {
         if let hit = cache[index] { return hit }
+        let started = generation
         let image = await Self.render(volume, plane, position(index), slab, mode, session.outside)
         let slice = DecodedSlice(frame: .grayscale(image.values), width: image.width, height: image.height, inverted: false,
                                  defaultWindow: defaultWindow, pixelSpacing: image.pixelSpacing,
                                  sliceThickness: mode == .mip ? slab : nil)
+        guard started == generation else { return slice }   // the plane moved meanwhile: show it, don't keep it
         if cache.count > 8 { cache.removeAll() }
         cache[index] = slice
         return slice

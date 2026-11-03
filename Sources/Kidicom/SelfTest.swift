@@ -368,6 +368,15 @@ enum SelfTest {
             check("pressing on a reference line grabs it to tilt", { if case .rotate = grabbed { true } else { false } }())
             // Turn 30 degrees around the crossing.
             let turned = CGPoint(x: c.x + 20 * cos(atan2(d.y, d.x) + .pi / 6), y: c.y + 20 * sin(atan2(d.y, d.x) + .pi / 6))
+            // Several moves in a row, like a real drag: the other planes never go blank.
+            var blank = false
+            for step in 1 ... 6 {
+                let a = atan2(d.y, d.x) + .pi / 6 * Double(step) / 6
+                viewer.mprDragged(to: CGPoint(x: c.x + 20 * cos(a), y: c.y + 20 * sin(a)), in: axial)
+                if coronal.image == nil || sagittal.image == nil { blank = true }
+                try? await Task.sleep(for: .milliseconds(3))
+            }
+            check("while tilting, the other planes keep a picture", !blank)
             viewer.mprDragged(to: turned, in: axial)
             viewer.mprEnded()
             let n = session.frame.planes.map(\.normal)
@@ -384,7 +393,7 @@ enum SelfTest {
             axial.reset()
             check("⌘R straightens the planes", !session.frame.isTilted)
             let waited = Date.now
-            while viewer.viewports.prefix(3).contains(where: { $0.slice == nil }) && Date.now.timeIntervalSince(waited) < 2 {
+            while viewer.viewports.prefix(3).contains(where: { $0.slice == nil || $0.refreshing }) && Date.now.timeIntervalSince(waited) < 2 {
                 try? await Task.sleep(for: .milliseconds(10))
             }
         }

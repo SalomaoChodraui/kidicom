@@ -41,3 +41,10 @@ Symptom: on another Mac, the downloaded DMG was refused before it mounted.
 Cause: release.sh signed the DMG with the Apple Development certificate; Gatekeeper assesses a signed, quarantined disk image and rejects anything but Developer ID.
 Fix: the DMG is signed only with Developer ID. Unsigned, it mounts, and only the app inside asks for Open Anyway (System Settings > Privacy & Security).
 Rule: never sign a DMG with a development certificate; test releases with a quarantined copy and `spctl --assess --type open`.
+
+## 2026-11-03 The other MPR planes went black while tilting
+
+Symptom: while dragging a reference line, the other two planes were black and only drew after the mouse was released.
+Cause: every mouse move cleared their picture and cancelled the render in flight, so no render finished during the drag.
+Fix: `Viewport.refresh(to:)` keeps the old picture, lets the render in flight finish, then draws only the newest plane; `ReformatSource` tags its cache with a generation so pictures of an older plane are never cached; every draw request carries an id and only the newest applies.
+Rule: interactive redraws never blank the view and never cancel work they will need; the newest request wins.
