@@ -1,0 +1,29 @@
+# Architecture
+
+## Targets
+
+| Target | Holds | Depends on |
+| --- | --- | --- |
+| `KidicomKit` | DICOM parser, pixel decoding (native, JPEG Lossless, RLE, JPEG via ImageIO, JPEG 2000 via OpenJPEG), import scanner, slice order, windowing, sample studies. No SwiftUI, no SwiftData. | `COpenJPEG`, Foundation, Accelerate, ImageIO |
+| `COpenJPEG` | OpenJPEG 2.5.3 decoder (BSD), vendored, plus `kidicom_j2k.c` to decode from memory | libc |
+| `Kidicom` | App: SwiftData models (`Study`, `Series`, `ImageFile`), `Importer`, worklist, viewer windows, snapshot and self-test modes | `KidicomKit` |
+| `KidicomKitTests` | Unit tests; reference tests against dcmtk and OpenJPEG when `KIDICOM_SAMPLES` points at local files | `KidicomKit` |
+
+Dependencies point one way: app to Kit to C.
+
+## Data flow
+
+1. Import: `ImportScanner.scan` (files, folders, zips via `ditto`) -> `Importer.read` parses headers in parallel and copies into the Library -> main actor inserts `Study`/`Series`/`ImageFile` in batches of 200.
+2. Viewing: `SeriesStack` orders frames with `SliceOrder`, decodes them off the main thread (`@concurrent`), caches about 384 MB per series, and prefetches neighbors. `Viewport` holds index, window, zoom, pan and renders with `Renderer.gray8` (vDSP).
+
+## Storage
+
+- Database: `~/Library/Application Support/Kidicom/Kidicom.store` (SwiftData).
+- Library: `~/Library/Application Support/Kidicom/Library/Files/<study>/<series>/<image>.dcm`.
+- Keep in Place images store an absolute path; a missing file makes the study Offline.
+- `APP_STORE=/tmp/...` moves both next to a test store.
+
+## Seams
+
+- `KIDICOM_SAMPLES`: tests read real files from a local folder; patient files never enter the repo.
+- `APP_IMPORT`: seeds a test store from a real folder, kept in place.
