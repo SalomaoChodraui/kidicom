@@ -521,6 +521,7 @@ final class ViewerModel {
         building?.cancel()
         building = nil
         volume3D = nil
+        cached3D = nil
         mpr?.sources = []
         mpr = nil
         volumes = [:]
