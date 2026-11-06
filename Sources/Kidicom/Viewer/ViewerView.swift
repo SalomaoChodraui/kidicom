@@ -78,9 +78,11 @@ struct ViewerView: View {
             if viewer.showsSeries {
                 SeriesStrip(viewer: viewer, current: study, others: priors(of: study))
                     .frame(width: SeriesStrip.width)
-                Divider()
+                    .overlay(alignment: .trailing) { Divider() }
+                    .gridProbe("series-strip", area: "viewer", edge: nil)
             }
             ViewportGrid(viewer: viewer, study: study)
+                .gridProbe("image-area", area: "viewer", edge: nil)
                 .overlay {
                     if let progress = viewer.buildProgress {
                         VStack(spacing: Space.sm) {
@@ -104,6 +106,7 @@ struct ViewerView: View {
                     }
                 }
         }
+        .gridArea("viewer", inset: 0)
         .inspector(isPresented: Bindable(viewer).showsTags) {
             TagInspector(viewport: viewer.active)
                 .inspectorColumnWidth(min: 400, ideal: 600, max: 1000)

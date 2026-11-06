@@ -31,12 +31,15 @@ enum Snapshot {
                                         IOPMAssertionLevel(kIOPMAssertionLevelOn), "Snapshots" as CFString, &awake)
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try? await Task.sleep(for: .seconds(1.5))
+            let studies = (try? model.container.mainContext.fetch(FetchDescriptor<Study>(sortBy: [SortDescriptor(\.studyDate, order: .reverse)]))) ?? []
+            let groups = Set(studies.flatMap { ModalityGroup.groups(of: $0) })
+            let sidebarPages = SidebarItem.library + ModalityGroup.allCases.filter { groups.contains($0) }.map { SidebarItem.modality($0) }
             for mode in ["light", "dark"] {
                 NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
-                for page in SidebarItem.library + [.modality(.ct)] where only?.contains(page.id) ?? true {
+                for page in sidebarPages where only?.contains(page.id) ?? true {
                     model.sidebar = page
                     try? await Task.sleep(for: .seconds(0.8))
-                    capture(to: "\(dir)/\(page.id)-\(mode).png")
+                    await capture(to: "\(dir)/\(page.id)-\(mode).png")
                 }
             }
             if only == nil || only?.contains("import-sheet") == true {
@@ -47,23 +50,22 @@ enum Snapshot {
                         model.importer.previewSheet(files: 2_000, skipped: 18, fromZip: zip)
                         try? await Task.sleep(for: .seconds(1))
                         let main = NSApp.windows.first { $0.canBecomeMain && !$0.isSheet }
-                        capture(to: "\(dir)/\(name)-\(mode).png", window: main?.attachedSheet)
+                        await capture(to: "\(dir)/\(name)-\(mode).png", window: main?.attachedSheet)
                         model.importer.cancel()
                         try? await Task.sleep(for: .seconds(0.6))
                     }
                 }
             }
             // Viewer windows: one per sample modality.
-            let studies = (try? model.container.mainContext.fetch(FetchDescriptor<Study>(sortBy: [SortDescriptor(\.studyDate, order: .reverse)]))) ?? []
             let pages: [(String, String, ViewerLayout)] = [
-                ("viewer-ct", "CT", .single), ("viewer-ct-reading", "CT", .single), ("viewer-ct-turned", "CT", .single), ("viewer-ct-measure", "CT", .single), ("viewer-ct-rotated", "CT", .single), ("viewer-ct-tags", "CT", .single), ("viewer-ct-mpr", "CT", .single), ("viewer-ct-oblique", "CT", .single), ("viewer-ct-mip", "CT", .single),
+                ("viewer-ct", "CT", .single), ("viewer-ct-reading", "CT", .single), ("viewer-ct-compare", "CT", .single), ("viewer-ct-reading-mpr", "CT", .single), ("viewer-ct-reading-3d", "CT", .single), ("viewer-ct-turned", "CT", .single), ("viewer-ct-measure", "CT", .single), ("viewer-ct-rotated", "CT", .single), ("viewer-ct-tags", "CT", .single), ("viewer-ct-mpr", "CT", .single), ("viewer-ct-oblique", "CT", .single), ("viewer-ct-mip", "CT", .single),
                 ("viewer-mr-mpr", "MR", .single), ("viewer-ct-3d", "CT", .single), ("viewer-mr-3d", "MR", .single),
                 ("viewer-pt-compare", "PT", .single), ("viewer-ct-2x2", "CT", .grid), ("viewer-mr", "MR", .single),
                 ("viewer-mr-1x2", "MR", .sideBySide), ("viewer-us", "US", .single), ("viewer-cr", "CR", .single),
             ]
             for (name, modality, layout) in pages where only == nil || only?.contains(name) == true {
                 guard let study = studies.first(where: { $0.modalities.contains(modality) }) else { continue }
-                ViewerModel.nextHidesSeries = name.hasSuffix("reading")
+                ViewerModel.nextHidesSeries = name.contains("reading")
                 ViewerModel.nextLayout = layout
                 ViewerModel.nextTransformed = name.hasSuffix("turned")
                 ViewerModel.nextMeasured = name.hasSuffix("measure") || name.hasSuffix("rotated")
@@ -82,7 +84,7 @@ enum Snapshot {
                 for mode in ["light", "dark"] {
                     NSApp.appearance = NSAppearance(named: mode == "light" ? .aqua : .darkAqua)
                     try? await Task.sleep(for: .seconds(0.8))
-                    capture(to: "\(dir)/\(name)-\(mode).png", window: viewer)
+                    await capture(to: "\(dir)/\(name)-\(mode).png", window: viewer)
                 }
                 viewer?.close()
                 try? await Task.sleep(for: .seconds(0.5))
@@ -97,7 +99,7 @@ enum Snapshot {
                         model.settingsTab = tab
                         try? await Task.sleep(for: .seconds(0.8))
                         let settings = NSApp.windows.first { $0.isVisible && $0 !== main && !$0.isSheet }
-                        capture(to: "\(dir)/settings-\(tab.rawValue)-\(mode).png", window: settings)
+                        await capture(to: "\(dir)/settings-\(tab.rawValue)-\(mode).png", window: settings)
                     }
                 }
             }
@@ -113,7 +115,7 @@ enum Snapshot {
     /// permission for the app that started this one (your terminal, or Claude).
     /// Without it, falls back to drawing the view hierarchy, which leaves
     /// sidebars and glass blank.
-    private static func capture(to path: String, window: NSWindow? = nil) {
+    private static func capture(to path: String, window: NSWindow? = nil) async {
         // Another app can hide this one while snapshots run (computer use hides
         // apps it does not control). Hidden windows cannot be captured.
         if NSApp.isHidden { NSApp.unhideWithoutActivation() }
@@ -124,6 +126,8 @@ enum Snapshot {
         // Active, like a window someone is using: real accent colors and focus rings.
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        // Let activation and toolbar appearance reach the screen before capture.
+        try? await Task.sleep(for: .milliseconds(200))
         let size = window.contentView?.bounds.size ?? .zero
         GridProbes.shared.write(to: path.replacingOccurrences(of: ".png", with: "-layout.json"), window: size)
         try? FileManager.default.removeItem(atPath: path)
@@ -138,7 +142,7 @@ enum Snapshot {
                 print("SNAPSHOT \(path)")
                 return
             }
-            Thread.sleep(forTimeInterval: 0.5)
+            try? await Task.sleep(for: .milliseconds(500))
         }
         guard let view = window.contentView?.superview ?? window.contentView,
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }

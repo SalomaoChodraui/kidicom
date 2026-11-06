@@ -22,6 +22,10 @@ Mapa dos comandos novos: Visualizar > Mostrar/Ocultar Séries (⌘⇧S), Layout 
 8. Adiado: remoção e importação não têm todos os estados de erro/vazio no conjunto padrão de snapshots. Precisam de fixtures e capturas próprias, sem uso de dados reais.
 9. Adiado: contexto de miniatura executa comparação imediatamente com botão direito. A interação já consta em S-010; trocar por menu exige decisão sobre compatibilidade do gesto existente.
 
+10. Adiado: Orientação, projeção, paletas 3D e sincronismos ainda dependem de menus do toolbar. A entrega prioriza os comandos mais frequentes; ampliar o mapa restante exige atalhos próprios sem colisão com ferramentas configuráveis.
+11. Parcial: a instrumentação existente gerava arquivos sem probes. O viewer agora mede as áreas de séries e imagens, inclusive com faixa recolhida, e mantém o divisor dentro dos 184 pt da faixa. Biblioteca e Ajustes ainda precisam de instrumentação interna para medir cada controle.
+12. Feito: o conjunto sintético não produzia uma captura de comparação, porque o roteiro só pedia PT e o seed contém TC, US e CR. O roteiro agora captura a comparação de TC e leitura sem séries em 2D, MPR e 3D; a captura aguarda a ativação da janela antes de fotografar o chrome.
+
 ## Evidência
 
 Preencher após a validação final: snapshots, commits e resultados dos comandos exigidos.
