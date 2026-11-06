@@ -435,6 +435,30 @@ final class ViewerModel {
         if volume3D != nil { volume3D = nil } else { Task { await enter3D() } }
     }
 
+    /// The last series' volume on the GPU, to reopen 3D without copying it
+    /// again. One entry, freed with the viewer window.
+    @ObservationIgnored private var cached3D: (seriesID: String, prepared: VolumeSession.Prepared)?
+
+    /// Copies the volume to the GPU off the main thread, with the progress bar up.
+    private func prepared3D(_ volume: Volume, for stack: SeriesStack) async -> VolumeSession.Prepared? {
+        if let cached3D, cached3D.seriesID == stack.id { return cached3D.prepared }
+        cached3D = nil   // frees the old texture before making the new one
+        buildProgress = 0
+        defer { buildProgress = nil }
+        let modality = stack.modality
+        let prepared = await Task.detached(priority: .userInitiated) {
+            VolumeSession.prepare(volume, modality: modality) { fraction in
+                Task { @MainActor in
+                    // Late updates after the bar closed stay closed.
+                    guard let current = self.buildProgress else { return }
+                    self.buildProgress = max(current, fraction)
+                }
+            }
+        }.value
+        if let prepared { cached3D = (stack.id, prepared) }
+        return prepared
+    }
+
     func enter3D() async {
         guard volume3D == nil, buildProgress == nil else { return }
         let stack = mprCandidate ?? (mpr.flatMap { session in stacks.first { $0.id == session.seriesID } })
@@ -442,10 +466,11 @@ final class ViewerModel {
         mprMessage = nil
         let window = active?.effectiveWindow ?? VOIWindow(center: 40, width: 400)
         guard let volume = await volume(for: stack) else { return }
-        guard let session = VolumeSession(volume: volume, title: stack.title, window: window, modality: stack.modality) else {
+        guard let prepared = await prepared3D(volume, for: stack) else {
             mprMessage = String(localized: "3D needs a Mac with Metal.")
             return
         }
+        let session = VolumeSession(volume: volume, prepared: prepared, title: stack.title, window: window, modality: stack.modality)
         toolBefore3D = tool
         session.onTool = { [weak self] in self?.tool = $0 }
         volume3D = session
