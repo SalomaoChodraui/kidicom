@@ -721,12 +721,22 @@
         }
       }
     },
-    "Drag: rotate · Shift-drag or ⌘-drag: window/level · Right-drag: zoom · Wheel button: pan": {
+    "Drag: rotate · Shift-drag: window/level · Right-drag: zoom · Wheel button: pan": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arrastar: girar · Shift ou ⌘ + arrastar: janela · Botão direito: zoom · Rodinha: mover"
+            "value": "Arrastar: girar · Shift + arrastar: janela · Botão direito: zoom · Rodinha: mover"
+          }
+        }
+      }
+    },
+    "Drag: window/level · Shift-drag: rotate · Right-drag: zoom · Wheel button: pan": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrastar: janela · Shift + arrastar: girar · Botão direito: zoom · Rodinha: mover"
           }
         }
       }

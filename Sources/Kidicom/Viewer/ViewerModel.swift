@@ -58,7 +58,13 @@ final class ViewerModel {
     /// Why the last MPR or 3D request failed, shown inline.
     var mprMessage: String?
     /// The 3D view, while it is on.
-    private(set) var volume3D: VolumeSession?
+    private(set) var volume3D: VolumeSession? {
+        didSet {
+            guard volume3D == nil, let previous = toolBefore3D else { return }
+            toolBefore3D = nil
+            tool = previous
+        }
+    }
     /// Volumes already built, by series id, shared by MPR and 3D.
     @ObservationIgnored private var volumes: [String: Volume] = [:]
 
@@ -131,8 +137,13 @@ final class ViewerModel {
     var showsTags = false
     /// The left-button tool, shared by every viewport.
     var tool: MeasureTool = .navigate {
-        didSet { for viewport in viewports { viewport.tool = tool } }
+        didSet {
+            for viewport in viewports { viewport.tool = tool }
+            volume3D?.tool = tool
+        }
     }
+    /// The 2D tool to bring back when 3D closes; 3D opens on Rotate.
+    @ObservationIgnored private var toolBefore3D: MeasureTool?
 
     var visible: ArraySlice<Viewport> { viewports.prefix(layout.count) }
     var active: Viewport? { viewports.indices.contains(activeIndex) ? viewports[activeIndex] : nil }
@@ -336,7 +347,10 @@ final class ViewerModel {
             mprMessage = String(localized: "3D needs a Mac with Metal.")
             return
         }
+        toolBefore3D = tool
+        session.onTool = { [weak self] in self?.tool = $0 }
         volume3D = session
+        tool = .rotate
     }
 
     func exitMPR() {

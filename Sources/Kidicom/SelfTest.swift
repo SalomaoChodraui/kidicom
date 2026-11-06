@@ -510,12 +510,32 @@ enum SelfTest {
             view.mouseDown(with: send(.leftMouseDown, 100, 100))
             view.mouseDragged(with: send(.leftMouseDragged, 130, 100))
             check("a plain drag in 3D rotates", session.camera.rotation != rotationBefore)
+            // With the Window/Level tool, a plain drag sets the window and Shift-drag rotates.
+            view.toolWindows = true
+            let toolBefore = session.camera.window
+            let toolRotation = session.camera.rotation
+            view.mouseDown(with: send(.leftMouseDown, 100, 100))
+            view.mouseDragged(with: send(.leftMouseDragged, 100, 140))
+            check("with the Window/Level tool a plain drag in 3D sets the window", session.camera.window != toolBefore && session.camera.rotation == toolRotation)
+            view.mouseDown(with: send(.leftMouseDown, 100, 100, .shift))
+            view.mouseDragged(with: send(.leftMouseDragged, 130, 100, .shift))
+            check("with the Window/Level tool Shift-drag in 3D rotates", session.camera.rotation != toolRotation)
+            view.toolWindows = false
             session.apply(.softTissue)
             session.renderer.camera = session.camera
             check("the soft tissue preset shows more of the body than bone", lit(session.renderer.renderImage(width: 96, height: 96)) > lit(front))
         } else {
             check("3D renders the CT with the bone preset", false, "no Metal renderer")
         }
+        // The 3D view opens on Rotate, follows the toolbar tool, and gives the 2D tool back.
+        viewer.tool = .distance
+        await viewer.enter3D()
+        check("3D opens with the Rotate tool", viewer.volume3D?.tool == .rotate && viewer.tool == .rotate)
+        viewer.tool = .navigate
+        check("picking Window/Level reaches the 3D view", viewer.volume3D?.tool == .navigate)
+        viewer.escape()
+        check("leaving 3D brings back the 2D tool", viewer.volume3D == nil && viewer.tool == .distance)
+        viewer.tool = .navigate
         viewer.exitMPR()
         check("leaving MPR restores the previous layout and series", viewer.mpr == nil && viewer.layout == .single && viewer.viewports[0].stack != nil)
 
