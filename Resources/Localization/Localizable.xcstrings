@@ -471,12 +471,52 @@
         }
       }
     },
+    "Change…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alterar…"
+          }
+        }
+      }
+    },
     "Choose DICOM files, folders, or zips to import.": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Escolha arquivos DICOM, pastas ou zips para importar."
+          }
+        }
+      }
+    },
+    "Choose a folder outside iCloud Drive.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha uma pasta fora do iCloud Drive."
+          }
+        }
+      }
+    },
+    "Choose a folder outside the current Library.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha uma pasta fora da Biblioteca atual."
+          }
+        }
+      }
+    },
+    "Choose where to keep the Library. A folder named “Kidicom Library” is created inside it.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha onde guardar a Biblioteca. Uma pasta “Kidicom Library” é criada dentro dela."
           }
         }
       }
@@ -497,6 +537,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Comparar"
+          }
+        }
+      }
+    },
+    "Copied files can live on another disk. The database stays on this Mac.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os arquivos copiados podem ficar em outro disco. O banco de dados fica neste Mac."
           }
         }
       }
@@ -1105,6 +1155,32 @@
         }
       }
     },
+    "Move Library Here": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mover Biblioteca para Cá"
+          }
+        }
+      }
+    },
+    "Moving %lld of %lld Files…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Moving %1$lld of %2$lld Files…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Movendo %1$lld de %2$lld arquivos…"
+          }
+        }
+      }
+    },
     "Name": {
       "localizations": {
         "pt-BR": {
@@ -1191,6 +1267,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Medicina Nuclear"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -1745,6 +1831,46 @@
         }
       }
     },
+    "The Library disk is not connected. Copied studies are offline.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O disco da Biblioteca não está conectado. Os exames copiados estão offline."
+          }
+        }
+      }
+    },
+    "The Library is being moved. Import again when it finishes.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Biblioteca está sendo movida. Importe de novo quando terminar."
+          }
+        }
+      }
+    },
+    "The Library is not available. Connect its disk and try again.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Biblioteca não está disponível. Conecte o disco e tente de novo."
+          }
+        }
+      }
+    },
+    "The current Library is not available. Connect its disk and try again.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Biblioteca atual não está disponível. Conecte o disco e tente de novo."
+          }
+        }
+      }
+    },
     "The files of this study were moved or removed.": {
       "localizations": {
         "pt-BR": {
@@ -1845,6 +1971,26 @@
         }
       }
     },
+    "Unable to Move the Library": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não Foi Possível Mover a Biblioteca"
+          }
+        }
+      }
+    },
+    "Unable to copy %@. The Library was not moved.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível copiar %@. A Biblioteca não foi movida."
+          }
+        }
+      }
+    },
     "Unable to open %@. The zip may be damaged.": {
       "localizations": {
         "pt-BR": {
@@ -1891,6 +2037,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Álbum sem Nome"
+          }
+        }
+      }
+    },
+    "Use Default": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar Padrão"
           }
         }
       }

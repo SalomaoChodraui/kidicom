@@ -367,6 +367,30 @@ enum SelfTest {
                   "\(model.importer.phase) \(model.importer.pendingCount)")
             model.importer.cancel()
 
+            // Library location: move copied files to another folder and back.
+            let copiedCount = images().filter(\.isCopied).count
+            let external = folder.appending(path: "disk", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: external, withIntermediateDirectories: true)
+            let moved = Library.destination(for: external)
+            check("a picked folder gets a Kidicom Library inside it", moved.lastPathComponent == "Kidicom Library" && moved.deletingLastPathComponent().path == external.path)
+            check("folders in iCloud Drive are refused", Library.isInICloud(URL(fileURLWithPath: NSHomeDirectory() + "/Library/Mobile Documents/com~apple~CloudDocs/x")))
+            let oldFiles = Library.root.appending(path: "Files")
+            var movedOK = true
+            do { try await Library.move(to: moved) { _, _ in } } catch { movedOK = false }
+            check("the Library moves to the picked folder", movedOK && Library.root.path == moved.path)
+            check("every copied image opens from the new folder", copiedCount > 0 && images().filter(\.isCopied).allSatisfy { FileManager.default.fileExists(atPath: $0.fileURL.path) })
+            check("the old copies are gone", !FileManager.default.fileExists(atPath: oldFiles.path))
+            try? FileManager.default.moveItem(at: external, to: folder.appending(path: "unplugged"))
+            check("copied studies go offline while the disk is missing", !Library.isAvailable && studies().filter(\.isCopied).allSatisfy(\.isOffline))
+            let blocked = await model.importer.run(ImportScan(), copy: true)
+            check("imports that copy are refused while the disk is missing", blocked.images == 0 && { if case .failed = model.importer.phase { true } else { false } }())
+            model.importer.dismissMessage()
+            try? FileManager.default.moveItem(at: folder.appending(path: "unplugged"), to: external)
+            check("they come back when the disk returns", Library.isAvailable && studies().filter(\.isCopied).allSatisfy { !$0.isOffline })
+            var backOK = true
+            do { try await Library.move(to: Library.destination(for: nil)) { _, _ in } } catch { backOK = false }
+            check("Use Default brings the Library back", backOK && Library.customRoot == nil && images().filter(\.isCopied).allSatisfy { FileManager.default.fileExists(atPath: $0.fileURL.path) })
+
             // S-042: delete hides at once, Undo brings it back, the next launch purges.
             if let ct {
                 let undo = UndoManager()

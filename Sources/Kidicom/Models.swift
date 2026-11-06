@@ -57,7 +57,9 @@ final class Study {
     }
 
     /// A Keep in Place study whose files moved or were removed.
+    /// A copied study is offline while a picked Library is missing.
     var isOffline: Bool {
+        if !Library.isAvailable, series.lazy.flatMap(\.images).contains(where: \.isCopied) { return true }
         guard !isCopied else { return false }
         guard let image = series.lazy.flatMap(\.images).first(where: { !$0.isCopied }) else { return false }
         return !FileManager.default.fileExists(atPath: image.fileURL.path)
@@ -316,7 +318,10 @@ final class AppModel {
     func purgeTrash() {
         let context = container.mainContext
         let trashed = (try? context.fetch(FetchDescriptor<Study>(predicate: #Predicate { $0.trashedAt != nil }))) ?? []
+        let libraryAvailable = Library.isAvailable
         for study in trashed {
+            // Keep studies with copied files until their Library disk is back.
+            if !libraryAvailable, study.series.contains(where: { $0.images.contains(where: \.isCopied) }) { continue }
             let folders = Set(study.series.flatMap(\.images).filter(\.isCopied).map { $0.fileURL.deletingLastPathComponent().deletingLastPathComponent() })
             for folder in folders where folder.path.hasPrefix(Library.root.path) {
                 try? FileManager.default.trashItem(at: folder, resultingItemURL: nil)

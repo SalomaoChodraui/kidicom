@@ -152,6 +152,13 @@ final class Importer {
     @discardableResult
     func run(_ scan: ImportScan, copy: Bool) async -> ImportSummary {
         var summary = ImportSummary(skipped: scan.skipped)
+        if copy, !Library.isAvailable || Library.isMoving {
+            Self.cleanUp(scan)
+            phase = .failed(Library.isMoving
+                ? String(localized: "The Library is being moved. Import again when it finishes.")
+                : String(localized: "The Library is not available. Connect its disk and try again."))
+            return summary
+        }
         let context = model.container.mainContext
         var known = Set(((try? context.fetch(FetchDescriptor<ImageFile>())) ?? []).map(\.sopUID))
         var studies: [String: Study] = [:]
