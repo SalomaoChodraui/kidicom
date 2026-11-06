@@ -1,11 +1,14 @@
 #!/bin/zsh
-# Builds Kidicom and installs it to ~/Applications/Kidicom.app.
+# Builds Kidicom and installs it to ~/Applications/Kidicom.app, the only
+# copy: it quits the running app, deletes other copies (like one in
+# /Applications from the DMG), installs, and opens the new build again if
+# the app was running.
 # Build products live in ~/Library/Developer/Kidicom, outside the repo
 # (and outside Dropbox or iCloud, which would try to sync them).
 #
 # Usage: ./build.sh            release build, install
 #        ./build.sh --debug    debug build, install
-#        ./build.sh --open     install, then quit the running copy and open the new one
+#        ./build.sh --open     install, then open the new build even if the app was not running
 set -euo pipefail
 here=${0:A:h}
 name="Kidicom"
@@ -44,6 +47,18 @@ if [[ -f "$catalog" ]]; then
 fi
 
 app="$HOME/Applications/$name.app"
+bundle_id="com.salomao.kidicom"
+was_running=0
+if pgrep -xq "$name"; then
+  was_running=1
+  osascript -e "tell application id \"$bundle_id\" to quit" 2>/dev/null || true
+  for _ in {1..20}; do pgrep -xq "$name" || break; sleep 0.25; done
+  pkill -x "$name" 2>/dev/null || true
+fi
+# One copy only: remove installs elsewhere so the Dock and Spotlight can't open an old build.
+for other in "/Applications/$name.app"; do
+  [[ -d "$other" ]] && rm -rf "$other" && echo "removed old copy $other"
+done
 mkdir -p "$HOME/Applications"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -62,8 +77,8 @@ xattr -cr "$app"
 codesign --force --sign "$identity" "$app" 2>&1 | grep -v "replacing existing signature" || true
 echo "installed $app (signed: ${identity})"
 
-if [[ " $* " == *" --open "* ]]; then
-  osascript -e "quit app \"$name\"" 2>/dev/null || true
-  sleep 0.5
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$app" >/dev/null 2>&1 || true
+if (( was_running )) || [[ " $* " == *" --open "* ]]; then
   open "$app"
+  echo "opened the new build"
 fi
