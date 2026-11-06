@@ -787,9 +787,16 @@ enum SelfTest {
         check("a date in the strip shows that study's series", viewer.expandedPriors.contains(prior.uid) && viewer.priors.first?.stacks.count == 1 && viewer.layout == .single)
         viewer.togglePrior(prior)
         check("clicking the date again hides them", !viewer.expandedPriors.contains(prior.uid))
+        let originalDescription = prior.studyDescription
+        prior.studyDescription = "Prior study description"
+        defer { prior.studyDescription = originalDescription }
+        // Reload the prior metadata after changing the fixture description.
+        viewer.priors = []
         viewer.openPrior(prior)
         let other = viewer.viewports[1]
         check("a prior opens beside the current study", viewer.layout == .sideBySide && other.stack?.studyUID == prior.uid)
+        check("the prior overlay uses its own study description", ViewportOverlay(viewport: other, study: ct).shownDescription == "Prior study description")
+        check("the current overlay keeps the current study description", ViewportOverlay(viewport: current, study: ct).shownDescription == ct.studyDescription)
         check("the prior starts at the same relative position", other.index == 10)
         current.step(3)
         check("scrolling the current study moves the prior with it", other.index == 13)

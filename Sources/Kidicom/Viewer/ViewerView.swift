@@ -429,7 +429,7 @@ struct ViewportOverlay: View {
             HStack(alignment: .top) {
                 corner([level == .full ? study.displayName : nil, level == .full ? study.patientID : nil, shownDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
                 Spacer()
-                corner([study.studyDescription, viewport.source?.title], alignment: .trailing)
+                corner([shownDescription, viewport.source?.title], alignment: .trailing)
             }
             Spacer()
             HStack(alignment: .bottom) {
@@ -439,6 +439,11 @@ struct ViewportOverlay: View {
             }
         }
         .padding(Space.sm)
+    }
+
+    /// Study metadata follows the series displayed in each viewport.
+    var shownDescription: String {
+        viewport.baseStack?.studyDescription ?? study.studyDescription
     }
 
     /// The date of the study this viewport shows, which may be a prior.

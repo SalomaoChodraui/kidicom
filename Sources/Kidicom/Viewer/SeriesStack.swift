@@ -49,6 +49,7 @@ final class SeriesStack: Identifiable {
     /// The study this series belongs to, for the overlay and comparisons.
     let studyUID: UUID?
     let studyDate: Date?
+    let studyDescription: String
     /// True for a single image with several frames, like an ultrasound cine.
     let isCine: Bool
     /// Finds the slice nearest a position, for scroll sync.
@@ -83,6 +84,7 @@ final class SeriesStack: Identifiable {
         frameOfReferenceUID = series.frameOfReferenceUID
         studyUID = series.study?.uid
         studyDate = series.study?.studyDate
+        studyDescription = series.study?.studyDescription ?? ""
         title = series.seriesDescription.isEmpty ? String(localized: "Series \(series.number)") : series.seriesDescription
         let images = series.images
         let order = SliceOrder.order(images.map {
