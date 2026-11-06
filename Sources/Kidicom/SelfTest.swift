@@ -28,6 +28,11 @@ enum SelfTest {
         }
         Task {
             try? await Task.sleep(for: .seconds(0.5))
+            if RenderBench.requested {
+                await RenderBench.run()
+                finish(code: 0)
+                return
+            }
             let context = model.container.mainContext
             func studies() -> [Study] { (try? context.fetch(FetchDescriptor<Study>())) ?? [] }
             func images() -> [ImageFile] { (try? context.fetch(FetchDescriptor<ImageFile>())) ?? [] }
