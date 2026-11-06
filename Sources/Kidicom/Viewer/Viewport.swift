@@ -125,7 +125,7 @@ final class Viewport: Identifiable {
             pause()
             measurements = []
             draft = nil
-            renderTask?.cancel()
+            cancelLoad()
             slice = nil
             image = nil
             source = stack
@@ -142,23 +142,52 @@ final class Viewport: Identifiable {
     /// Bumped by every draw request; a result applies only if it is still the newest.
     @ObservationIgnored private var requestID = 0
 
+    /// The request whose picture is on screen.
+    @ObservationIgnored private var shownID = 0
+    /// The source a frame is loading from; scrolling meanwhile queues only the newest frame.
+    @ObservationIgnored private var loadingFrom: (any FrameSource)?
+    @ObservationIgnored private var loadToken = 0
+
     func go(to newIndex: Int) {
         guard let stack = source, stack.count > 0 else { return }
         requestID += 1
         index = min(max(0, newIndex), stack.count - 1)
         if let hit = stack.cached(index) {
             slice = hit
+            shownID = requestID
             render()
-        } else {
-            renderTask?.cancel()
-            let target = index, id = requestID
-            renderTask = Task {
-                guard let loaded = await stack.load(target), !Task.isCancelled, self.index == target, id == self.requestID else { return }
-                self.slice = loaded
-                self.render()
-            }
+        } else if loadingFrom !== stack {
+            cancelLoad()
+            loadToken += 1
+            loadingFrom = stack
+            let token = loadToken
+            renderTask = Task { await self.loadNewest(from: stack, token: token) }
         }
         stack.prefetch(around: index)
+    }
+
+    private func cancelLoad() {
+        renderTask?.cancel()
+        loadingFrom = nil
+    }
+
+    /// Loads one frame at a time and shows each one as it arrives, then the
+    /// newest frame asked for meanwhile. A fast scroll through frames that
+    /// take a while (MPR reformats) shows every frame it can, instead of
+    /// throwing away each one that arrives after the next scroll step.
+    private func loadNewest(from stack: any FrameSource, token: Int) async {
+        defer { if loadToken == token { loadingFrom = nil } }
+        while !Task.isCancelled, source === stack, shownID < requestID {
+            let id = requestID, target = index
+            guard let loaded = await stack.load(target) else { break }
+            guard !Task.isCancelled, source === stack else { break }
+            // A cached frame shown meanwhile is newer than this one.
+            if shownID < id {
+                slice = loaded
+                shownID = id
+                render()
+            }
+        }
     }
 
     /// A move by the person: scroll, keys, cine. Others follow when synced.
@@ -194,7 +223,7 @@ final class Viewport: Identifiable {
     func clear() {
         pause()
         reformatBase = nil
-        renderTask?.cancel()
+        cancelLoad()
         source = nil
         slice = nil
         image = nil
@@ -256,7 +285,7 @@ final class Viewport: Identifiable {
         index = min(max(0, newIndex), source.count - 1)
         if refreshing { refreshAgain = true; return }
         refreshing = true
-        renderTask?.cancel()
+        cancelLoad()
         Task {
             while true {
                 refreshAgain = false
@@ -267,6 +296,7 @@ final class Viewport: Identifiable {
                 guard id == requestID, self.source === source else { break }
                 if let loaded {
                     self.slice = loaded
+                    self.shownID = id
                     self.render()
                 }
                 if !refreshAgain { break }
