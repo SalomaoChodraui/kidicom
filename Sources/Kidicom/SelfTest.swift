@@ -127,9 +127,24 @@ enum SelfTest {
                         let degrees = angle.flatMap { $0.points.count == 3 ? Measure.angle($0.points[0], vertex: $0.points[1], $0.points[2], calibration: viewport.calibration(for: $0)) : nil }
                         check("an angle drawn as an L reads 90 degrees", viewport.measurements.count == 2 && abs((degrees ?? 0) - 90) < 0.5, "\(degrees ?? -1)")
                         check("the new angle is selected", viewport.selected == angle?.id)
+                        // A ruler drawn click to click: the end follows the pointer, the second click sets it.
+                        viewport.tool = .distance
+                        p = at(10, 50); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        check("one click leaves a ruler following the pointer", viewport.placingRuler && viewport.measurements.count == 2)
+                        p = at(20, 50); view.mouseMoved(with: send(.mouseMoved, p.0, p.1))
+                        let following = viewport.draft.map { abs($0.points[1].x - 20) < 0.5 } ?? false
+                        check("the ruler's end follows the pointer", following)
+                        p = at(30, 50); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        let clicked = viewport.measurements.last
+                        let clickedMM = clicked.map { Measure.distance($0.points[0], $0.points[1], calibration: viewport.calibration(for: $0)) }
+                        check("a second click ends the ruler at 100 mm", viewport.draft == nil && viewport.measurements.count == 3
+                              && clicked?.kind == .distance && abs((clickedMM ?? 0) - 100) < 0.5, "\(clickedMM ?? -1)")
+                        viewport.tool = .angle
                         view.keyDown(with: NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: number,
                                                             context: nil, characters: "\u{7F}", charactersIgnoringModifiers: "\u{7F}", isARepeat: false, keyCode: 51)!)
-                        check("Delete removes the selected measurement", viewport.measurements.count == 1)
+                        check("Delete removes the selected measurement", viewport.measurements.count == 2)
                         // Area: a 20 x 20 px outline on 5 mm pixels is 100 x 100 mm = 100 cm².
                         viewport.tool = .area
                         let corners: [(CGFloat, CGFloat)] = [(20, 10), (40, 10), (40, 30), (20, 30), (20, 11)]
@@ -151,7 +166,7 @@ enum SelfTest {
                         p = at(35, 20); view.mouseDragged(with: send(.leftMouseDragged, p.0, p.1))
                         view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
                         let after = viewport.measurements.last?.points.first
-                        check("dragging inside the outline moves it whole", viewport.measurements.count == 2 && abs((after?.x ?? 0) - (before?.x ?? 0) - 5) < 0.5)
+                        check("dragging inside the outline moves it whole", viewport.measurements.count == 3 && abs((after?.x ?? 0) - (before?.x ?? 0) - 5) < 0.5)
                         viewport.measurements.removeLast()
                         let here = viewport.index
                         viewport.go(to: here == 0 ? 1 : here - 1)

@@ -132,7 +132,24 @@ extension Viewport {
     /// Distance in image pixels within which a click grabs a handle.
     private func grabRadius(scale: CGFloat) -> CGFloat { 8 / max(scale, 0.01) }
 
+    /// A ruler placed by one click: its end follows the pointer until the next click.
+    var placingRuler: Bool { draft?.kind == .distance && dragging == nil }
+
+    /// Moves the free end of a ruler placed by one click.
+    func pointerMoved(to p: CGPoint) {
+        guard placingRuler else { return }
+        draft?.points[1] = p
+    }
+
     func pointerDown(at p: CGPoint, scale: CGFloat) {
+        // A ruler started by a click ends at the next click.
+        if var draft, placingRuler {
+            draft.points[1] = p
+            self.draft = draft
+            dragging = (draft.id, 1)
+            endingRuler = true
+            return
+        }
         // A pending angle waits for its third point.
         if var draft, draft.kind == .angle, draft.points.count == 2 {
             draft.points.append(p)
@@ -207,8 +224,12 @@ extension Viewport {
             return
         }
         let a = draft.points[0], b = draft.points[1]
-        // A click without a drag starts nothing.
+        let ending = endingRuler
+        endingRuler = false
         if draft.points.count == 2 && hypot(a.x - b.x, a.y - b.y) < grabRadius(scale: scale) / 2 {
+            // A ruler is drawn click to click: its first click leaves the end
+            // following the pointer. A second click on the first point drops it.
+            if draft.kind == .distance && !ending { return }
             self.draft = nil
             return
         }

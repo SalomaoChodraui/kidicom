@@ -87,6 +87,10 @@ final class ViewportNSView: NSView {
 
     /// Over a reference line the pointer turns into the tilt icon, over the crossing into move.
     override func mouseMoved(with event: NSEvent) {
+        if let viewport, viewport.placingRuler, let (point, _) = imagePoint(event) {
+            viewport.pointerMoved(to: point)
+            return
+        }
         guard tool == .navigate, let (point, scale) = imagePoint(event) else { return }
         let hover = cursor(for: mpr.hit(point, scale))
         if let hover { hover.set() } else if hoverCursor != nil { ToolCursor.cursor(for: tool).set() }
