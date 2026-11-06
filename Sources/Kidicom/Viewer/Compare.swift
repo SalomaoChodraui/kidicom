@@ -30,7 +30,6 @@ extension ViewerModel {
             .filter { $0.count > 0 }
         let prior = PriorStudy(id: study.uid, date: study.studyDate, description: study.studyDescription, stacks: stacks)
         priors.append(prior)
-        for stack in stacks { Task { await stack.makeThumbnail() } }
         return prior
     }
 
@@ -38,6 +37,11 @@ extension ViewerModel {
     func togglePrior(_ study: Study) {
         if expandedPriors.contains(study.uid) {
             expandedPriors.remove(study.uid)
+            // A collapsed study keeps its strip, not its decoded frames.
+            let shown = Set(viewports.compactMap { $0.baseStack.map(ObjectIdentifier.init) })
+            for stack in priors.first(where: { $0.id == study.uid })?.stacks ?? [] where !shown.contains(ObjectIdentifier(stack)) {
+                stack.releaseFrames()
+            }
         } else {
             loadPrior(study)
             expandedPriors.insert(study.uid)
@@ -88,14 +92,7 @@ extension ViewerModel {
         let target = location + leader.syncOffset
         for viewport in followers(of: leader) {
             guard let stack = viewport.stack else { continue }
-            var best = viewport.index, distance = Double.infinity
-            for i in 0 ..< stack.count {
-                if let l = stack.location(i) {
-                    let d = abs(l + viewport.syncOffset - target)
-                    if d < distance { distance = d; best = i }
-                }
-            }
-            viewport.go(to: best)
+            viewport.go(to: stack.locations.nearest(to: target - viewport.syncOffset) ?? viewport.index)
         }
     }
 

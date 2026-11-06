@@ -315,6 +315,7 @@ enum SelfTest {
 
                 await mprChecks(ct)
                 await compareChecks(ct, prior: studies().first { $0.patientID == ct.patientID && $0.uid != ct.uid })
+                await cacheChecks(ct, prior: studies().first { $0.patientID == ct.patientID && $0.uid != ct.uid })
 
                 viewer.layout = .grid
                 check("the 2x2 layout shows four viewports with a series each", viewer.visible.count == 4 && viewer.visible.allSatisfy { $0.source != nil })
@@ -352,6 +353,7 @@ enum SelfTest {
                 let stopped = viewport?.index
                 try? await Task.sleep(for: .milliseconds(200))
                 check("pause stops on the current frame", viewport?.isPlaying == false && viewport?.index == stopped)
+                check("a cine is one file with many frames", viewport?.stack?.isCine == true)
                 viewport?.apply(.lung)
                 check("CT presets leave color images alone", viewport?.effectiveWindow != VOIWindow(center: -600, width: 1500))
             }
@@ -674,6 +676,61 @@ enum SelfTest {
         viewer.exitMPR()
         check("leaving MPR restores the previous layout and series", viewer.mpr == nil && viewer.layout == .single && viewer.viewports[0].stack != nil)
 
+    }
+
+    /// Decoded frames: one budget for every series, prefetch ahead of the
+    /// scroll, small thumbnails, and collapsed priors let go of their frames.
+    static func cacheChecks(_ ct: Study, prior: Study?) async {
+        let viewer = ViewerModel()
+        viewer.load(ct)
+        guard let viewport = viewer.active, let stack = viewport.stack else { check("the CT opens for the cache checks", false); return }
+        func settle() async {
+            let started = Date.now
+            while stack.pendingCount > 0 && Date.now.timeIntervalSince(started) < 3 { try? await Task.sleep(for: .milliseconds(10)) }
+        }
+        check("a CT series is not a cine", !stack.isCine)
+        await settle()
+
+        // Scrolling forward decodes more ahead than behind.
+        viewport.go(to: 4)
+        await settle()
+        stack.releaseFrames()
+        viewport.step(1)
+        await settle()
+        let ahead = (6 ... 15).filter { stack.cached($0) != nil }.count
+        let behind = (0 ... 4).filter { stack.cached($0) != nil }.count
+        check("prefetch decodes ahead of the scroll", ahead == 10 && behind == 3, "ahead \(ahead), behind \(behind)")
+
+        // One budget in bytes for all series, least recently used out first.
+        let cache = FrameCache.shared
+        let budget = cache.budget
+        guard let frame = stack.cached(5) else { check("the current frame is cached", false); return }
+        cache.budget = frame.byteCount * 4
+        for i in 0 ..< stack.count { _ = await stack.load(i) }
+        check("the frame cache keeps to its budget in bytes", cache.totalBytes <= frame.byteCount * 4 && cache.count == 4, "\(cache.totalBytes) bytes, \(cache.count) frames")
+        check("the newest frames stay, the oldest go", stack.cached(23) != nil && stack.cached(0) == nil)
+        cache.relieve(critical: true)
+        check("memory pressure empties the cache down to one frame", cache.count <= 1)
+        cache.budget = budget
+
+        // The thumbnail is drawn at the cell size and keeps no full frame.
+        stack.releaseFrames()
+        stack.thumbnail = nil
+        await stack.makeThumbnail(maxPixels: CGSize(width: 96, height: 64))
+        let thumb = stack.thumbnail
+        check("the thumbnail is scaled to the cell", thumb.map { $0.width <= 96 && $0.height <= 64 } ?? false, thumb.map { "\($0.width)x\($0.height)" } ?? "none")
+        check("making a thumbnail keeps no decoded frame", cache.frameCount(of: stack.cacheID) == 0)
+
+        // A collapsed prior lets go of its frames.
+        if let prior {
+            viewer.togglePrior(prior)
+            if let priorStack = viewer.priors.first?.stacks.first {
+                _ = await priorStack.load(0)
+                check("an open prior keeps its decoded frames", cache.frameCount(of: priorStack.cacheID) == 1)
+                viewer.togglePrior(prior)
+                check("collapsing a prior frees its decoded frames", cache.frameCount(of: priorStack.cacheID) == 0)
+            }
+        }
     }
 
     static func compareChecks(_ ct: Study, prior: Study?) async {

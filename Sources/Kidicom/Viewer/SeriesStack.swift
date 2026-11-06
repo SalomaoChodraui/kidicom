@@ -36,7 +36,8 @@ struct DecodedSlice: Sendable {
     }
 }
 
-/// The frames of one series, in scroll order, with a cache of decoded frames.
+/// The frames of one series, in scroll order. Decoded frames live in the
+/// shared `FrameCache`; decoding goes through one queue for the whole app.
 @Observable
 final class SeriesStack: Identifiable {
     let id: String
@@ -48,14 +49,32 @@ final class SeriesStack: Identifiable {
     /// The study this series belongs to, for the overlay and comparisons.
     let studyUID: UUID?
     let studyDate: Date?
-    /// Rendered middle frame for the series strip.
+    /// True for a single image with several frames, like an ultrasound cine.
+    let isCine: Bool
+    /// Finds the slice nearest a position, for scroll sync.
+    let locations: LocationIndex
+    /// The middle frame, scaled down for the series strip.
     var thumbnail: CGImage?
 
-    @ObservationIgnored private var cache: [Int: DecodedSlice] = [:]
-    @ObservationIgnored private var order: [Int] = []
-    @ObservationIgnored private var loading: [Int: Task<DecodedSlice?, Never>] = [:]
-    /// About 384 MB of decoded frames per series.
-    @ObservationIgnored private var limit = 96
+    /// This series' frames in the shared cache.
+    @ObservationIgnored let cacheID = UUID()
+    @ObservationIgnored private var jobs: [Int: DecodeJob] = [:]
+    /// Bytes of the last decoded frame, to size prefetch to the cache.
+    @ObservationIgnored private var frameBytes = 0
+    @ObservationIgnored private var makingThumbnail = false
+
+    /// Every decode in the app goes through here: about one per core, the
+    /// frame on screen first, then prefetch, then thumbnails.
+    nonisolated static let gate = WorkGate(limit: ProcessInfo.processInfo.activeProcessorCount)
+
+    enum Priority {
+        static let display = 1000
+        static let prefetch = 500
+        static let thumbnail = 0
+        /// Prefetch leaves one core for the frame the person asks for.
+        static var prefetchCeiling: Int { max(1, SeriesStack.gate.limit - 1) }
+        static let thumbnailCeiling = 2
+    }
 
     init(series: Series) {
         id = series.seriesUID
@@ -78,58 +97,147 @@ final class SeriesStack: Identifiable {
             }
         }
         self.slices = slices
+        isCine = slices.count > 1 && slices.allSatisfy { $0.url == slices[0].url }
+        locations = LocationIndex(slices.map(\.location))
+    }
+
+    isolated deinit {
+        for job in jobs.values { job.task?.cancel() }
+        FrameCache.shared.removeAll(of: cacheID)
     }
 
     var count: Int { slices.count }
-    /// True for a single image with several frames, like an ultrasound cine.
-    var isCine: Bool { slices.count > 1 && Set(slices.map(\.url)).count == 1 }
 
-    func cached(_ index: Int) -> DecodedSlice? { cache[index] }
+    func cached(_ index: Int) -> DecodedSlice? { FrameCache.shared.frame(cacheID, index) }
 
+    /// The frame to show now: first in the decode queue. A frame already
+    /// queued for prefetch moves up instead of decoding twice.
     func load(_ index: Int) async -> DecodedSlice? {
         guard slices.indices.contains(index) else { return nil }
-        if let hit = cache[index] { return hit }
-        if let running = loading[index] { return await running.value }
-        let ref = slices[index]
-        let task = Task { await Self.decode(ref) }
-        loading[index] = task
-        let result = await task.value
-        loading[index] = nil
-        if let result { store(result, at: index) }
-        return result
-    }
-
-    /// Decodes the next and previous frames while the person looks at one.
-    func prefetch(around index: Int) {
-        let radius = 6
-        for offset in 1 ... radius {
-            for candidate in [index + offset, index - offset] where slices.indices.contains(candidate) && cache[candidate] == nil && loading[candidate] == nil {
-                Task { _ = await load(candidate) }
-            }
+        if let hit = cached(index) { return hit }
+        let job = jobs[index] ?? startJob(index, priority: Priority.display, ceiling: nil, prefetch: false)
+        if job.isPrefetch {
+            job.isPrefetch = false
+            let ticket = job.ticket
+            Task { await Self.gate.promote(ticket, to: Priority.display, ceiling: Self.gate.limit) }
+        }
+        guard let task = job.task else { return nil }
+        job.waiters += 1
+        defer { job.waiters -= 1 }
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            Task { @MainActor in self.abandon(job, at: index) }
         }
     }
 
-    func makeThumbnail() async {
-        guard thumbnail == nil, !slices.isEmpty, let slice = await load(slices.count / 2) else { return }
-        thumbnail = Renderer.image(slice.frame, width: slice.width, height: slice.height, window: slice.defaultWindow, inverted: slice.inverted)
+    /// Decodes the frames the person is likely to see next, most of them in
+    /// the direction of the scroll, and drops queued ones the scroll left behind.
+    func prefetch(around index: Int, direction: Int) {
+        guard slices.indices.contains(index) else { return }
+        for (i, job) in jobs where job.isPrefetch && PrefetchPlan.isStale(i, around: index, count: count, wraps: isCine) {
+            job.task?.cancel()
+            jobs[i] = nil
+        }
+        // Half the shared budget at most, so other series keep their frames.
+        let room = frameBytes > 0 ? FrameCache.shared.budget / 2 / frameBytes : .max
+        let plan = PrefetchPlan.indices(around: index, direction: direction.signum(), count: count, wraps: isCine, budget: room)
+        // Frames near this one count as used, the nearest as the most recent.
+        for i in plan.reversed() { _ = FrameCache.shared.frame(cacheID, i) }
+        for (rank, i) in plan.enumerated() where jobs[i] == nil && !FrameCache.shared.contains(cacheID, i) {
+            startJob(i, priority: Priority.prefetch - rank, ceiling: Priority.prefetchCeiling, prefetch: true)
+        }
     }
 
-    private func store(_ slice: DecodedSlice, at index: Int) {
-        if cache[index] == nil { order.append(index) }
-        cache[index] = slice
-        limit = max(16, 384_000_000 / max(1, slice.width * slice.height * (slice.isColor ? 4 : 4)))
-        while order.count > limit {
-            let oldest = order.removeFirst()
-            cache[oldest] = nil
+    func prefetch(around index: Int) { prefetch(around: index, direction: 0) }
+
+    /// Frames decoding or waiting in the queue.
+    var pendingCount: Int { jobs.count }
+
+    /// Draws the middle frame at the size of a strip cell, when the cell first
+    /// shows. The full frame is not kept for it. Cancelled with the cell.
+    func makeThumbnail(maxPixels: CGSize) async {
+        guard thumbnail == nil, !makingThumbnail, !slices.isEmpty else { return }
+        makingThumbnail = true
+        defer { makingThumbnail = false }
+        let index = slices.count / 2
+        let slice: DecodedSlice?
+        if let hit = cached(index) {
+            slice = hit
+        } else if let task = jobs[index]?.task {
+            slice = await task.value
+        } else {
+            let ref = slices[index]
+            slice = await Self.gate.run(priority: Priority.thumbnail, ceiling: Priority.thumbnailCeiling) { await Self.decode(ref) } ?? nil
         }
+        guard let slice, !Task.isCancelled else { return }
+        thumbnail = await Self.thumbnail(of: slice, maxPixels: maxPixels)
+    }
+
+    /// Frees this series' decoded frames, when no viewport shows it.
+    func releaseFrames() {
+        for (i, job) in jobs where job.isPrefetch {
+            job.task?.cancel()
+            jobs[i] = nil
+        }
+        FrameCache.shared.removeAll(of: cacheID)
+    }
+
+    @discardableResult
+    private func startJob(_ index: Int, priority: Int, ceiling: Int?, prefetch: Bool) -> DecodeJob {
+        let job = DecodeJob(isPrefetch: prefetch)
+        let ref = slices[index], ticket = job.ticket
+        job.task = Task { [weak self] in
+            let result = await Self.gate.run(id: ticket, priority: priority, ceiling: ceiling) { await Self.decode(ref) } ?? nil
+            self?.finish(job, at: index, result: result)
+            return result
+        }
+        jobs[index] = job
+        return job
+    }
+
+    private func finish(_ job: DecodeJob, at index: Int, result: DecodedSlice?) {
+        if jobs[index] === job { jobs[index] = nil }
+        guard let result else { return }
+        frameBytes = result.byteCount
+        FrameCache.shared.store(result, owner: cacheID, index: index)
+    }
+
+    /// The viewport that asked for a frame went elsewhere: if no one else
+    /// waits for it, it does not run.
+    private func abandon(_ job: DecodeJob, at index: Int) {
+        job.abandoned += 1
+        guard job.abandoned >= job.waiters, !job.isPrefetch else { return }
+        job.task?.cancel()
+        if jobs[index] === job { jobs[index] = nil }
+    }
+
+    /// Scales a frame down to fit `maxPixels`, off the main thread.
+    @concurrent
+    nonisolated static func thumbnail(of slice: DecodedSlice, maxPixels: CGSize) async -> CGImage? {
+        guard let full = Renderer.image(slice.frame, width: slice.width, height: slice.height,
+                                        window: slice.defaultWindow, inverted: slice.inverted) else { return nil }
+        let scale = min(1, maxPixels.width / CGFloat(full.width), maxPixels.height / CGFloat(full.height))
+        guard scale < 1 else { return full }
+        let width = max(1, Int((CGFloat(full.width) * scale).rounded()))
+        let height = max(1, Int((CGFloat(full.height) * scale).rounded()))
+        let gray = full.colorSpace?.model == .monochrome
+        let space = gray ? CGColorSpaceCreateDeviceGray() : CGColorSpaceCreateDeviceRGB()
+        let info = gray ? CGImageAlphaInfo.none.rawValue : CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: space, bitmapInfo: info) else { return full }
+        context.interpolationQuality = .high
+        context.draw(full, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage() ?? full
     }
 
     @concurrent
     nonisolated static func decode(_ ref: SliceRef) async -> DecodedSlice? {
-        guard let file = try? DicomParser.parse(contentsOf: ref.url),
-              let descriptor = try? file.pixelDescriptor,
-              let frame = try? file.frame(ref.frame) else { return nil }
-        let d = file.dataset
+        // A cine reads and indexes its file once, not once per frame.
+        guard let reader = try? FrameReaderCache.shared.reader(for: ref.url), !Task.isCancelled,
+              let frame = try? reader.frame(ref.frame) else { return nil }
+        let descriptor = reader.descriptor
+        let d = reader.file.dataset
         let window: VOIWindow
         if case .grayscale(let values) = frame {
             if let center = d.number(.windowCenter), let width = d.number(.windowWidth), width > 1 {
@@ -149,5 +257,20 @@ final class SeriesStack: Identifiable {
             sliceThickness: d.number(.sliceThickness), frameTime: d.number(.frameTime), cineRate: d.number(.cineRate),
             regions: UltrasoundRegion.regions(in: d)
         )
+    }
+}
+
+/// One frame decoding or waiting in the queue, shared by every viewport
+/// that asks for it.
+final class DecodeJob {
+    let ticket = UUID()
+    var task: Task<DecodedSlice?, Never>?
+    /// Prefetch nobody waits for yet: dropped when the scroll leaves it.
+    var isPrefetch: Bool
+    var waiters = 0
+    var abandoned = 0
+
+    init(isPrefetch: Bool) {
+        self.isPrefetch = isPrefetch
     }
 }

@@ -158,6 +158,7 @@ final class Viewport: Identifiable {
     func go(to newIndex: Int) {
         guard let stack = source, stack.count > 0 else { return }
         requestID += 1
+        let previous = index
         index = min(max(0, newIndex), stack.count - 1)
         if let hit = stack.cached(index) {
             present(hit, at: index, id: requestID)
@@ -170,7 +171,7 @@ final class Viewport: Identifiable {
             let token = loadToken
             renderTask = Task { await self.loadNewest(from: stack, token: token) }
         }
-        stack.prefetch(around: index)
+        stack.prefetch(around: index, direction: index - previous)
     }
 
     private func cancelLoad() {
