@@ -3,14 +3,17 @@ import Testing
 import simd
 @testable import KidicomKit
 
-/// Times the oblique reslice the app uses on a CT-sized volume. Opt-in:
+/// Times the oblique reslice the app uses on a CT-sized volume, against the
+/// plain loop it replaced (ResliceReference.swift). Opt-in:
 /// `BENCH=1 swift test -c release --filter SlabBenchmark`.
 @Suite struct SlabBenchmark {
     static let enabled = ProcessInfo.processInfo.environment["BENCH"] == "1"
 
     @Test(.enabled(if: SlabBenchmark.enabled))
     func slabSpeed() {
-        let w = 512, h = 512, d = 400
+        // BENCH_W=500 shows the cost of slices a power of two apart (512 x 512),
+        // which share cache sets: an axial plane tilted 30 degrees runs 2.5 times faster.
+        let w = Int(ProcessInfo.processInfo.environment["BENCH_W"] ?? "") ?? 512, h = 512, d = 400
         var voxels = [Float16](repeating: 0, count: w * h * d)
         for i in voxels.indices { voxels[i] = Float16(Float(i % 997)) }
         let volume = Volume(width: w, height: h, depth: d, spacing: (i: 0.7, j: 0.7, k: 0.625), origin: [0, 0, 0],
@@ -31,20 +34,28 @@ import simd
             // The middle of the volume, so every sample lands inside.
             let t = simd_dot(volume.physicalCenter, plane.normal)
             for (slab, mode) in modes {
-                func run() -> Double {
+                func run(_ reference: Bool) -> Double {
                     let start = DispatchTime.now().uptimeNanoseconds
-                    let image = volume.reslice(plane, at: t, slab: slab, mode: mode, outside: 0)
+                    let image = reference
+                        ? volume.referenceReslice(plane, at: t, slab: slab, mode: mode, outside: 0)
+                        : volume.reslice(plane, at: t, slab: slab, mode: mode, outside: 0)
                     let ns = DispatchTime.now().uptimeNanoseconds - start
                     // Touch the pixels so the work cannot be optimized away.
                     for i in stride(from: 0, to: image.values.count, by: 61) { checksum += Double(image.values[i]) }
                     return Double(ns) / 1e6
                 }
-                for _ in 0 ..< 3 { _ = run() }
-                let times = (0 ..< 15).map { _ in run() }.sorted()
-                let median = times[times.count / 2], p90 = times[Int(Double(times.count - 1) * 0.9)]
+                for _ in 0 ..< 3 { _ = run(true); _ = run(false) }
+                // Interleaved, so both see the same machine load.
+                var before: [Double] = [], after: [Double] = []
+                for _ in 0 ..< 15 { before.append(run(true)); after.append(run(false)) }
+                func stats(_ times: [Double]) -> (median: Double, p90: Double) {
+                    let t = times.sorted()
+                    return (t[t.count / 2], t[Int(Double(t.count - 1) * 0.9)])
+                }
+                let b = stats(before), a = stats(after)
                 let label = "\(name) \(mode.rawValue)\(mode == .single ? "" : String(Int(slab)))"
                 print("BENCH", label.padding(toLength: 20, withPad: " ", startingAt: 0),
-                      String(format: "median %7.2f ms  p90 %7.2f ms  max %7.2f ms", median, p90, times.last ?? 0))
+                      String(format: "before %7.2f ms (p90 %7.2f)  after %7.2f ms (p90 %7.2f)  %5.1fx", b.median, b.p90, a.median, a.p90, b.median / a.median))
             }
         }
         print("BENCH checksum \(checksum)")
