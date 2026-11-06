@@ -204,7 +204,7 @@ final class ViewerModel {
                     replanes(except: session.sources[0])
                 }
                 if mip, let source = viewports[1].source as? ReformatSource {
-                    source.setSlab(20, mip: true)
+                    source.setSlab(20, mode: .mip)
                     viewports[1].reload()
                 }
             }
@@ -329,11 +329,15 @@ final class ViewerModel {
 
     /// Shows the active viewport's series in another plane: the series
     /// itself for its own plane, else a reformat through the volume's middle.
-    /// Keeps the person's window.
-    func show(plane: PatientPlane) async {
+    /// Keeps the person's window and slab. `reformat` makes even the series'
+    /// own plane a reformat (a slab needs one), on the slice shown now.
+    func show(plane: PatientPlane, reformat: Bool = false) async {
         guard plane != .oblique, canChangePlane, let viewport = active, let stack = mprCandidate else { return }
         let window = viewport.window
-        if PatientPlane(orientation: stack.orientation(stack.count / 2)) == plane {
+        let carried = (viewport.source as? ReformatSource).map { (mode: $0.mode, mm: $0.slab) }
+        let native = PatientPlane(orientation: stack.orientation(stack.count / 2)) == plane
+        let keepsSlab = carried?.mode.isProjection == true
+        if native && !reformat && !keepsSlab {
             if viewport.stack == nil { viewport.show(stack) }
             viewport.setWindowQuietly(window)
             return
@@ -350,9 +354,49 @@ final class ViewerModel {
             return
         }
         // The source keeps its session; `sources` stays empty, so nothing cycles.
-        viewport.show(source, at: source.centerIndex)
+        if let carried { source.setSlab(carried.mm, mode: carried.mode) }
+        var index = source.centerIndex
+        if native, let here = viewport.location {
+            index = (0 ..< source.count).min { abs((source.location($0) ?? 0) - here) < abs((source.location($1) ?? 0) - here) } ?? index
+        }
+        viewport.show(source, at: index)
         viewport.reformatBase = stack
         viewport.setWindowQuietly(window)
+        slabRevision += 1
+    }
+
+    // MARK: Slab (MIP, MinIP, mean)
+
+    /// Bumped when a slab changes, so the toolbar redraws.
+    private(set) var slabRevision = 0
+    /// The last thickness picked, for the next slab.
+    var slabThickness: Double = 10
+
+    /// The active viewport's slab mode and thickness.
+    var activeSlab: (mode: SlabMode, mm: Double) {
+        _ = slabRevision
+        guard let source = active?.source as? ReformatSource, source.mode.isProjection else { return (.single, slabThickness) }
+        return (source.mode, source.slab)
+    }
+
+    /// A slab needs a plane from a volume: a reformat, or a series that can make one.
+    var canSlab: Bool {
+        volume3D == nil && buildProgress == nil && (active?.source is ReformatSource || canChangePlane)
+    }
+
+    /// Sets the active viewport's slab. A series of files becomes a reformat
+    /// of its own plane, on the same slice.
+    func setSlab(mode: SlabMode, mm: Double) async {
+        slabThickness = mm
+        guard volume3D == nil, let viewport = active else { return }
+        if !(viewport.source is ReformatSource) {
+            guard mode.isProjection, let plane = activePlane, plane != .oblique else { return }
+            await show(plane: plane, reformat: true)
+        }
+        guard let source = viewport.source as? ReformatSource else { return }
+        source.setSlab(mm, mode: mode)
+        viewport.reload()
+        slabRevision += 1
     }
 
     /// Builds or reuses the volume of a series, reporting why it can't be built.

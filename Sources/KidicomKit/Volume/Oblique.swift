@@ -141,11 +141,11 @@ public extension Volume {
     }
 
     /// Samples a plane at `t` along its normal, trilinear, with an optional
-    /// MIP slab in mm.
+    /// slab in mm combined by `mode` (MIP, MinIP, or mean).
     func reslice(_ plane: ObliquePlane, at t: Double, slab: Double = 0, mode: SlabMode = .single, outside: Float) -> ResliceImage {
         let n = plane.normal
         let step = obliqueStep(n)
-        let half = mode == .mip ? max(0, Int((slab / step / 2).rounded(.down))) : 0
+        let half = mode.isProjection ? max(0, Int((slab / step / 2).rounded(.down))) : 0
         let origin = canvasOrigin(plane, at: t)
         let pixel = obliquePixel
         let w = plane.width, h = plane.height
@@ -160,8 +160,7 @@ public extension Volume {
                     let row = o + Double(y) * dy
                     for x in 0 ..< w {
                         let base = row + Double(x) * ax
-                        var best = -Float.greatestFiniteMagnitude
-                        var hit = false
+                        var slab = SlabAccumulator(mode)
                         for s in -half ... half {
                             let p = base + Double(s) * nz
                             guard p.x >= 0, p.y >= 0, p.z >= 0,
@@ -175,10 +174,9 @@ public extension Volume {
                             let c01 = at(x0, y0, z1) + (at(x1, y0, z1) - at(x0, y0, z1)) * fx
                             let c11 = at(x0, y1, z1) + (at(x1, y1, z1) - at(x0, y1, z1)) * fx
                             let c0 = c00 + (c10 - c00) * fy, c1 = c01 + (c11 - c01) * fy
-                            best = max(best, c0 + (c1 - c0) * fz)
-                            hit = true
+                            slab.add(c0 + (c1 - c0) * fz)
                         }
-                        if hit { result[y * w + x] = best }
+                        if slab.hasValue { result[y * w + x] = slab.result }
                     }
                 }
             }

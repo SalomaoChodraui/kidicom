@@ -831,6 +831,16 @@
         }
       }
     },
+    "How the slab combines its planes: MIP keeps the brightest (vessels, bone), MinIP the darkest (airways, lung), Mean the average": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como a espessura combina os planos: MIP mantém o mais claro (vasos, osso), MinIP o mais escuro (vias aéreas, pulmão), Média a média"
+          }
+        }
+      }
+    },
     "Im %lld/%lld": {
       "localizations": {
         "en": {
@@ -1085,12 +1095,12 @@
         }
       }
     },
-    "MIP %lld mm": {
+    "MIP": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "MIP %lld mm"
+            "value": "MIP"
           }
         }
       }
@@ -1135,12 +1145,22 @@
         }
       }
     },
-    "Maximum Intensity Projection (MIP)": {
+    "Mean": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Projeção de Intensidade Máxima (MIP)"
+            "value": "Média"
+          }
+        }
+      }
+    },
+    "MinIP": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MinIP"
           }
         }
       }
@@ -1471,6 +1491,16 @@
         }
       }
     },
+    "Projection": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projeção"
+          }
+        }
+      }
+    },
     "Recently Imported": {
       "localizations": {
         "pt-BR": {
@@ -1731,12 +1761,12 @@
         }
       }
     },
-    "Slab and MIP": {
+    "Slab thickness": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Espessura e MIP"
+            "value": "Espessura do corte"
           }
         }
       }
@@ -1921,22 +1951,12 @@
         }
       }
     },
-    "Thickness": {
+    "Thin": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Espessura"
-          }
-        }
-      }
-    },
-    "Thickness and MIP for the active plane": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Espessura e MIP do plano ativo"
+            "value": "Fino"
           }
         }
       }

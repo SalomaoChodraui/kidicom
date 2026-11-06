@@ -423,6 +423,18 @@ enum SelfTest {
         check("Sagittal reformats the active viewport", viewer.activePlane == .sagittal)
         await viewer.show(plane: .axial)
         check("Axial brings back the series itself", viewer.activePlane == .axial && viewer.active?.stack != nil && viewer.active?.reformatBase == nil)
+        // Slab from the toolbar: a series of files becomes a reformat of its own plane, on the same slice.
+        let sliceBefore = viewer.active?.location
+        await viewer.setSlab(mode: .mip, mm: 10)
+        check("MIP turns the axial series into a 10 mm axial slab", viewer.activePlane == .axial && viewer.activeSlab.mode == .mip && viewer.activeSlab.mm == 10)
+        check("the slab stays on the slice that was shown", abs((viewer.active?.location ?? .infinity) - (sliceBefore ?? 0)) < 3, "\(String(describing: sliceBefore)) -> \(String(describing: viewer.active?.location))")
+        await viewer.setSlab(mode: .minip, mm: 20)
+        check("MinIP and thickness change the slab", viewer.activeSlab.mode == .minip && viewer.activeSlab.mm == 20)
+        await viewer.show(plane: .coronal)
+        check("changing plane keeps the slab", viewer.activePlane == .coronal && viewer.activeSlab.mode == .minip && viewer.activeSlab.mm == 20)
+        await viewer.setSlab(mode: .single, mm: 20)
+        await viewer.show(plane: .axial)
+        check("Thin and Axial bring back the series itself", viewer.active?.stack != nil && viewer.activeSlab.mode == .single)
         await viewer.enterMPR()
         let planes = viewer.mpr?.sources.map(\.title) ?? []
         check("MPR builds a 64x64x24 volume", viewer.mpr?.volume.width == 64 && viewer.mpr?.volume.depth == 24, "\(String(describing: viewer.mprMessage))")
@@ -479,12 +491,12 @@ enum SelfTest {
         check("window/level follows across the three planes", coronal.window == axial.window && sagittal.window == axial.window && axial.window != nil)
         if let source = coronal.source as? ReformatSource {
             let plain = brightest(coronal.slice)
-            source.setSlab(40, mip: true)
+            source.setSlab(40, mode: .mip)
             coronal.reload()
             let started = Date.now
             while coronal.slice == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
             let mip = brightest(coronal.slice)
-            check("a 40 mm MIP is at least as bright as the single plane", mip >= plain && source.isMIP)
+            check("a 40 mm MIP is at least as bright as the single plane", mip >= plain && source.mode == .mip)
         }
         // S-023: 3D of the same volume, rendered offscreen.
         if let volume = viewer.mpr?.volume, let session = VolumeSession(volume: volume, title: "CT", window: VOIWindow(center: 40, width: 400), modality: "CT") {

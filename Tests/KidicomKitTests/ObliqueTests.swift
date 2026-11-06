@@ -87,5 +87,9 @@ struct ObliqueTests {
         let thick = volume.reslice(plane, at: t, slab: 4, mode: .mip, outside: -1)
         #expect(zip(thick.values, thin.values).allSatisfy { $0 >= $1 - 1e-4 })
         #expect(thick.values.reduce(0, +) > thin.values.reduce(0, +))
+        let low = volume.reslice(plane, at: t, slab: 4, mode: .minip, outside: -1)
+        let mean = volume.reslice(plane, at: t, slab: 4, mode: .mean, outside: -1)
+        #expect(zip(low.values, thin.values).allSatisfy { $0 <= $1 + 1e-4 })
+        #expect(zip(zip(low.values, mean.values), thick.values).allSatisfy { $0.0 <= $0.1 + 1e-4 && $0.1 <= $1 + 1e-4 })
     }
 }

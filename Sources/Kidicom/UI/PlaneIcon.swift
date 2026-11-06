@@ -2,9 +2,9 @@ import AppKit
 import KidicomKit
 import SwiftUI
 
-/// Toolbar icons for Axial, Coronal, and Sagittal: a cube in outline with
-/// the cutting plane filled. Template images, so they follow the toolbar's
-/// colors in light, dark, and when selected.
+/// Toolbar icons for Axial, Coronal, and Sagittal: the head seen from above,
+/// from the front, and in profile. Template images, so they follow the
+/// toolbar's colors in light, dark, and when selected.
 enum PlaneIcon {
     static func image(_ plane: PatientPlane) -> NSImage {
         if let cached = cache[plane] { return cached }
@@ -25,48 +25,60 @@ enum PlaneIcon {
 
     private static var cache: [PatientPlane: NSImage] = [:]
 
-    /// Oblique projection: front face from (3, 7) to (13, 17), depth goes up
-    /// and right by (4, -4). y grows downward.
+    /// Silhouettes on a 20 x 20 canvas, y down.
     private static func draw(_ plane: PatientPlane) {
-        let front = (x0: 3.0, y0: 7.0, x1: 13.0, y1: 17.0)
-        let depth = CGVector(dx: 4, dy: -4)
-        func p(_ x: Double, _ y: Double, _ d: Double) -> CGPoint {
-            CGPoint(x: x + depth.dx * d, y: y + depth.dy * d)
-        }
-
-        // The cut, solid.
-        let cut = NSBezierPath()
-        let corners: [CGPoint]
-        // Inset from the edges, so the cut reads as a slice inside the cube.
-        let inset = 1.5, d0 = 0.15, d1 = 0.85
+        NSColor.black.setFill()
         switch plane {
         case .axial:
-            let y = (front.y0 + front.y1) / 2
-            corners = [p(front.x0 + inset, y, d0), p(front.x1 - inset, y, d0), p(front.x1 - inset, y, d1), p(front.x0 + inset, y, d1)]
+            // The head from above: nose up, ears at the sides, the midline between the hemispheres.
+            let head = NSBezierPath(ovalIn: NSRect(x: 4, y: 4, width: 12, height: 14.5))  // grid: ok icon drawing coordinates
+            head.append(NSBezierPath(ovalIn: NSRect(x: 2.6, y: 9, width: 2.4, height: 4.2)))  // grid: ok icon drawing coordinates
+            head.append(NSBezierPath(ovalIn: NSRect(x: 15, y: 9, width: 2.4, height: 4.2)))  // grid: ok icon drawing coordinates
+            let nose = NSBezierPath()
+            nose.move(to: NSPoint(x: 8.5, y: 4.8))
+            nose.curve(to: NSPoint(x: 11.5, y: 4.8), controlPoint1: NSPoint(x: 9.2, y: 1.6), controlPoint2: NSPoint(x: 10.8, y: 1.6))
+            nose.close()
+            head.append(nose)
+            head.fill()
+            NSGraphicsContext.current?.compositingOperation = .clear
+            let midline = NSBezierPath()
+            midline.move(to: NSPoint(x: 10, y: 7.5)); midline.line(to: NSPoint(x: 10, y: 15.5))
+            midline.lineWidth = 0.9
+            midline.lineCapStyle = .round
+            midline.stroke()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
         case .coronal:
-            let x0 = front.x0 + inset, x1 = front.x1 - inset, y0 = front.y0 + inset, y1 = front.y1 - inset
-            corners = [p(x0, y0, 0.5), p(x1, y0, 0.5), p(x1, y1, 0.5), p(x0, y1, 0.5)]
+            // The head and shoulders from the front.
+            let body = NSBezierPath(ovalIn: NSRect(x: 5.6, y: 1.8, width: 8.8, height: 11))  // grid: ok icon drawing coordinates
+            body.append(NSBezierPath(rect: NSRect(x: 8.2, y: 11, width: 3.6, height: 5)))  // grid: ok icon drawing coordinates
+            let shoulders = NSBezierPath()
+            shoulders.move(to: NSPoint(x: 1.5, y: 20))
+            shoulders.curve(to: NSPoint(x: 7, y: 15), controlPoint1: NSPoint(x: 1.5, y: 16.6), controlPoint2: NSPoint(x: 3.8, y: 15))
+            shoulders.line(to: NSPoint(x: 13, y: 15))
+            shoulders.curve(to: NSPoint(x: 18.5, y: 20), controlPoint1: NSPoint(x: 16.2, y: 15), controlPoint2: NSPoint(x: 18.5, y: 16.6))
+            shoulders.close()
+            body.append(shoulders)
+            body.fill()
         case .sagittal, .oblique:
-            let x = (front.x0 + front.x1) / 2
-            corners = [p(x, front.y0 + inset, d0), p(x, front.y0 + inset, d1), p(x, front.y1 - inset, d1), p(x, front.y1 - inset, d0)]
+            // The head in profile, facing left.
+            let p = NSBezierPath()
+            p.move(to: NSPoint(x: 11, y: 1.8))
+            p.curve(to: NSPoint(x: 17, y: 8.5), controlPoint1: NSPoint(x: 15.2, y: 1.8), controlPoint2: NSPoint(x: 17, y: 5))
+            p.curve(to: NSPoint(x: 14.4, y: 14.2), controlPoint1: NSPoint(x: 17, y: 11.4), controlPoint2: NSPoint(x: 15.8, y: 13.2))
+            p.line(to: NSPoint(x: 15.2, y: 20))
+            p.line(to: NSPoint(x: 7.6, y: 20))
+            p.line(to: NSPoint(x: 7.6, y: 15.6))
+            p.curve(to: NSPoint(x: 5.5, y: 13.4), controlPoint1: NSPoint(x: 6.6, y: 15.3), controlPoint2: NSPoint(x: 5.5, y: 14.6))
+            p.line(to: NSPoint(x: 5.3, y: 11.9))
+            p.line(to: NSPoint(x: 4.6, y: 11.4))
+            p.line(to: NSPoint(x: 5.2, y: 10.7))
+            p.curve(to: NSPoint(x: 3.8, y: 9.7), controlPoint1: NSPoint(x: 4.4, y: 10.6), controlPoint2: NSPoint(x: 3.8, y: 10.2))
+            p.line(to: NSPoint(x: 5.0, y: 7.4))
+            p.curve(to: NSPoint(x: 11, y: 1.8), controlPoint1: NSPoint(x: 4.9, y: 4.2), controlPoint2: NSPoint(x: 7.6, y: 1.8))
+            p.close()
+            p.lineJoinStyle = .round
+            p.fill()
         }
-        cut.move(to: corners[0])
-        for c in corners.dropFirst() { cut.line(to: c) }
-        cut.close()
-        NSColor.black.setFill()
-        cut.fill()
-
-        // The cube's edges, light.
-        let edges = NSBezierPath()
-        edges.lineWidth = 1
-        edges.lineJoinStyle = .round
-        edges.appendRect(NSRect(x: front.x0, y: front.y0, width: front.x1 - front.x0, height: front.y1 - front.y0))
-        edges.move(to: p(front.x0, front.y0, 0)); edges.line(to: p(front.x0, front.y0, 1))
-        edges.line(to: p(front.x1, front.y0, 1)); edges.line(to: p(front.x1, front.y1, 1))
-        edges.line(to: p(front.x1, front.y1, 0))
-        edges.move(to: p(front.x1, front.y0, 0)); edges.line(to: p(front.x1, front.y0, 1))
-        NSColor.black.withAlphaComponent(0.55).setStroke()
-        edges.stroke()
     }
 }
 

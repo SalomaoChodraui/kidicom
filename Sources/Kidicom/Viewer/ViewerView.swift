@@ -156,7 +156,7 @@ struct ViewerView: View {
                 .disabled(viewer.mpr == nil && viewer.mprCandidate == nil || viewer.buildProgress != nil)
             }
             ToolbarItem {
-                SlabButton(viewer: viewer)
+                SlabControl(viewer: viewer)
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.volume3D != nil }, set: { _ in viewer.toggle3D() })) {
@@ -185,18 +185,25 @@ struct ViewerView: View {
                     .help("Show the DICOM tags of the image (⌘I)")
             }
             ToolbarItem(placement: .principal) {
-                Picker("Layout", selection: Bindable(viewer).layout) {
-                    ForEach(ViewerLayout.allCases) { layout in
-                        Label(layout.title, systemImage: layout.symbol).tag(layout)
+                Menu {
+                    Picker("Layout", selection: Bindable(viewer).layout) {
+                        ForEach(ViewerLayout.allCases) { layout in
+                            Label(layout.title, systemImage: layout.symbol).tag(layout)
+                        }
                     }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } label: {
+                    Label("Layout", systemImage: viewer.layout.symbol)
                 }
-                .pickerStyle(.segmented)
-                .labelStyle(.iconOnly)
+                .menuIndicator(.hidden)
                 .help("Split the image area into up to four viewports")
             }
         }
         .navigationTitle(study.displayName)
         .navigationSubtitle(study.studyDescription)
+        // The patient and study show on the image; the toolbar needs the room.
+        .toolbar(removing: .title)
         .background(CloseKeyCatcher { viewer.closeActiveViewport() })
         .task(id: study.uid) {
             viewer.load(study)
@@ -413,7 +420,7 @@ struct ViewportOverlay: View {
         guard viewport.count > 0 else { return [] }
         var lines = [String(localized: "Im \(viewport.index + 1)/\(viewport.count)")]
         if let source = viewport.source as? ReformatSource {
-            if source.isMIP { lines.append(String(localized: "MIP \(Int(source.slab)) mm")) }
+            if source.mode.isProjection { lines.append("\(String(localized: source.mode.title)) \(Int(source.slab)) mm") }
             for warning in source.volume.warnings {
                 switch warning {
                 case .gaps(let n): lines.append(String(localized: "\(n) gaps between slices"))
@@ -483,23 +490,6 @@ struct RightClickCatcher: NSViewRepresentable {
 }
 
 /// Opens the slab and MIP controls for the active reformatted plane.
-struct SlabButton: View {
-    let viewer: ViewerModel
-    @State private var isPresented = false
-
-    var body: some View {
-        let source = viewer.active?.source as? ReformatSource
-        Button("Slab and MIP", systemImage: "square.3.layers.3d") { isPresented.toggle() }
-            .help("Thickness and MIP for the active plane")
-            .disabled(source == nil)
-            .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-                if let source, let viewport = viewer.active {
-                    SlabControls(source: source, viewport: viewport)
-                }
-            }
-    }
-}
-
 /// Catches ⌘W in the viewer window before the window closes: the viewer
 /// closes one viewport (or leaves MPR or 3D) and only lets the window close
 /// when one viewport is left.

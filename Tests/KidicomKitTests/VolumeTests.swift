@@ -90,6 +90,16 @@ struct VolumeTests {
         #expect(slab.values[0] == single.values[0] + 10)
     }
 
+    @Test("MinIP takes the minimum and Mean the average across the slab")
+    func minipAndMean() throws {
+        let volume = try Volume.build(slices([0, 1, 2, 3, 4]))
+        #expect(volume.reslice(.native, at: 2, slab: 2, mode: .minip).values[0] == 100)
+        #expect(volume.reslice(.native, at: 2, slab: 2, mode: .mean).values[0] == 200)
+        let single = volume.reslice(.alongRows, at: 1)
+        #expect(volume.reslice(.alongRows, at: 1, slab: 4, mode: .minip).values[0] == single.values[0] - 10)
+        #expect(volume.reslice(.alongRows, at: 1, slab: 4, mode: .mean).values[0] == single.values[0])
+    }
+
     @Test("Reference lines and clicks agree")
     func lines() throws {
         let volume = try Volume.build(slices([0, 1, 2]))

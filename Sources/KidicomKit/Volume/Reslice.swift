@@ -24,11 +24,42 @@ public struct ResliceImage: Sendable {
     public var location: Double
 }
 
-public enum SlabMode: Sendable {
+public enum SlabMode: String, Sendable, CaseIterable {
     /// One plane, interpolated.
     case single
     /// Maximum intensity projection across the slab.
     case mip
+    /// Minimum intensity projection (airways, lung).
+    case minip
+    /// Average across the slab (a thicker, less noisy slice).
+    case mean
+
+    /// True for the modes that combine several planes.
+    public var isProjection: Bool { self != .single }
+}
+
+/// Combines the samples of one pixel across a slab.
+struct SlabAccumulator {
+    let mode: SlabMode
+    private var value: Float
+    private var count = 0
+
+    init(_ mode: SlabMode) {
+        self.mode = mode
+        value = mode == .minip ? .greatestFiniteMagnitude : mode == .mean ? 0 : -.greatestFiniteMagnitude
+    }
+
+    @inline(__always) mutating func add(_ v: Float) {
+        switch mode {
+        case .single, .mip: value = max(value, v)
+        case .minip: value = min(value, v)
+        case .mean: value += v
+        }
+        count += 1
+    }
+
+    var hasValue: Bool { count > 0 }
+    var result: Float { mode == .mean ? value / Float(max(count, 1)) : value }
 }
 
 public extension Volume {
@@ -56,22 +87,32 @@ public extension Volume {
     /// The image of `plane` at `index`, with an optional slab in mm.
     func reslice(_ plane: VolumePlane, at index: Int, slab: Double = 0, mode: SlabMode = .single) -> ResliceImage {
         let index = min(max(0, index), count(plane) - 1)
-        let half = mode == .mip ? max(0, Int((slab / step(plane) / 2).rounded(.down))) : 0
+        let half = mode.isProjection ? max(0, Int((slab / step(plane) / 2).rounded(.down))) : 0
         let range = max(0, index - half) ... min(count(plane) - 1, index + half)
         switch plane {
-        case .native: return native(range, index: index)
-        case .alongRows, .alongColumns: return reformat(plane, range, index: index)
+        case .native: return native(range, index: index, mode: mode)
+        case .alongRows, .alongColumns: return reformat(plane, range, index: index, mode: mode)
         }
     }
 
-    private func native(_ range: ClosedRange<Int>, index: Int) -> ResliceImage {
+    private func native(_ range: ClosedRange<Int>, index: Int, mode: SlabMode) -> ResliceImage {
         let plane = width * height
-        var out = [Float](repeating: -.greatestFiniteMagnitude, count: plane)
+        // Slice by slice, so memory is read in order.
+        let start: Float = mode == .minip ? .greatestFiniteMagnitude : mode == .mean ? 0 : -.greatestFiniteMagnitude
+        var out = [Float](repeating: start, count: plane)
         voxels.withUnsafeBufferPointer { v in
             out.withUnsafeMutableBufferPointer { o in
                 for k in range {
                     let base = k * plane
-                    for p in 0 ..< plane { o[p] = max(o[p], Float(v[base + p])) }
+                    switch mode {
+                    case .single, .mip: for p in 0 ..< plane { o[p] = max(o[p], Float(v[base + p])) }
+                    case .minip: for p in 0 ..< plane { o[p] = min(o[p], Float(v[base + p])) }
+                    case .mean: for p in 0 ..< plane { o[p] += Float(v[base + p]) }
+                    }
+                }
+                if mode == .mean {
+                    let n = Float(range.count)
+                    for p in 0 ..< plane { o[p] /= n }
                 }
             }
         }
@@ -143,7 +184,7 @@ public extension Volume {
         return t * axisSpacing(a) / pixel
     }
 
-    private func reformat(_ plane: VolumePlane, _ range: ClosedRange<Int>, index: Int) -> ResliceImage {
+    private func reformat(_ plane: VolumePlane, _ range: ClosedRange<Int>, index: Int, mode: SlabMode) -> ResliceImage {
         let l = layout(plane)
         let columns = pixels(l.across), rows = pixels(l.down)
         let nA = axisCount(l.across), nD = axisCount(l.down)
@@ -161,16 +202,16 @@ public extension Volume {
                         let af = acrossIndex[c]
                         let a0 = max(0, min(nA - 1, Int(af.rounded(.down)))), a1 = min(nA - 1, a0 + 1)
                         let ta = Float(af - Double(a0))
-                        var best = -Float.greatestFiniteMagnitude
+                        var slab = SlabAccumulator(mode)
                         for f in range {
                             let base = f * sF
                             let p00 = Float(v[base + d0 * sD + a0 * sA]), p01 = Float(v[base + d0 * sD + a1 * sA])
                             let p10 = Float(v[base + d1 * sD + a0 * sA]), p11 = Float(v[base + d1 * sD + a1 * sA])
                             let top = p00 + (p01 - p00) * ta
                             let bottom = p10 + (p11 - p10) * ta
-                            best = max(best, top + (bottom - top) * td)
+                            slab.add(top + (bottom - top) * td)
                         }
-                        o[r * columns + c] = best
+                        o[r * columns + c] = slab.result
                     }
                 }
             }
