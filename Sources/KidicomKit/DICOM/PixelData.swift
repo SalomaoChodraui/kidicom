@@ -55,16 +55,15 @@ public extension DicomFile {
         get throws { try PixelDescriptor(dataset) }
     }
 
-    /// Decodes one frame of native (uncompressed) pixel data. Compressed
-    /// syntaxes go through the codecs.
+    /// Decodes one frame. Compressed syntaxes go through the codecs. To
+    /// decode many frames of one file, keep a `FrameReader` instead.
     func frame(_ index: Int) throws -> Frame {
-        let descriptor = try pixelDescriptor
-        guard index >= 0, index < descriptor.frames else { throw DicomError.frameOutOfRange(index) }
+        try FrameReader(self).frame(index)
+    }
+
+    /// One frame of native (uncompressed) pixel data.
+    func nativeFrame(_ index: Int, descriptor: PixelDescriptor) throws -> Frame {
         guard let element = dataset[.pixelData] else { throw DicomError.noPixelData }
-        if let fragments = element.fragments {
-            let bytes = try encapsulatedFrame(index, fragments: fragments, frames: descriptor.frames)
-            return try Codecs.decode(bytes, syntax: transferSyntax, descriptor: descriptor)
-        }
         guard transferSyntax.isNative else {
             throw DicomError.unsupportedTransferSyntax(transferSyntax.uid)
         }
@@ -82,32 +81,7 @@ public extension DicomFile {
     /// common case; otherwise the Basic Offset Table, or all fragments for a
     /// single frame.
     func encapsulatedFrame(_ index: Int, fragments: [Range<Int>], frames: Int) throws -> Data {
-        let data = dataset.data
-        let pieces = Array(fragments.dropFirst())
-        guard !pieces.isEmpty else { throw DicomError.noPixelData }
-        if frames == 1 {
-            if pieces.count == 1 { return data.subdata(in: pieces[0]) }
-            var joined = Data()
-            for piece in pieces { joined.append(data.subdata(in: piece)) }
-            return joined
-        }
-        let table = fragments[0]
-        if table.count >= frames * 4 {
-            let offsets = (0 ..< frames).map { i in
-                Int(UInt32(littleEndian: data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: table.lowerBound + i * 4, as: UInt32.self) }))
-            }
-            // Offsets count from the first byte of the first fragment's item tag.
-            let base = pieces[0].lowerBound - 8
-            let start = base + offsets[index]
-            let end = index + 1 < frames ? base + offsets[index + 1] : pieces.last!.upperBound
-            var joined = Data()
-            for piece in pieces where piece.lowerBound >= start + 8 && piece.upperBound <= end {
-                joined.append(data.subdata(in: piece))
-            }
-            if !joined.isEmpty { return joined }
-        }
-        guard index < pieces.count else { throw DicomError.frameOutOfRange(index) }
-        return data.subdata(in: pieces[index])
+        try EncapsulatedIndex(fragments: fragments, frames: frames, data: dataset.data).bytes(index, in: dataset.data)
     }
 }
 
