@@ -47,10 +47,19 @@ final class ViewerModel {
     var activeIndex = 0
     var layout: ViewerLayout = .single {
         didSet {
+            if layout != .single { lastSplit = layout }
             maximized = nil
             fillEmptyViewports()
         }
     }
+    /// The last layout with more than one viewport, for `toggleSplit()`.
+    private(set) var lastSplit: ViewerLayout = .sideBySide
+
+    /// The layout button's own action: one viewport, or back to the last split.
+    func toggleSplit() {
+        layout = layout == .single ? lastSplit : .single
+    }
+
     /// The MPR session, while it is on.
     private(set) var mpr: MPRSession?
     /// Progress while a volume builds, 0...1.

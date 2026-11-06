@@ -411,6 +411,16 @@
         }
       }
     },
+    "Back to one viewport; the arrow picks up to four viewports": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voltar a um quadro; a seta escolhe até quatro quadros"
+          }
+        }
+      }
+    },
     "Bone": {
       "localizations": {
         "pt-BR": {
@@ -1331,12 +1341,12 @@
         }
       }
     },
-    "Open a prior study of this patient beside the current one, and set what scrolls together": {
+    "Open the latest prior study of this patient beside the current one; the arrow lists the others and what scrolls together": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abrir um exame anterior deste paciente ao lado do atual e escolher o que rola junto"
+            "value": "Abrir o exame anterior mais recente deste paciente ao lado do atual; a seta lista os outros e o que rola junto"
           }
         }
       }
@@ -1791,12 +1801,12 @@
         }
       }
     },
-    "Split the image area into up to four viewports": {
+    "Split the image area; the arrow picks up to four viewports": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dividir a área de imagem em até quatro quadros"
+            "value": "Dividir a área de imagem; a seta escolhe até quatro quadros"
           }
         }
       }

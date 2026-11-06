@@ -21,6 +21,38 @@ struct ViewerView: View {
         _studies = Query(filter: #Predicate<Study> { $0.uid == studyUID })
     }
 
+    /// Plane, rotate, flip, and reset for the active viewport; it also carries their shortcuts.
+    private var orientationMenu: some View {
+        Menu {
+            Section("Plane") {
+                Button("Axial") { Task { await viewer.show(plane: .axial) } }
+                    .keyboardShortcut("1", modifiers: .control)
+                Button("Coronal") { Task { await viewer.show(plane: .coronal) } }
+                    .keyboardShortcut("2", modifiers: .control)
+                Button("Sagittal") { Task { await viewer.show(plane: .sagittal) } }
+                    .keyboardShortcut("3", modifiers: .control)
+            }
+            .disabled(!viewer.canChangePlane)
+            Section("Rotate and Flip") {
+                Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
+                    .keyboardShortcut("r", modifiers: .control)
+                Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
+                    .keyboardShortcut("l", modifiers: .control)
+                Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
+                    .keyboardShortcut("h", modifiers: [])
+                Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
+                    .keyboardShortcut("v", modifiers: [])
+            }
+            Divider()
+            Button("Reset View") { viewer.active?.reset() }
+                .keyboardShortcut("r", modifiers: .command)
+        } label: {
+            Label("Orientation", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
+        }
+        .menuIndicator(.hidden)
+        .help("Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view")
+    }
+
     var body: some View {
         Group {
             if let study = studies.first {
@@ -74,6 +106,24 @@ struct ViewerView: View {
         }
         .toolbar {
             ToolbarItem {
+                Menu {
+                    Picker("Layout", selection: Bindable(viewer).layout) {
+                        ForEach(ViewerLayout.allCases) { layout in
+                            Label(layout.title, systemImage: layout.symbol).tag(layout)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } label: {
+                    Label("Layout", systemImage: viewer.layout == .single ? "rectangle.split.2x1" : viewer.layout.symbol)
+                } primaryAction: {
+                    viewer.toggleSplit()
+                }
+                .help(viewer.layout == .single
+                      ? "Split the image area; the arrow picks up to four viewports"
+                      : "Back to one viewport; the arrow picks up to four viewports")
+            }
+            ToolbarItem {
                 let others = priors(of: study)
                 Menu {
                     if others.isEmpty {
@@ -94,8 +144,10 @@ struct ViewerView: View {
                     // No badge: a toolbar menu shows only its icon; the priors are listed inside and in the strip.
                     Image(systemName: "clock.arrow.circlepath")
                     .accessibilityLabel(Text("Compare"))
+                } primaryAction: {
+                    if let latest = others.first { viewer.openPrior(latest) }
                 }
-                .help("Open a prior study of this patient beside the current one, and set what scrolls together")
+                .help("Open the latest prior study of this patient beside the current one; the arrow lists the others and what scrolls together")
             }
             ToolbarItem {
                 Picker("Tool", selection: Bindable(viewer).tool) {
@@ -116,41 +168,15 @@ struct ViewerView: View {
                 .help(playing ? "Pause the cine (Space)" : "Play the images as a cine (Space)")
                 .disabled((viewer.active?.count ?? 0) < 2)
             }
-            // Plane and slab mean nothing in 3D: their room goes to the 3D presets.
-            if viewer.volume3D == nil {
-                ToolbarItem {
-                    PlanePicker(viewer: viewer)
-                }
-            }
+            // The planes and the orientation menu share one capsule. Plane and
+            // slab mean nothing in 3D: their room goes to the 3D presets.
             ToolbarItem {
-                Menu {
-                    Section("Plane") {
-                        Button("Axial") { Task { await viewer.show(plane: .axial) } }
-                            .keyboardShortcut("1", modifiers: .control)
-                        Button("Coronal") { Task { await viewer.show(plane: .coronal) } }
-                            .keyboardShortcut("2", modifiers: .control)
-                        Button("Sagittal") { Task { await viewer.show(plane: .sagittal) } }
-                            .keyboardShortcut("3", modifiers: .control)
+                HStack(spacing: Space.xs) {
+                    if viewer.volume3D == nil {
+                        PlanePicker(viewer: viewer)
                     }
-                    .disabled(!viewer.canChangePlane)
-                    Section("Rotate and Flip") {
-                        Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
-                            .keyboardShortcut("r", modifiers: .control)
-                        Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
-                            .keyboardShortcut("l", modifiers: .control)
-                        Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
-                            .keyboardShortcut("h", modifiers: [])
-                        Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
-                            .keyboardShortcut("v", modifiers: [])
-                    }
-                    Divider()
-                    Button("Reset View") { viewer.active?.reset() }
-                        .keyboardShortcut("r", modifiers: .command)
-                } label: {
-                    Label("Orientation", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
+                    orientationMenu
                 }
-                .menuIndicator(.hidden)
-                .help("Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view")
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.mpr != nil }, set: { _ in viewer.toggleMPR() })) {
@@ -189,20 +215,6 @@ struct ViewerView: View {
                 Button("DICOM Tags", systemImage: "info.circle") { viewer.showsTags.toggle() }
                     .keyboardShortcut("i")
                     .help("Show the DICOM tags of the image (⌘I)")
-            }
-            ToolbarItem(placement: .principal) {
-                Menu {
-                    Picker("Layout", selection: Bindable(viewer).layout) {
-                        ForEach(ViewerLayout.allCases) { layout in
-                            Label(layout.title, systemImage: layout.symbol).tag(layout)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
-                } label: {
-                    Label("Layout", systemImage: "rectangle.split.2x1")
-                }
-                .help("Split the image area into up to four viewports")
             }
         }
         .navigationTitle(study.displayName)
