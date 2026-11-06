@@ -23,6 +23,17 @@ enum MeasureTool: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The icon in the toolbar and Settings. In 3D, Scroll turns the volume.
+    func icon(in3D: Bool = false) -> Image {
+        if self == .scroll { return Image(nsImage: in3D ? ToolIcon.rotate3D : ToolIcon.scroll) }
+        return Image(systemName: symbol)
+    }
+
+    /// The name in the toolbar. In 3D, Scroll turns the volume.
+    func title(in3D: Bool) -> LocalizedStringResource {
+        in3D && self == .scroll ? "Rotate 3D" : title
+    }
+
     var symbol: String {
         switch self {
         case .navigate: "circle.lefthalf.filled"

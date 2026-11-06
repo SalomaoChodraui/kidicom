@@ -100,7 +100,8 @@ struct ViewerView: View {
             ToolbarItem {
                 Picker("Tool", selection: Bindable(viewer).tool) {
                     ForEach(MeasureTool.allCases) { tool in
-                        Label { Text(tool.title) } icon: { Image(systemName: tool.symbol) }.tag(tool)
+                        let in3D = viewer.volume3D != nil
+                        Label { Text(tool.title(in3D: in3D)) } icon: { tool.icon(in3D: in3D) }.tag(tool)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -115,8 +116,11 @@ struct ViewerView: View {
                 .help(playing ? "Pause the cine (Space)" : "Play the images as a cine (Space)")
                 .disabled((viewer.active?.count ?? 0) < 2)
             }
-            ToolbarItem {
-                PlanePicker(viewer: viewer)
+            // Plane and slab mean nothing in 3D: their room goes to the 3D presets.
+            if viewer.volume3D == nil {
+                ToolbarItem {
+                    PlanePicker(viewer: viewer)
+                }
             }
             ToolbarItem {
                 Menu {
@@ -155,8 +159,10 @@ struct ViewerView: View {
                 .help(viewer.mpr == nil ? "Reformat the active series in three planes (MPR)" : "Leave MPR")
                 .disabled(viewer.mpr == nil && viewer.mprCandidate == nil || viewer.buildProgress != nil)
             }
-            ToolbarItem {
-                SlabControl(viewer: viewer)
+            if viewer.volume3D == nil {
+                ToolbarItem {
+                    SlabControl(viewer: viewer)
+                }
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.volume3D != nil }, set: { _ in viewer.toggle3D() })) {
@@ -194,9 +200,8 @@ struct ViewerView: View {
                     .pickerStyle(.inline)
                     .labelsHidden()
                 } label: {
-                    Label("Layout", systemImage: viewer.layout.symbol)
+                    Label("Layout", systemImage: "rectangle.split.2x1")
                 }
-                .menuIndicator(.hidden)
                 .help("Split the image area into up to four viewports")
             }
         }

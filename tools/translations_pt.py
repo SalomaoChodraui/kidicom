@@ -223,6 +223,7 @@ PT = {
 "Mean": "Média",
 "MinIP": "MinIP",
 "Projection": "Projeção",
-"Slab thickness": "Espessura do corte",
 "Thin": "Fino",
+"Rotate 3D": "Girar 3D",
+"Slab thickness; moving it while Thin turns on MIP": "Espessura do corte; mover no modo Fino liga o MIP",
 }

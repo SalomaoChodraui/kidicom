@@ -551,7 +551,7 @@ enum SelfTest {
         // The 3D view opens on Rotate, follows the toolbar tool, and gives the 2D tool back.
         viewer.tool = .distance
         await viewer.enter3D()
-        check("3D opens with the Rotate tool", viewer.volume3D?.tool == .rotate && viewer.tool == .rotate)
+        check("3D opens with Scroll, which turns the volume", viewer.volume3D?.tool == .scroll && viewer.tool == .scroll)
         viewer.tool = .navigate
         check("picking Window/Level reaches the 3D view", viewer.volume3D?.tool == .navigate)
         viewer.escape()

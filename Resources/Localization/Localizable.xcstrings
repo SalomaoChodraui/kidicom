@@ -1601,6 +1601,16 @@
         }
       }
     },
+    "Rotate 3D": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girar 3D"
+          }
+        }
+      }
+    },
     "Rotate Left": {
       "localizations": {
         "pt-BR": {
@@ -1761,12 +1771,12 @@
         }
       }
     },
-    "Slab thickness": {
+    "Slab thickness; moving it while Thin turns on MIP": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Espessura do corte"
+            "value": "Espessura do corte; mover no modo Fino liga o MIP"
           }
         }
       }

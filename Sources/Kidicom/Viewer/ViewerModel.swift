@@ -142,7 +142,7 @@ final class ViewerModel {
             volume3D?.tool = tool
         }
     }
-    /// The 2D tool to bring back when 3D closes; 3D opens on Rotate.
+    /// The 2D tool to bring back when 3D closes; 3D opens on Scroll, which turns the volume there.
     @ObservationIgnored private var toolBefore3D: MeasureTool?
 
     var visible: ArraySlice<Viewport> { viewports.prefix(layout.count) }
@@ -394,7 +394,8 @@ final class ViewerModel {
             await show(plane: plane, reformat: true)
         }
         guard let source = viewport.source as? ReformatSource else { return }
-        source.setSlab(mm, mode: mode)
+        // The slider may have moved on while the volume was building: use its latest value.
+        source.setSlab(slabThickness, mode: mode)
         viewport.reload()
         slabRevision += 1
     }
@@ -436,7 +437,7 @@ final class ViewerModel {
         toolBefore3D = tool
         session.onTool = { [weak self] in self?.tool = $0 }
         volume3D = session
-        tool = .rotate
+        tool = .scroll
     }
 
     func exitMPR() {

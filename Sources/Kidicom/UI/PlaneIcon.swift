@@ -82,6 +82,42 @@ enum PlaneIcon {
     }
 }
 
+/// Tool icons the system symbols lack, drawn from symbols as template images.
+enum ToolIcon {
+    private static func symbol(_ name: String, _ size: CGFloat, _ weight: NSFont.Weight) -> NSImage {
+        let base = NSImage(systemSymbolName: name, accessibilityDescription: nil) ?? NSImage()
+        return base.withSymbolConfiguration(.init(pointSize: size, weight: weight)) ?? base
+    }
+
+    /// Scroll: a stack of sheets with an up and down arrow.
+    static let scroll: NSImage = {
+        let stack = symbol("rectangle.stack", 16, .regular), arrow = symbol("arrow.up.and.down", 12, .medium)
+        let gap: CGFloat = 1
+        let size = NSSize(width: stack.size.width + gap + arrow.size.width, height: max(stack.size.height, arrow.size.height))
+        let image = NSImage(size: size, flipped: false) { _ in
+            stack.draw(in: NSRect(x: 0, y: (size.height - stack.size.height) / 2, width: stack.size.width, height: stack.size.height))
+            arrow.draw(in: NSRect(x: stack.size.width + gap, y: (size.height - arrow.size.height) / 2,
+                                  width: arrow.size.width, height: arrow.size.height))
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+
+    /// Scroll in 3D: a cube inside two curved arrows, the volume turning.
+    static let rotate3D: NSImage = {
+        let arrows = symbol("arrow.trianglehead.2.clockwise.rotate.90", 17, .regular), cube = symbol("cube", 8.5, .medium)
+        let image = NSImage(size: arrows.size, flipped: false) { rect in
+            arrows.draw(in: rect)
+            cube.draw(in: NSRect(x: (rect.width - cube.size.width) / 2, y: (rect.height - cube.size.height) / 2,
+                                 width: cube.size.width, height: cube.size.height))
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+}
+
 /// The plane picker in the viewer's toolbar.
 struct PlanePicker: View {
     let viewer: ViewerModel

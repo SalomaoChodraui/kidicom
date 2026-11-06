@@ -54,8 +54,7 @@ struct SlabControl: View {
             Slider(value: Binding(get: { thickness }, set: { thickness = $0.rounded() }), in: 1 ... 50)
                 .controlSize(.small)
                 .frame(width: 80)
-                .disabled(!slab.mode.isProjection)
-                .help("Slab thickness")
+                .help("Slab thickness; moving it while Thin turns on MIP")
             Text("\(Int(thickness)) mm")
                 .monospacedDigit()
                 .lineLimit(1)
@@ -68,8 +67,11 @@ struct SlabControl: View {
         .onAppear { thickness = slab.mm }
         .onChange(of: slab.mm) { _, mm in if mm != thickness { thickness = mm } }
         .onChange(of: thickness) { _, mm in
-            guard viewer.activeSlab.mode.isProjection, mm != viewer.activeSlab.mm else { viewer.slabThickness = mm; return }
-            Task { await viewer.setSlab(mode: viewer.activeSlab.mode, mm: mm) }
+            let current = viewer.activeSlab
+            guard mm != current.mm || !current.mode.isProjection else { return }
+            guard viewer.canSlab else { viewer.slabThickness = mm; return }
+            // Thin has no thickness: moving the slider turns on MIP.
+            Task { await viewer.setSlab(mode: current.mode.isProjection ? current.mode : .mip, mm: mm) }
         }
     }
 }

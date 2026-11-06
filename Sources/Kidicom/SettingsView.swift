@@ -215,7 +215,7 @@ struct ToolKeyRow: View {
                 }
             }
         } label: {
-            Label { Text(tool.title) } icon: { Image(systemName: tool.symbol) }
+            Label { Text(tool.title) } icon: { tool.icon() }
         }
         .onAppear { text = ToolKeys.shared.key(for: tool).uppercased() }
         .onChange(of: ToolKeys.shared.key(for: tool)) { _, key in text = key.uppercased() }

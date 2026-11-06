@@ -77,11 +77,11 @@ final class VolumeMTKView: MTKView {
     }
 
     /// The tool keys work here as in 2D: the Window/Level key makes
-    /// left-drag set the window, the Rotate key makes it rotate.
+    /// left-drag set the window, the Scroll and Rotate keys make it turn the volume.
     override func keyDown(with event: NSEvent) {
         let key = (event.charactersIgnoringModifiers ?? "").lowercased()
         if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
-           let tool = ToolKeys.shared.tool(for: key), tool == .navigate || tool == .rotate {
+           let tool = ToolKeys.shared.tool(for: key), tool == .navigate || tool == .scroll || tool == .rotate {
             session?.onTool(tool)
         } else {
             super.keyDown(with: event)
@@ -170,7 +170,7 @@ final class VolumeSession {
     var camera: VolumeCamera
     /// The viewer's left-button tool: Window/Level sets the window, any
     /// other rotates.
-    var tool: MeasureTool = .rotate
+    var tool: MeasureTool = .scroll
     /// Picks a tool from a key pressed in the 3D view.
     @ObservationIgnored var onTool: (MeasureTool) -> Void = { _ in }
     /// The 2D window when 3D opened, for the Current Window preset.
