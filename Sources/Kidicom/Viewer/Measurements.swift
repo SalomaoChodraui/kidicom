@@ -179,9 +179,9 @@ extension Viewport {
         selected = nil
         switch tool {
         case .navigate, .scroll, .rotate: return
-        case .distance: draft = Measurement(kind: .distance, points: [p, p], slice: index)
-        case .angle: draft = Measurement(kind: .angle, points: [p, p], slice: index)
-        case .area: draft = Measurement(kind: .area, points: [p], slice: index)
+        case .distance: draft = Measurement(kind: .distance, points: [p, p], slice: shownIndex)
+        case .angle: draft = Measurement(kind: .angle, points: [p, p], slice: shownIndex)
+        case .area: draft = Measurement(kind: .area, points: [p], slice: shownIndex)
         }
         dragging = (draft!.id, 1)
     }

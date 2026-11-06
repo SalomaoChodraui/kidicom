@@ -484,6 +484,20 @@ enum SelfTest {
         while coronal.image == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
         check("the coronal reformat is square-pixel: 64 wide, 57.5 mm in 13 rows of 5 mm", coronal.slice?.width == 64 && coronal.slice?.height == 13, "\(coronal.slice?.width ?? 0)x\(coronal.slice?.height ?? 0)")
         check("coronal shows head at the top", coronal.edges?.top == "H" && coronal.edges?.left == "R")
+        // A fast scroll: steps arrive faster than reformats; the picture ends on the last frame asked for.
+        let before = coronal.index
+        for _ in 0 ..< 6 {
+            coronal.step(1)
+            await Task.yield()
+        }
+        let scrolledAt = Date.now
+        while coronal.shownIndex != coronal.index && Date.now.timeIntervalSince(scrolledAt) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+        check("a fast MPR scroll ends on the last frame, with the overlay on the picture's frame",
+              coronal.index == min(before + 6, coronal.count - 1) && coronal.shownIndex == coronal.index,
+              "index \(coronal.index) shown \(coronal.shownIndex)")
+        coronal.step(before - coronal.index)
+        let backAt = Date.now
+        while coronal.shownIndex != before && Date.now.timeIntervalSince(backAt) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
         viewer.click(at: CGPoint(x: 10, y: 0), in: coronal)
         check("clicking the top row of the coronal moves the axial to the top slice", axial.index == 23, "\(axial.index)")
         let sagittalAt = (sagittal.source as? ReformatSource).map { simd_dot($0.volumePoint(SIMD2(0, 0), at: sagittal.index), SIMD3(1, 0, 0)) }

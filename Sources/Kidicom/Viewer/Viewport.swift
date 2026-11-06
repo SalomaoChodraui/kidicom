@@ -14,7 +14,10 @@ final class Viewport: Identifiable {
     var reformatBase: SeriesStack?
     /// The series this viewport comes from, reformatted or not.
     var baseStack: SeriesStack? { stack ?? reformatBase }
+    /// The frame asked for last. The picture can trail it while frames load.
     private(set) var index = 0
+    /// The frame whose picture is on screen: overlays describe this one.
+    private(set) var shownIndex = 0
     /// The person's window; nil follows each frame's own default.
     var window: VOIWindow? {
         didSet {
@@ -153,9 +156,9 @@ final class Viewport: Identifiable {
         requestID += 1
         index = min(max(0, newIndex), stack.count - 1)
         if let hit = stack.cached(index) {
-            slice = hit
-            shownID = requestID
-            render()
+            present(hit, at: index, id: requestID)
+        } else if refreshing {
+            refreshAgain = true   // the refresh loop loads the newest frame next
         } else if loadingFrom !== stack {
             cancelLoad()
             loadToken += 1
@@ -179,15 +182,23 @@ final class Viewport: Identifiable {
         defer { if loadToken == token { loadingFrom = nil } }
         while !Task.isCancelled, source === stack, shownID < requestID {
             let id = requestID, target = index
-            guard let loaded = await stack.load(target) else { break }
+            let loaded = await stack.load(target)
             guard !Task.isCancelled, source === stack else { break }
             // A cached frame shown meanwhile is newer than this one.
-            if shownID < id {
-                slice = loaded
-                shownID = id
-                render()
+            guard shownID < id else { continue }
+            if let loaded {
+                present(loaded, at: target, id: id)
+            } else {
+                shownID = id   // unreadable frame: keep the picture, go on to the newest
             }
         }
+    }
+
+    private func present(_ loaded: DecodedSlice, at frame: Int, id: Int) {
+        slice = loaded
+        shownIndex = frame
+        shownID = id
+        render()
     }
 
     /// A move by the person: scroll, keys, cine. Others follow when synced.
@@ -256,7 +267,7 @@ final class Viewport: Identifiable {
     /// Patient direction letters on the screen edges, when the image has geometry.
     var edges: Orientation.Edges? {
         guard let source else { return nil }
-        return Orientation.edges(source.orientation(index), angle: Double(quarterTurns) * .pi / 2 + freeAngle,
+        return Orientation.edges(source.orientation(shownIndex), angle: Double(quarterTurns) * .pi / 2 + freeAngle,
                                  flipHorizontal: flipHorizontal, flipVertical: flipVertical)
     }
 
@@ -267,9 +278,12 @@ final class Viewport: Identifiable {
     }
 
     var location: Double? { source?.location(index) }
+    /// Position of the frame on screen, for the overlay.
+    var shownLocation: Double? { source?.location(shownIndex) }
 
     /// Draws the current frame again after the source changed it (slab, MIP).
     func reload() {
+        cancelLoad()   // a frame in flight was made for the old slab
         slice = nil
         go(to: index)
     }
@@ -292,13 +306,9 @@ final class Viewport: Identifiable {
                 requestID += 1
                 let id = requestID, target = index
                 let loaded = await source.load(target)
-                // A newer request (scroll, slab, another series) wins over this one.
-                guard id == requestID, self.source === source else { break }
-                if let loaded {
-                    self.slice = loaded
-                    self.shownID = id
-                    self.render()
-                }
+                guard self.source === source else { break }
+                // A cached frame shown meanwhile is newer than this one.
+                if let loaded, shownID < id { self.present(loaded, at: target, id: id) }
                 if !refreshAgain { break }
             }
             refreshing = false

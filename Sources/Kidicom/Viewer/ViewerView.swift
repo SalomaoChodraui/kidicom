@@ -441,7 +441,7 @@ struct ViewportOverlay: View {
 
     private var bottomLeft: [String?] {
         guard viewport.count > 0 else { return [] }
-        var lines = [String(localized: "Im \(viewport.index + 1)/\(viewport.count)")]
+        var lines = [String(localized: "Im \(viewport.shownIndex + 1)/\(viewport.count)")]
         if let source = viewport.source as? ReformatSource {
             if source.mode.isProjection { lines.append("\(String(localized: source.mode.title)) \(Int(source.slab)) mm") }
             for warning in source.volume.warnings {
@@ -451,7 +451,7 @@ struct ViewportOverlay: View {
                 }
             }
         }
-        if let location = viewport.location, viewport.count > 1 {
+        if let location = viewport.shownLocation, viewport.count > 1 {
             lines.append(String(localized: "Pos \(location.formatted(.number.precision(.fractionLength(1)))) mm"))
         }
         if viewport.syncOffset != 0 && viewport.stack != nil && abs(viewport.syncOffset) >= 0.05 {
