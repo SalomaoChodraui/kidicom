@@ -75,53 +75,23 @@ private struct Uniforms {
     var colorLow: SIMD3<Float>
     var colorHigh: SIMD3<Float>
     var opacity: Float
-    var textureStep: SIMD3<Float>  // one voxel in texture units
+    var textureStep: SIMD3<Float>  // one voxel in texture units, at the level sampled
+    var level: Float               // 0 full volume, 1 half size each way
 }
 
-/// Ray-casts a volume into a Metal texture: front to back, gradient shading,
-/// orthographic camera that starts looking at the patient's front.
-final class VolumeRenderer: NSObject, MTKViewDelegate {
+/// The Metal objects every 3D view shares: one device, queue, and pipeline,
+/// compiled once on first use, off the main thread when the 3D view opens.
+nonisolated final class VolumeGPU: @unchecked Sendable {
+    static let shared = VolumeGPU()
+
     let device: MTLDevice
-    private let queue: MTLCommandQueue
-    private let pipeline: MTLRenderPipelineState
-    private let texture: MTLTexture
-    private let volume: Volume
-    var camera: VolumeCamera
-    /// Lower resolution while the person drags, full when still.
-    var interactive = false
+    let queue: MTLCommandQueue
+    let pipeline: MTLRenderPipelineState
 
-    /// Volume axes (row, column, normal) times physical size, for the camera math.
-    private let extent: SIMD3<Float>
-    private let axes: simd_float3x3
-
-    init?(volume: Volume, camera: VolumeCamera) {
+    private init?() {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else { return nil }
-        self.device = device
-        self.queue = queue
-        self.volume = volume
-        self.camera = camera
-        extent = SIMD3(Float(Double(volume.width) * volume.spacing.i), Float(Double(volume.height) * volume.spacing.j),
-                       Float(Double(volume.depth) * volume.spacing.k))
-        let r = volume.rowDirection.map(Float.init), c = volume.columnDirection.map(Float.init), n = volume.normal.map(Float.init)
-        axes = simd_float3x3(SIMD3(r[0], r[1], r[2]), SIMD3(c[0], c[1], c[2]), SIMD3(n[0], n[1], n[2]))
-
-        let descriptor = MTLTextureDescriptor()
-        descriptor.textureType = .type3D
-        descriptor.pixelFormat = .r16Float
-        descriptor.width = volume.width
-        descriptor.height = volume.height
-        descriptor.depth = volume.depth
-        descriptor.usage = .shaderRead
-        descriptor.storageMode = .shared
-        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
-        volume.voxels.withUnsafeBytes { bytes in
-            texture.replace(region: MTLRegionMake3D(0, 0, 0, volume.width, volume.height, volume.depth), mipmapLevel: 0, slice: 0,
-                            withBytes: bytes.baseAddress!, bytesPerRow: volume.width * 2, bytesPerImage: volume.width * volume.height * 2)
-        }
-        self.texture = texture
-
         do {
-            let library = try device.makeLibrary(source: Self.shader, options: nil)
+            let library = try device.makeLibrary(source: VolumeRenderer.shader, options: nil)
             let p = MTLRenderPipelineDescriptor()
             p.vertexFunction = library.makeFunction(name: "fullscreen")
             p.fragmentFunction = library.makeFunction(name: "raycast")
@@ -131,6 +101,82 @@ final class VolumeRenderer: NSObject, MTKViewDelegate {
             print("VolumeRenderer: \(error)")
             return nil
         }
+        self.device = device
+        self.queue = queue
+    }
+
+    /// Copies the volume into a 3D texture, a few slices at a time so
+    /// `progress` can follow. Runs on any thread.
+    func makeTexture(_ volume: Volume, progress: (Double) -> Void = { _ in }) -> MTLTexture? {
+        let descriptor = MTLTextureDescriptor()
+        descriptor.textureType = .type3D
+        descriptor.pixelFormat = .r16Float
+        descriptor.width = volume.width
+        descriptor.height = volume.height
+        descriptor.depth = volume.depth
+        descriptor.usage = .shaderRead
+        // Private storage lets the GPU lay the volume out for 3D reads. Level 1,
+        // an eighth of the data, is what dragging samples.
+        descriptor.storageMode = .private
+        descriptor.mipmapLevelCount = max(volume.width, volume.height, volume.depth) > 1 ? 2 : 1
+        let sliceBytes = volume.width * volume.height * 2
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        let chunk = max(1, volume.depth / 20)
+        var ok = true
+        volume.voxels.withUnsafeBytes { bytes in
+            for k in stride(from: 0, to: volume.depth, by: chunk) {
+                let slices = min(chunk, volume.depth - k)
+                guard let staging = device.makeBuffer(bytes: bytes.baseAddress! + k * sliceBytes, length: slices * sliceBytes, options: .storageModeShared),
+                      let buffer = queue.makeCommandBuffer(), let blit = buffer.makeBlitCommandEncoder() else { ok = false; return }
+                blit.copy(from: staging, sourceOffset: 0, sourceBytesPerRow: volume.width * 2, sourceBytesPerImage: sliceBytes,
+                          sourceSize: MTLSizeMake(volume.width, volume.height, slices), to: texture, destinationSlice: 0,
+                          destinationLevel: 0, destinationOrigin: MTLOriginMake(0, 0, k))
+                blit.endEncoding()
+                buffer.commit()
+                buffer.waitUntilCompleted()
+                progress(Double(k + slices) / Double(volume.depth))
+            }
+        }
+        guard ok else { return nil }
+        if texture.mipmapLevelCount > 1, let buffer = queue.makeCommandBuffer(), let blit = buffer.makeBlitCommandEncoder() {
+            blit.generateMipmaps(for: texture)
+            blit.endEncoding()
+            buffer.commit()
+            buffer.waitUntilCompleted()
+        }
+        return texture
+    }
+}
+
+/// Ray-casts a volume into a Metal texture: front to back, gradient shading,
+/// orthographic camera that starts looking at the patient's front.
+final class VolumeRenderer: NSObject, MTKViewDelegate {
+    let device: MTLDevice
+    private let queue: MTLCommandQueue
+    private let pipeline: MTLRenderPipelineState
+    /// The volume on the GPU, shared with a later session on the same series.
+    let texture: MTLTexture
+    private let volume: Volume
+    var camera: VolumeCamera
+    /// Half-size volume and longer steps while the person drags, full quality when still.
+    var interactive = false
+
+    /// Volume axes (row, column, normal) times physical size, for the camera math.
+    private let extent: SIMD3<Float>
+    private let axes: simd_float3x3
+
+    /// `texture` holds `volume`, from `VolumeGPU.makeTexture`.
+    init(volume: Volume, texture: MTLTexture, camera: VolumeCamera, gpu: VolumeGPU) {
+        device = gpu.device
+        queue = gpu.queue
+        pipeline = gpu.pipeline
+        self.texture = texture
+        self.volume = volume
+        self.camera = camera
+        extent = SIMD3(Float(Double(volume.width) * volume.spacing.i), Float(Double(volume.height) * volume.spacing.j),
+                       Float(Double(volume.depth) * volume.spacing.k))
+        let r = volume.rowDirection.map(Float.init), c = volume.columnDirection.map(Float.init), n = volume.normal.map(Float.init)
+        axes = simd_float3x3(SIMD3(r[0], r[1], r[2]), SIMD3(c[0], c[1], c[2]), SIMD3(n[0], n[1], n[2]))
         super.init()
     }
 
@@ -146,6 +192,7 @@ final class VolumeRenderer: NSObject, MTKViewDelegate {
         let viewToTexture = scale * axes.transpose * patientFromView
         let diagonal = simd_length(extent)
         let spacing = Float(min(volume.spacing.i, min(volume.spacing.j, volume.spacing.k)))
+        let level = interactive && texture.mipmapLevelCount > 1 ? 1 : 0
         let low = Float(camera.window.center - camera.window.width / 2)
         let colors = camera.preset.colors
         let halfHeight = diagonal * 0.55 / camera.zoom
@@ -153,7 +200,8 @@ final class VolumeRenderer: NSObject, MTKViewDelegate {
             viewToTexture: viewToTexture, halfHeight: halfHeight, aspect: Float(width) / Float(max(height, 1)),
             pan: camera.pan * halfHeight * 2, depth: diagonal / 2, step: spacing * (interactive ? 2 : 0.8),
             low: low, width: Float(max(camera.window.width, 1)), colorLow: colors.0, colorHigh: colors.1,
-            opacity: camera.preset.opacity, textureStep: 1 / SIMD3(Float(volume.width), Float(volume.height), Float(volume.depth))
+            opacity: camera.preset.opacity, textureStep: Float(1 << level) / SIMD3(Float(volume.width), Float(volume.height), Float(volume.depth)),
+            level: Float(level)
         )
     }
 
@@ -198,7 +246,7 @@ final class VolumeRenderer: NSObject, MTKViewDelegate {
         return Renderer.colorImage(bytes, width: width, height: height)
     }
 
-    private static let shader = """
+    nonisolated static let shader = """
     #include <metal_stdlib>
     using namespace metal;
 
@@ -215,6 +263,7 @@ final class VolumeRenderer: NSObject, MTKViewDelegate {
         float3 colorHigh;
         float opacity;
         float3 textureStep;
+        float level;
     };
 
     struct VOut { float4 position [[position]]; float2 uv; };
@@ -228,7 +277,7 @@ final class VolumeRenderer: NSObject, MTKViewDelegate {
     }
 
     fragment float4 raycast(VOut in [[stage_in]], constant Uniforms& u [[buffer(0)]], texture3d<float> volume [[texture(0)]]) {
-        constexpr sampler s(filter::linear, address::clamp_to_edge);
+        constexpr sampler s(filter::linear, mip_filter::nearest, address::clamp_to_edge);
         float3 origin = float3(in.uv.x * u.halfHeight * u.aspect - u.pan.x, in.uv.y * u.halfHeight - u.pan.y, -u.depth);
         float3 o = u.viewToTexture * origin + 0.5;
         float3 d = u.viewToTexture * float3(0, 0, 1);
@@ -245,13 +294,13 @@ final class VolumeRenderer: NSObject, MTKViewDelegate {
         float3 lightTex = normalize(u.viewToTexture * light);
         for (float t = tNear; t < tFar && alpha < 0.97; t += u.step) {
             float3 p = o + d * t;
-            float v = volume.sample(s, p).r;
+            float v = volume.sample(s, p, level(u.level)).r;
             float a = clamp((v - u.low) / u.width, 0.0, 1.0);
             if (a <= 0.001) continue;
             float3 g = float3(
-                volume.sample(s, p + float3(u.textureStep.x, 0, 0)).r - volume.sample(s, p - float3(u.textureStep.x, 0, 0)).r,
-                volume.sample(s, p + float3(0, u.textureStep.y, 0)).r - volume.sample(s, p - float3(0, u.textureStep.y, 0)).r,
-                volume.sample(s, p + float3(0, 0, u.textureStep.z)).r - volume.sample(s, p - float3(0, 0, u.textureStep.z)).r);
+                volume.sample(s, p + float3(u.textureStep.x, 0, 0), level(u.level)).r - volume.sample(s, p - float3(u.textureStep.x, 0, 0), level(u.level)).r,
+                volume.sample(s, p + float3(0, u.textureStep.y, 0), level(u.level)).r - volume.sample(s, p - float3(0, u.textureStep.y, 0), level(u.level)).r,
+                volume.sample(s, p + float3(0, 0, u.textureStep.z), level(u.level)).r - volume.sample(s, p - float3(0, 0, u.textureStep.z), level(u.level)).r);
             float shade = 0.35 + 0.65 * abs(dot(normalize(g + 1e-6), lightTex));
             float sampleAlpha = 1.0 - pow(1.0 - clamp(a * u.opacity, 0.0, 0.99), u.step);
             float3 c = mix(u.colorLow, u.colorHigh, a) * shade;

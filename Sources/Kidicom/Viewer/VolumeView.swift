@@ -33,6 +33,13 @@ struct VolumeView: NSViewRepresentable {
 
 final class VolumeMTKView: MTKView {
     var session: VolumeSession?
+
+    override init(frame: CGRect, device: MTLDevice?) {
+        super.init(frame: frame, device: device)
+        autoResizeDrawable = false   // updateDrawableSize sizes it, smaller while dragging
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
     var onCopy: (CGImage, CGSize, CGFloat) -> Void = { _, _, _ in }
 
     /// Edit > Copy (⌘C): the volume as shown.
@@ -115,16 +122,47 @@ final class VolumeMTKView: MTKView {
         return CGSize(width: p.x - last.x, height: p.y - last.y)
     }
 
-    /// Low resolution while dragging; full a moment after the last move.
+    /// Half the pixels each way and longer steps while dragging, about 10
+    /// times less GPU work; full quality a moment after the last move.
+    private var lowResolution = false {
+        didSet {
+            guard lowResolution != oldValue else { return }
+            session?.renderer.interactive = lowResolution
+            updateDrawableSize()
+        }
+    }
+
     private func interacting() {
-        session?.renderer.interactive = true
+        lowResolution = true
         idle?.cancel()
         idle = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled, let self else { return }
-            self.session?.renderer.interactive = false
+            self.lowResolution = false
             self.needsDisplay = true
         }
+    }
+
+    /// The layer stretches a smaller drawable over the whole view.
+    private func updateDrawableSize() {
+        let scale = (window?.backingScaleFactor ?? 2) * (lowResolution ? 0.5 : 1)
+        let size = CGSize(width: max(1, (bounds.width * scale).rounded()), height: max(1, (bounds.height * scale).rounded()))
+        if drawableSize != size { drawableSize = size }
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        updateDrawableSize()
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        updateDrawableSize()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        updateDrawableSize()
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -190,35 +228,53 @@ final class VolumeSession {
     @ObservationIgnored var onTool: (MeasureTool) -> Void = { _ in }
     /// The 2D window when 3D opened, for the Current Window preset.
     let currentWindow: VOIWindow
+    @ObservationIgnored private var automatic: VOIWindow?
     /// A window from the volume's own values, for MR and other non-CT series.
-    let automaticWindow: VOIWindow
-
-    init?(volume: Volume, title: String, window: VOIWindow, modality: String) {
-        let preset: VolumePreset = modality == "CT" ? .bone : .automatic
-        let automatic = Self.automaticWindow(volume)
-        var camera = VolumeCamera()
-        camera.preset = preset
-        camera.window = preset.window ?? (preset == .automatic ? automatic : window)
-        guard let renderer = VolumeRenderer(volume: volume, camera: camera) else { return nil }
-        self.volume = volume
-        self.title = title
-        self.renderer = renderer
-        self.camera = camera
-        currentWindow = window
-        automaticWindow = automatic
+    /// CT opens on a preset, so this waits until someone picks Automatic.
+    var automaticWindow: VOIWindow {
+        if let automatic { return automatic }
+        let window = volume.automaticWindow()
+        automatic = window
+        return window
     }
 
-    /// Hides air and noise: from 20 to 90 percent of the 95th percentile.
-    static func automaticWindow(_ volume: Volume) -> VOIWindow {
-        let stride = max(1, volume.count / 200_000)
-        var samples: [Float] = []
-        samples.reserveCapacity(volume.count / stride + 1)
-        volume.voxels.withUnsafeBufferPointer { v in
-            for i in Swift.stride(from: 0, to: v.count, by: stride) { samples.append(Float(v[i])) }
-        }
-        samples.sort()
-        let high = Double(samples.isEmpty ? 1 : samples[Int(Double(samples.count - 1) * 0.95)])
-        return VOIWindow(center: high * 0.55, width: max(2, high * 0.7))
+    /// What the 3D view needs before it can show: the volume on the GPU and,
+    /// for series that open on Automatic, its window. Made off the main
+    /// thread, and kept to reopen 3D on the same series.
+    nonisolated struct Prepared: @unchecked Sendable {
+        let gpu: VolumeGPU
+        let texture: MTLTexture
+        let automaticWindow: VOIWindow?
+    }
+
+    static func preset(for modality: String) -> VolumePreset { modality == "CT" ? .bone : .automatic }
+
+    /// Copies the volume to the GPU (compiling the shader the first time) and,
+    /// without a preset, finds the automatic window. Nil without Metal.
+    nonisolated static func prepare(_ volume: Volume, modality: String, progress: (Double) -> Void = { _ in }) -> Prepared? {
+        guard let gpu = VolumeGPU.shared, let texture = gpu.makeTexture(volume, progress: progress) else { return nil }
+        let automatic = modality == "CT" ? nil : volume.automaticWindow()
+        return Prepared(gpu: gpu, texture: texture, automaticWindow: automatic)
+    }
+
+    init(volume: Volume, prepared: Prepared, title: String, window: VOIWindow, modality: String) {
+        let preset = Self.preset(for: modality)
+        let automatic = prepared.automaticWindow ?? (preset == .automatic ? volume.automaticWindow() : nil)
+        var camera = VolumeCamera()
+        camera.preset = preset
+        camera.window = preset.window ?? automatic ?? window
+        renderer = VolumeRenderer(volume: volume, texture: prepared.texture, camera: camera, gpu: prepared.gpu)
+        self.volume = volume
+        self.title = title
+        self.camera = camera
+        self.automatic = automatic
+        currentWindow = window
+    }
+
+    /// Prepares on the calling thread, for the self-test.
+    convenience init?(volume: Volume, title: String, window: VOIWindow, modality: String) {
+        guard let prepared = Self.prepare(volume, modality: modality) else { return nil }
+        self.init(volume: volume, prepared: prepared, title: title, window: window, modality: modality)
     }
 
     func apply(_ preset: VolumePreset) {

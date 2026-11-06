@@ -618,7 +618,13 @@ enum SelfTest {
             check("3D renders the CT with the bone preset", session.camera.preset == .bone && lit(front) > 50, "\(lit(front)) lit pixels")
             session.rotate(dx: 157, dy: 0)
             session.renderer.camera = session.camera
-            check("dragging rotates the 3D view", bytes(session.renderer.renderImage(width: 96, height: 96)) != bytes(front))
+            let turnedImage = session.renderer.renderImage(width: 96, height: 96)
+            check("dragging rotates the 3D view", bytes(turnedImage) != bytes(front))
+            session.renderer.interactive = true
+            let preview = lit(session.renderer.renderImage(width: 96, height: 96))
+            session.renderer.interactive = false
+            check("the quick preview while dragging shows the same volume", abs(preview - lit(turnedImage)) * 4 < lit(turnedImage),
+                  "\(preview) vs \(lit(turnedImage)) lit pixels")
             // Real mouse events: Shift-drag sets the window; a plain drag rotates.
             let view = VolumeMTKView(frame: NSRect(x: 0, y: 0, width: 200, height: 200), device: session.renderer.device)
             let window = NSWindow(contentRect: view.frame, styleMask: [.borderless], backing: .buffered, defer: true)
@@ -650,6 +656,14 @@ enum SelfTest {
             view.mouseDragged(with: send(.leftMouseDragged, 130, 100, .shift))
             check("with the Window/Level tool Shift-drag in 3D rotates", session.camera.rotation != toolRotation)
             view.toolWindows = false
+            // Dragging renders half the pixels each way, then full size once still.
+            let full = CGSize(width: 200 * window.backingScaleFactor, height: 200 * window.backingScaleFactor)
+            view.mouseDragged(with: send(.leftMouseDragged, 140, 100))
+            check("dragging in 3D renders at half size", view.drawableSize == CGSize(width: full.width / 2, height: full.height / 2) && session.renderer.interactive,
+                  "\(view.drawableSize)")
+            let stillStarted = Date.now
+            while session.renderer.interactive && Date.now.timeIntervalSince(stillStarted) < 2 { try? await Task.sleep(for: .milliseconds(20)) }
+            check("3D goes back to full size when the drag stops", view.drawableSize == full && !session.renderer.interactive, "\(view.drawableSize)")
             // ⌘C in 3D copies the rendering.
             let clipboard3D = NSPasteboard(name: .init("com.salomao.kidicom.selftest3d"))
             ImageCopy.pasteboard = clipboard3D
@@ -672,6 +686,13 @@ enum SelfTest {
         check("picking Window/Level reaches the 3D view", viewer.volume3D?.tool == .navigate)
         viewer.escape()
         check("leaving 3D brings back the 2D tool", viewer.volume3D == nil && viewer.tool == .distance)
+        await viewer.enter3D()
+        let reopenedTexture = viewer.volume3D?.renderer.texture
+        viewer.escape()
+        await viewer.enter3D()
+        check("reopening 3D on the same series reuses its GPU volume",
+              reopenedTexture != nil && viewer.volume3D?.renderer.texture === reopenedTexture)
+        viewer.escape()
         viewer.tool = .navigate
         weak let leftSpace = viewer.mpr?.space
         viewer.exitMPR()
