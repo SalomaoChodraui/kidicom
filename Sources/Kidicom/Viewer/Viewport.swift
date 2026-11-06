@@ -9,6 +9,11 @@ final class Viewport: Identifiable {
     private(set) var source: (any FrameSource)?
     /// The source when it is a series of files.
     var stack: SeriesStack? { source as? SeriesStack }
+    /// The series behind a plane reformatted in this viewport (Coronal of an
+    /// axial CT, say); nil while it shows the series itself.
+    var reformatBase: SeriesStack?
+    /// The series this viewport comes from, reformatted or not.
+    var baseStack: SeriesStack? { stack ?? reformatBase }
     private(set) var index = 0
     /// The person's window; nil follows each frame's own default.
     var window: VOIWindow? {
@@ -113,6 +118,7 @@ final class Viewport: Identifiable {
     }
 
     func show(_ stack: any FrameSource, at index: Int? = nil) {
+        if stack is SeriesStack { reformatBase = nil }
         if source?.id != stack.id {
             pause()
             measurements = []
@@ -185,6 +191,7 @@ final class Viewport: Identifiable {
     /// Empties the viewport (its slot closed with ⌘W).
     func clear() {
         pause()
+        reformatBase = nil
         renderTask?.cancel()
         source = nil
         slice = nil

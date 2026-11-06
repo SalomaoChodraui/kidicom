@@ -414,6 +414,15 @@ enum SelfTest {
         // S-020 to S-022: MPR from the 24-slice CT.
         let viewer = ViewerModel()
         viewer.load(ct)
+        // Plane picker: the axial CT shown coronal and sagittal in one viewport, then back.
+        check("an axial CT starts axial and can change plane", viewer.activePlane == .axial && viewer.canChangePlane)
+        await viewer.show(plane: .coronal)
+        check("Coronal reformats the active viewport", viewer.activePlane == .coronal && viewer.active?.reformatBase != nil && viewer.layout == .single)
+        check("the coronal plane walks front to back through the volume", (viewer.active?.count ?? 0) > 1)
+        await viewer.show(plane: .sagittal)
+        check("Sagittal reformats the active viewport", viewer.activePlane == .sagittal)
+        await viewer.show(plane: .axial)
+        check("Axial brings back the series itself", viewer.activePlane == .axial && viewer.active?.stack != nil && viewer.active?.reformatBase == nil)
         await viewer.enterMPR()
         let planes = viewer.mpr?.sources.map(\.title) ?? []
         check("MPR builds a 64x64x24 volume", viewer.mpr?.volume.width == 64 && viewer.mpr?.volume.depth == 24, "\(String(describing: viewer.mprMessage))")

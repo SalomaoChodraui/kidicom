@@ -269,7 +269,7 @@ final class ViewerModel {
 
     /// The series MPR would use: the active viewport's series of files.
     var mprCandidate: SeriesStack? {
-        guard let stack = active?.stack, stack.count >= 3, !stack.isCine else { return nil }
+        guard let stack = active?.baseStack, stack.count >= 3, !stack.isCine else { return nil }
         return stack
     }
 
@@ -311,6 +311,48 @@ final class ViewerModel {
         // Sources first, then the layout, so no viewport loads a series on the way.
         layout = .three
         activeIndex = 0
+    }
+
+    // MARK: Plane (axial, coronal, sagittal in one viewport)
+
+    /// The plane the active viewport shows; .oblique when tilted or unknown.
+    var activePlane: PatientPlane? {
+        guard let viewport = active, let source = viewport.source else { return nil }
+        return PatientPlane(orientation: source.orientation(viewport.index))
+    }
+
+    /// Axial, Coronal, and Sagittal need a series that can make a volume,
+    /// outside MPR and 3D.
+    var canChangePlane: Bool {
+        mpr == nil && volume3D == nil && buildProgress == nil && mprCandidate != nil
+    }
+
+    /// Shows the active viewport's series in another plane: the series
+    /// itself for its own plane, else a reformat through the volume's middle.
+    /// Keeps the person's window.
+    func show(plane: PatientPlane) async {
+        guard plane != .oblique, canChangePlane, let viewport = active, let stack = mprCandidate else { return }
+        let window = viewport.window
+        if PatientPlane(orientation: stack.orientation(stack.count / 2)) == plane {
+            if viewport.stack == nil { viewport.show(stack) }
+            viewport.setWindowQuietly(window)
+            return
+        }
+        mprMessage = nil
+        guard let volume = await volume(for: stack) else { return }
+        let fallback = viewport.effectiveWindow ?? VOIWindow(center: 40, width: 400)
+        let session = MPRSession(volume: volume, seriesID: stack.id, previousLayout: layout, previousSources: [], previousIndexes: [])
+        let candidates = (0 ..< 3).map {
+            ReformatSource(session: session, planeIndex: $0, seriesID: stack.id, modality: stack.modality, window: fallback)
+        }
+        guard let source = candidates.first(where: { PatientPlane(orientation: $0.orientation(0)) == plane }) else {
+            mprMessage = String(localized: "This series can't be shown in that plane.")
+            return
+        }
+        // The source keeps its session; `sources` stays empty, so nothing cycles.
+        viewport.show(source, at: source.centerIndex)
+        viewport.reformatBase = stack
+        viewport.setWindowQuietly(window)
     }
 
     /// Builds or reuses the volume of a series, reporting why it can't be built.
@@ -356,6 +398,7 @@ final class ViewerModel {
     func exitMPR() {
         guard let session = mpr else { return }
         mpr = nil
+        defer { session.sources = [] }
         connectSync()
         for (i, viewport) in viewports.enumerated() {
             viewport.onWindowChange = nil

@@ -116,25 +116,37 @@ struct ViewerView: View {
                 .disabled((viewer.active?.count ?? 0) < 2)
             }
             ToolbarItem {
+                PlanePicker(viewer: viewer)
+            }
+            ToolbarItem {
                 Menu {
-                    Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
-                        .keyboardShortcut("r", modifiers: .control)
-                    Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
-                        .keyboardShortcut("l", modifiers: .control)
-                    Button("Rotate Freely") { viewer.tool = .rotate }
-                        .keyboardShortcut("r", modifiers: [])
-                    Divider()
-                    Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
-                        .keyboardShortcut("h", modifiers: [])
-                    Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
-                        .keyboardShortcut("v", modifiers: [])
+                    Section("Plane") {
+                        Button("Axial") { Task { await viewer.show(plane: .axial) } }
+                            .keyboardShortcut("1", modifiers: .control)
+                        Button("Coronal") { Task { await viewer.show(plane: .coronal) } }
+                            .keyboardShortcut("2", modifiers: .control)
+                        Button("Sagittal") { Task { await viewer.show(plane: .sagittal) } }
+                            .keyboardShortcut("3", modifiers: .control)
+                    }
+                    .disabled(!viewer.canChangePlane)
+                    Section("Rotate and Flip") {
+                        Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
+                            .keyboardShortcut("r", modifiers: .control)
+                        Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
+                            .keyboardShortcut("l", modifiers: .control)
+                        Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
+                            .keyboardShortcut("h", modifiers: [])
+                        Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
+                            .keyboardShortcut("v", modifiers: [])
+                    }
                     Divider()
                     Button("Reset View") { viewer.active?.reset() }
                         .keyboardShortcut("r", modifiers: .command)
                 } label: {
-                    Label("Orientation", systemImage: "rotate.right")
+                    Label("Orientation", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
                 }
-                .help("Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view")
+                .menuIndicator(.hidden)
+                .help("Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view")
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.mpr != nil }, set: { _ in viewer.toggleMPR() })) {
@@ -393,7 +405,7 @@ struct ViewportOverlay: View {
 
     /// The date of the study this viewport shows, which may be a prior.
     private var shownDate: Date? {
-        if let stack = viewport.stack, stack.studyUID != nil { return stack.studyDate }
+        if let stack = viewport.baseStack, stack.studyUID != nil { return stack.studyDate }
         return study.studyDate
     }
 

@@ -1381,6 +1381,26 @@
         }
       }
     },
+    "Plane": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plano"
+          }
+        }
+      }
+    },
+    "Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plano, girar ou espelhar o quadro ativo (⌃1 a ⌃3, ⌃R, ⌃L, H, V); ⌘R restaura a vista"
+          }
+        }
+      }
+    },
     "Play": {
       "localizations": {
         "pt-BR": {
@@ -1551,16 +1571,6 @@
         }
       }
     },
-    "Rotate Freely": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Girar Livremente"
-          }
-        }
-      }
-    },
     "Rotate Left": {
       "localizations": {
         "pt-BR": {
@@ -1581,12 +1591,12 @@
         }
       }
     },
-    "Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view": {
+    "Rotate and Flip": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Girar ou espelhar o quadro ativo (⌃R, ⌃L, H, V); ⌘R restaura a imagem"
+            "value": "Girar e Espelhar"
           }
         }
       }
@@ -1687,6 +1697,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mostrar a série ativa como volume 3D"
+          }
+        }
+      }
+    },
+    "Show the active series as axial (⌃1), coronal (⌃2), or sagittal (⌃3)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar a série ativa em axial (⌃1), coronal (⌃2) ou sagital (⌃3)"
           }
         }
       }
@@ -1927,6 +1947,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Esta série não pode ser reformatada. Ela precisa de pelo menos três imagens paralelas com posição."
+          }
+        }
+      }
+    },
+    "This series can't be shown in that plane.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta série não pode ser mostrada nesse plano."
           }
         }
       }

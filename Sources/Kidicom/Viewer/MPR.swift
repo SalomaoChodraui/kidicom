@@ -7,7 +7,9 @@ import simd
 /// One plane of an oblique MPR as something a viewport can scroll: the
 /// index walks along the plane's normal, through the volume.
 final class ReformatSource: FrameSource {
-    unowned let session: MPRSession
+    /// Strong, so a picture still loading never outlives its volume. MPR
+    /// breaks the cycle with `sources` when it closes.
+    let session: MPRSession
     /// 0 acquired plane, 1 and 2 the reformats, as `VolumePlane` orders them.
     let planeIndex: Int
     let id: String
