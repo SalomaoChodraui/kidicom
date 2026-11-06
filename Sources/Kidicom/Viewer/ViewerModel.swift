@@ -396,7 +396,7 @@ final class ViewerModel {
         guard let source = viewport.source as? ReformatSource else { return }
         // The slider may have moved on while the volume was building: use its latest value.
         source.setSlab(slabThickness, mode: mode)
-        viewport.reload()
+        viewport.refresh(to: viewport.index)   // keeps the old picture up while the new slab renders
         slabRevision += 1
     }
 
