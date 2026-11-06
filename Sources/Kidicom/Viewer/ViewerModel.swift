@@ -77,8 +77,13 @@ final class ViewerModel {
             tool = previous
         }
     }
-    /// Volumes already built, by series id, shared by MPR and 3D.
+    /// Volumes already built, by series id, shared by MPR and 3D. One at most,
+    /// kept until the window closes so MPR, 3D, and planes reopen at once.
     @ObservationIgnored private var volumes: [String: Volume] = [:]
+    /// The volume being built, cancelled when the window closes.
+    @ObservationIgnored private var building: Task<Volume, Error>?
+    /// True once the window closed: nothing builds or opens after that.
+    @ObservationIgnored private(set) var isClosed = false
 
     /// Prior studies opened to compare, shown below the series strip.
     var priors: [PriorStudy] = []
@@ -211,7 +216,7 @@ final class ViewerModel {
             Task {
                 await enterMPR()
                 if tilt, let session = mpr {
-                    session.frame.rotate(around: 0, by: .pi / 9)
+                    session.space.rotate(around: 0, by: .pi / 9)
                     replanes(except: session.sources[0])
                 }
                 if mip, let source = viewports[1].source as? ReformatSource {
@@ -298,15 +303,15 @@ final class ViewerModel {
         let session = MPRSession(volume: volume, seriesID: stack.id, previousLayout: layout,
                                  previousSources: viewports.map(\.source), previousIndexes: viewports.map(\.index))
         session.sources = (0 ..< 3).map {
-            ReformatSource(session: session, planeIndex: $0, seriesID: stack.id, modality: stack.modality, window: window)
+            ReformatSource(space: session.space, planeIndex: $0, seriesID: stack.id, modality: stack.modality, window: window)
         }
         // Start on the image the person was looking at: its slice position, mid volume elsewhere.
         if let location = current.location {
-            let nativeNormal = session.frame.planes[0].normal
+            let nativeNormal = session.space.planes[0].normal
             let patientNormal = volume.patientDirection(nativeNormal)
             let middle = volume.physicalCenter
             let shift = location - simd_dot(volume.patientPoint(middle), patientNormal)
-            session.frame.center = middle + shift * nativeNormal
+            session.space.center = middle + shift * nativeNormal
         }
         mpr = session
         let personWindow = current.window
@@ -314,7 +319,10 @@ final class ViewerModel {
             let viewport = viewports[i]
             viewport.show(source, at: source.centerIndex)
             viewport.setWindowQuietly(personWindow)
-            viewport.onWindowChange = { [weak self] window in self?.syncWindow(window, from: viewport) }
+            viewport.onWindowChange = { [weak self, weak viewport] window in
+                guard let self, let viewport else { return }
+                self.syncWindow(window, from: viewport)
+            }
             viewport.onScroll = { [weak self] v in self?.mprScrolled(v) }
             viewport.onAdjust = { [weak self] v in self?.mprScrolled(v) }
             viewport.onReset = { [weak self] in self?.resetObliques() }
@@ -356,15 +364,15 @@ final class ViewerModel {
         mprMessage = nil
         guard let volume = await volume(for: stack) else { return }
         let fallback = viewport.effectiveWindow ?? VOIWindow(center: 40, width: 400)
-        let session = MPRSession(volume: volume, seriesID: stack.id, previousLayout: layout, previousSources: [], previousIndexes: [])
+        let space = MPRSpace(volume: volume)
         let candidates = (0 ..< 3).map {
-            ReformatSource(session: session, planeIndex: $0, seriesID: stack.id, modality: stack.modality, window: fallback)
+            ReformatSource(space: space, planeIndex: $0, seriesID: stack.id, modality: stack.modality, window: fallback)
         }
         guard let source = candidates.first(where: { PatientPlane(orientation: $0.orientation(0)) == plane }) else {
             mprMessage = String(localized: "This series can't be shown in that plane.")
             return
         }
-        // The source keeps its session; `sources` stays empty, so nothing cycles.
+        // The source keeps its space alive; no session here.
         if let carried { source.setSlab(carried.mm, mode: carried.mode) }
         var index = source.centerIndex
         if native, let here = viewport.location {
@@ -413,13 +421,23 @@ final class ViewerModel {
 
     /// Builds or reuses the volume of a series, reporting why it can't be built.
     private func volume(for stack: SeriesStack) async -> Volume? {
+        guard !isClosed else { return nil }
         if let cached = volumes[stack.id] { return cached }
         buildProgress = 0
         defer { buildProgress = nil }
+        let task = Task { [weak self] in
+            // Progress lands late from the build's threads: ignore it once done.
+            try await stack.buildVolume { progress in if self?.buildProgress != nil { self?.buildProgress = progress } }
+        }
+        building = task
+        defer { building = nil }
         do {
-            let volume = try await stack.buildVolume { self.buildProgress = $0 }
+            let volume = try await task.value
+            guard !isClosed else { return nil }
             volumes = [stack.id: volume]   // keep one volume in memory
             return volume
+        } catch is CancellationError {
+            return nil
         } catch VolumeError.mixedOrientations {
             mprMessage = String(localized: "This series mixes image orientations and can't be reformatted.")
         } catch {
@@ -459,11 +477,36 @@ final class ViewerModel {
         for (i, viewport) in viewports.enumerated() {
             viewport.onWindowChange = nil
             viewport.onReset = nil
-            if let previous = session.previousSources[i] { viewport.show(previous, at: session.previousIndexes[i]) }
+            if let previous = session.previousSources[i] {
+                viewport.show(previous, at: session.previousIndexes[i])
+            } else if viewport.source is ReformatSource {
+                viewport.clear()   // empty before MPR: don't keep a hidden plane and its volume
+            }
         }
         layout = session.previousLayout
         activeIndex = 0
         connectWindowSync()
+    }
+
+    /// The viewer window closed: stop any build, leave 3D and MPR, and let
+    /// go of volumes, pictures, and callbacks. Safe to call more than once.
+    func close() {
+        guard !isClosed else { return }
+        isClosed = true
+        building?.cancel()
+        building = nil
+        volume3D = nil
+        mpr?.sources = []
+        mpr = nil
+        volumes = [:]
+        for viewport in viewports {
+            viewport.onWindowChange = nil
+            viewport.onScroll = nil
+            viewport.onAdjust = nil
+            viewport.onReset = nil
+            viewport.onViewChange = nil
+            viewport.clear()
+        }
     }
 
     /// W/L follows across the three planes.
@@ -477,7 +520,7 @@ final class ViewerModel {
     /// A click (no drag) in an MPR plane moves the crossing there.
     func click(at point: CGPoint, in viewport: Viewport) {
         guard let session = mpr, let mine = viewport.source as? ReformatSource else { return }
-        session.frame.center = pointOnPlane(SIMD2(Double(point.x), Double(point.y)), mine, viewport, keeping: session.frame.center)
+        session.space.center = pointOnPlane(SIMD2(Double(point.x), Double(point.y)), mine, viewport, keeping: session.space.center)
         followCenter(except: viewport)
     }
 
@@ -485,8 +528,8 @@ final class ViewerModel {
     private func mprScrolled(_ viewport: Viewport) {
         guard let session = mpr, let mine = viewport.source as? ReformatSource else { return }
         let n = mine.plane.normal
-        let c = session.frame.center
-        session.frame.center = c + (mine.position(viewport.index) - simd_dot(c, n)) * n  // grid: ok math, not layout
+        let c = session.space.center
+        session.space.center = c + (mine.position(viewport.index) - simd_dot(c, n)) * n  // grid: ok math, not layout
     }
 
     /// The volume point under a canvas pixel, at the crossing's exact depth
@@ -526,7 +569,7 @@ final class ViewerModel {
     /// What a press at this point would do, for the hover cursor too.
     func mprHit(at point: CGPoint, in viewport: Viewport, scale: CGFloat) -> MPRDrag? {
         guard let session = mpr, let mine = viewport.source as? ReformatSource else { return nil }
-        let c = mine.canvasPoint(session.frame.center, at: viewport.index)
+        let c = mine.canvasPoint(session.space.center, at: viewport.index)
         let p = SIMD2(Double(point.x), Double(point.y))
         let offset = p - c
         let fromCenter = simd_length(offset) * Double(scale)   // view points
@@ -544,14 +587,14 @@ final class ViewerModel {
         let p = SIMD2(Double(point.x), Double(point.y))
         switch drag {
         case .move:
-            session.frame.center = pointOnPlane(p, mine, viewport, keeping: session.frame.center)
+            session.space.center = pointOnPlane(p, mine, viewport, keeping: session.space.center)
             followCenter(except: viewport)
         case .rotate(let last):
-            let c = mine.canvasPoint(session.frame.center, at: viewport.index)
+            let c = mine.canvasPoint(session.space.center, at: viewport.index)
             let angle = atan2(p.y - c.y, p.x - c.x)
             var delta = angle - last
             if delta > .pi { delta -= 2 * .pi } else if delta < -.pi { delta += 2 * .pi }
-            session.frame.rotate(around: mine.planeIndex, by: delta)
+            session.space.rotate(around: mine.planeIndex, by: delta)
             mprDrag = .rotate(lastAngle: angle)
             replanes(except: mine)
         }
@@ -570,8 +613,8 @@ final class ViewerModel {
 
     /// ⌘R in MPR: the planes go back to the volume's axes.
     func resetObliques() {
-        guard let session = mpr, session.frame.isTilted else { return }
-        session.frame.resetRotation()
+        guard let session = mpr, session.space.isTilted else { return }
+        session.space.resetRotation()
         replanes(except: nil)
     }
 

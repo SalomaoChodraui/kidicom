@@ -222,7 +222,7 @@ struct ViewerView: View {
         .navigationSubtitle(study.studyDescription)
         // The patient and study show on the image; the toolbar needs the room.
         .toolbar(removing: .title)
-        .background(CloseKeyCatcher { viewer.closeActiveViewport() })
+        .background(CloseKeyCatcher(close: { viewer.closeActiveViewport() }, windowClosed: { viewer.close() }))
         .task(id: study.uid) {
             viewer.load(study)
             if ViewerModel.nextComparePrior, let prior = priors(of: study).first {
@@ -526,23 +526,35 @@ struct RightClickCatcher: NSViewRepresentable {
 /// when one viewport is left.
 struct CloseKeyCatcher: NSViewRepresentable {
     let close: () -> Bool
+    /// Called once when the window itself closes, to free what it holds.
+    var windowClosed: () -> Void = {}
 
     func makeNSView(context: Context) -> CatcherView {
         let view = CatcherView()
         view.close = close
+        view.windowClosed = windowClosed
         return view
     }
 
-    func updateNSView(_ view: CatcherView, context: Context) { view.close = close }
+    func updateNSView(_ view: CatcherView, context: Context) {
+        view.close = close
+        view.windowClosed = windowClosed
+    }
 
     final class CatcherView: NSView {
         var close: () -> Bool = { false }
+        var windowClosed: () -> Void = {}
         private var monitor: Any?
+        private var closeObserver: (any NSObjectProtocol)?
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
-            guard window != nil else { return }
+            if let closeObserver { NotificationCenter.default.removeObserver(closeObserver); self.closeObserver = nil }
+            guard let window else { return }
+            closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.windowClosed() }
+            }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self, let window = self.window, event.window === window,
                       event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,

@@ -559,7 +559,7 @@ enum SelfTest {
 
         // Oblique: drag the coronal's line in the axial plane to tilt the other two planes.
         if let session = viewer.mpr, let axialSource = axial.source as? ReformatSource, let coronalSource = coronal.source as? ReformatSource {
-            let c = axialSource.canvasPoint(session.frame.center, at: axial.index)
+            let c = axialSource.canvasPoint(session.space.center, at: axial.index)
             let d = ViewerModel.lineDirection(of: coronalSource, in: axialSource)
             let onLine = CGPoint(x: c.x + d.x * 20, y: c.y + d.y * 20)
             let grabbed = viewer.mprBegin(at: onLine, in: axial, scale: 4)
@@ -577,19 +577,19 @@ enum SelfTest {
             check("while tilting, the other planes keep a picture", !blank)
             viewer.mprDragged(to: turned, in: axial)
             viewer.mprEnded()
-            let n = session.frame.planes.map(\.normal)
+            let n = session.space.planes.map(\.normal)
             check("tilting keeps the three planes perpendicular", abs(simd_dot(n[0], n[1])) < 1e-9 && abs(simd_dot(n[1], n[2])) < 1e-9 && abs(simd_dot(n[0], n[2])) < 1e-9)
             let tilt = acos(abs(simd_dot(n[1], SIMD3(0, 1, 0)))) * 180 / .pi
             check("the coronal plane turned 30 degrees", abs(tilt - 30) < 0.5, "\(tilt)")
             check("the axial plane itself did not move", abs(simd_dot(n[0], SIMD3(0, 0, 1)) - 1) < 1e-9)
             check("a tilted plane is named Oblique", coronalSource.title == ReformatSource.name(.oblique) || PatientPlane(orientation: coronalSource.orientation(0)) != .oblique)
-            let center = session.frame.center
+            let center = session.space.center
             check("pressing on the crossing moves the planes", { if case .move = viewer.mprBegin(at: CGPoint(x: c.x, y: c.y), in: axial, scale: 4) { true } else { false } }())
             viewer.mprDragged(to: CGPoint(x: c.x + 5, y: c.y), in: axial)
             viewer.mprEnded()
-            check("dragging the crossing moves the center in the axial plane", simd_length(session.frame.center - center) > 1 && abs(session.frame.center.z - center.z) < 1e-9)
+            check("dragging the crossing moves the center in the axial plane", simd_length(session.space.center - center) > 1 && abs(session.space.center.z - center.z) < 1e-9)
             axial.reset()
-            check("⌘R straightens the planes", !session.frame.isTilted)
+            check("⌘R straightens the planes", !session.space.isTilted)
             let waited = Date.now
             while viewer.viewports.prefix(3).contains(where: { $0.slice == nil || $0.refreshing }) && Date.now.timeIntervalSince(waited) < 2 {
                 try? await Task.sleep(for: .milliseconds(10))
@@ -673,8 +673,23 @@ enum SelfTest {
         viewer.escape()
         check("leaving 3D brings back the 2D tool", viewer.volume3D == nil && viewer.tool == .distance)
         viewer.tool = .navigate
+        weak let leftSpace = viewer.mpr?.space
         viewer.exitMPR()
         check("leaving MPR restores the previous layout and series", viewer.mpr == nil && viewer.layout == .single && viewer.viewports[0].stack != nil)
+        let left = Date.now
+        while leftSpace != nil && Date.now.timeIntervalSince(left) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+        check("leaving MPR lets go of its planes and their pictures", leftSpace == nil)
+        // Closing the window while in MPR frees the volume too, with no cycle left behind.
+        await viewer.enterMPR()
+        weak let closedSpace = viewer.mpr?.space
+        check("MPR opens again from the kept volume", closedSpace != nil && viewer.layout == .three)
+        viewer.close()
+        viewer.close()
+        let closed = Date.now
+        while closedSpace != nil && Date.now.timeIntervalSince(closed) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
+        check("closing the viewer lets go of the MPR volume", closedSpace == nil && viewer.mpr == nil && viewer.viewports.allSatisfy { $0.source == nil })
+        await viewer.enterMPR()
+        check("a closed viewer builds nothing", viewer.mpr == nil && viewer.buildProgress == nil)
 
     }
 
