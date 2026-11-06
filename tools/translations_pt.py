@@ -1,6 +1,7 @@
 # Portuguese (Brazil) for Resources/Localization/Localizable.xcstrings.
 # tools/localize.sh merges these into the catalog. Keys are the English source.
 PT = {
+"Leave 3D": "Sair do 3D",
 "Hide Series": "Ocultar Séries",
 "Show Series": "Mostrar Séries",
 "Show or hide the series to give more room to the images (⇧⌘S)": "Mostra ou oculta as séries para ampliar a área das imagens (⇧⌘S)",

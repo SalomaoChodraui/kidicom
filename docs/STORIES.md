@@ -135,7 +135,7 @@ UX:
 - ⌘W closes the active viewport while several show (MPR and 3D leave their mode first); with one left, ⌘W closes the study window
 - Right-click a thumbnail: the series opens beside the others to compare, 1 -> 2 side by side -> 3 side by side -> 2x2; with four open it replaces the active viewport
 - Words: "1 Viewport", "2 Side by Side", "3 Side by Side", "2 Stacked", "4 Viewports"; tooltip "Split the image area into up to four viewports"
-- Access: the active viewport has an accent outline; the viewer is always dark
+- Access: View > Layout exposes all layouts with ⌃⇧1 to ⌃⇧5; disabled during MPR, 3D, or volume building. The active viewport has an accent outline; the viewer is always dark
 Status: done
 
 ### S-011 Girar e espelhar a imagem
@@ -241,6 +241,7 @@ Acceptance:
 UX:
 - Flow: toolbar MPR toggle on the active series -> three viewports side by side: the acquired plane and two reformats, named Axial, Coronal, Sagittal by their real orientation -> scroll any plane; colored reference lines show the other two -> click (no drag) moves the other planes there -> W/L follows across the three -> MPR toggle again restores the previous layout
 - Surface: toolbar toggle; viewports
+- Access: View > MPR (⇧⌘M) enters or leaves; View > 3D (⇧⌘D) enters or leaves 3D. Commands follow availability of the focused viewer.
 - Words: "MPR", tooltip "Reformat the active series in three planes (MPR)", "Leave MPR"
 - Access: reformats follow reading conventions whatever the acquisition: head up (anterior up in axial), patient right on screen left, anterior left in sagittal
 - Oblique: drag a reference line (away from the crossing) to tilt the other two planes around the plane you are in, always perpendicular; the pointer turns into the rotate icon over a line and the move icon over the crossing; drag the crossing to move all three; ⌘R straightens them

@@ -44,7 +44,9 @@ struct ViewerView: View {
                     .keyboardShortcut("v", modifiers: [])
             }
             Divider()
-            Button("Reset View") { viewer.active?.reset() }
+            Button("Reset View") {
+                if let session = viewer.volume3D { session.resetCamera() } else { viewer.active?.reset() }
+            }
                 .keyboardShortcut("r", modifiers: .command)
         } label: {
             Label("Orientation", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")

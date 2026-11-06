@@ -1059,6 +1059,16 @@
         }
       }
     },
+    "Leave 3D": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sair do 3D"
+          }
+        }
+      }
+    },
     "Leave 3D (Esc)": {
       "localizations": {
         "pt-BR": {
