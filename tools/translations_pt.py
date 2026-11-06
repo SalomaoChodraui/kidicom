@@ -227,4 +227,7 @@ PT = {
 "Thin": "Fino",
 "Rotate 3D": "Girar 3D",
 "Slab thickness; moving it while Thin turns on MIP": "Espessura do corte; mover no modo Fino liga o MIP",
+"Hide Patient Name": "Ocultar Nome do Paciente",
+"Hide Image Data": "Ocultar Dados da Imagem",
+"Show Image Data": "Mostrar Dados da Imagem",
 }

@@ -22,6 +22,8 @@ struct ViewportView: NSViewRepresentable {
     var onClick: (CGPoint) -> Void = { _ in }
     var onDoubleClick: () -> Void = {}
     var onTool: (MeasureTool) -> Void = { _ in }
+    /// ⌘C: the picture as drawn, its size in points, and pixels per point.
+    var onCopy: (CGImage, CGSize, CGFloat) -> Void = { _, _, _ in }
     var mpr = MPRMouse()
 
     func makeNSView(context: Context) -> ViewportNSView {
@@ -32,6 +34,7 @@ struct ViewportView: NSViewRepresentable {
         view.onClick = onClick
         view.onDoubleClick = onDoubleClick
         view.onTool = onTool
+        view.onCopy = onCopy
         view.mpr = mpr
         return view
     }
@@ -43,6 +46,7 @@ struct ViewportView: NSViewRepresentable {
         view.onClick = onClick
         view.onDoubleClick = onDoubleClick
         view.onTool = onTool
+        view.onCopy = onCopy
         view.mpr = mpr
         view.setTool(viewport.tool)
         _ = (viewport.zoom, viewport.pan, viewport.quarterTurns, viewport.flipHorizontal, viewport.flipVertical, viewport.freeAngle)
@@ -60,6 +64,7 @@ final class ViewportNSView: NSView {
     var onDoubleClick: () -> Void = {}
     /// A tool's key was pressed in the viewport.
     var onTool: (MeasureTool) -> Void = { _ in }
+    var onCopy: (CGImage, CGSize, CGFloat) -> Void = { _, _, _ in }
     private var dragged = false
     private var scrollDrag: CGFloat = 0
     /// Rotate tool: the angle when the drag began and the turn so far.
@@ -156,6 +161,38 @@ final class ViewportNSView: NSView {
         var transform = CATransform3DMakeRotation(geometry.angle, 0, 0, 1)
         transform = CATransform3DScale(transform, geometry.flipHorizontal ? -1 : 1, geometry.flipVertical ? -1 : 1, 1)
         imageLayer.transform = transform
+    }
+
+    /// Edit > Copy (⌘C): the image as shown, with its text and measurements.
+    @objc func copy(_ sender: Any?) {
+        guard let picture = renderPicture() else { return NSSound.beep() }
+        onCopy(picture.image, bounds.size, picture.scale)
+    }
+
+    /// The image layer drawn the way the screen shows it: zoom, pan, turns, and flips.
+    func renderPicture() -> (image: CGImage, scale: CGFloat)? {
+        guard let image = imageLayer.contents.map({ $0 as! CGImage }), let geometry = viewport?.geometry(in: bounds.size),
+              bounds.width >= 1, bounds.height >= 1 else { return nil }
+        let scale = window?.backingScaleFactor ?? 2
+        let width = Int(bounds.width * scale), height = Int(bounds.height * scale)
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.setFillColor(NSColor.black.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.interpolationQuality = .high
+        // View coordinates: y down, in points.
+        context.scaleBy(x: scale, y: scale)
+        context.translateBy(x: 0, y: bounds.height)
+        context.scaleBy(x: 1, y: -1)
+        context.translateBy(x: geometry.center.x, y: geometry.center.y)
+        context.rotate(by: geometry.angle)
+        context.scaleBy(x: geometry.flipHorizontal ? -1 : 1, y: geometry.flipVertical ? -1 : 1)
+        // CGImage draws y up: flip it back around the image's center.
+        context.scaleBy(x: 1, y: -1)
+        let w = geometry.imageSize.width * geometry.scale, h = geometry.imageSize.height * geometry.scale
+        context.draw(image, in: CGRect(x: -w / 2, y: -h / 2, width: w, height: h))
+        return context.makeImage().map { ($0, scale) }
     }
 
     private func imagePoint(_ event: NSEvent) -> (CGPoint, CGFloat)? {

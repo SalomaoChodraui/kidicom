@@ -217,6 +217,7 @@ struct ViewerView: View {
                     .help("Show the DICOM tags of the image (⌘I)")
             }
         }
+        .focusedSceneValue(\.viewer, viewer)
         .navigationTitle(study.displayName)
         .navigationSubtitle(study.studyDescription)
         // The patient and study show on the image; the toolbar needs the room.
@@ -386,8 +387,13 @@ struct SeriesThumbnail: View {
 struct ViewportOverlay: View {
     let viewport: Viewport
     let study: Study
+    var level: OverlayLevel = .full
 
     var body: some View {
+        if level != .hidden { content }
+    }
+
+    private var content: some View {
         ZStack {
             corners
             if let edges = viewport.edges {
@@ -413,7 +419,7 @@ struct ViewportOverlay: View {
     private var corners: some View {
         VStack {
             HStack(alignment: .top) {
-                corner([study.displayName, study.patientID, shownDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
+                corner([level == .full ? study.displayName : nil, level == .full ? study.patientID : nil, shownDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
                 Spacer()
                 corner([study.studyDescription, viewport.source?.title], alignment: .trailing)
             }

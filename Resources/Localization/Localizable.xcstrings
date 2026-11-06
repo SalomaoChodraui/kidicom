@@ -831,6 +831,26 @@
         }
       }
     },
+    "Hide Image Data": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar Dados da Imagem"
+          }
+        }
+      }
+    },
+    "Hide Patient Name": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar Nome do Paciente"
+          }
+        }
+      }
+    },
     "Hide the series of this study": {
       "localizations": {
         "pt-BR": {
@@ -1717,6 +1737,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mostrar %@. Clique com o botão direito para abrir ao lado e comparar."
+          }
+        }
+      }
+    },
+    "Show Image Data": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar Dados da Imagem"
           }
         }
       }

@@ -8,10 +8,13 @@ import simd
 /// zooms, wheel-button drag pans, double-click resets.
 struct VolumeView: NSViewRepresentable {
     let session: VolumeSession
+    /// ⌘C: the rendering, its size in points, and pixels per point.
+    var onCopy: (CGImage, CGSize, CGFloat) -> Void = { _, _, _ in }
 
     func makeNSView(context: Context) -> VolumeMTKView {
         let view = VolumeMTKView(frame: .zero, device: session.renderer.device)
         view.session = session
+        view.onCopy = onCopy
         view.delegate = session.renderer
         view.colorPixelFormat = .bgra8Unorm
         view.enableSetNeedsDisplay = true
@@ -22,6 +25,7 @@ struct VolumeView: NSViewRepresentable {
 
     func updateNSView(_ view: VolumeMTKView, context: Context) {
         session.renderer.camera = session.camera
+        view.onCopy = onCopy
         view.toolWindows = session.tool == .navigate
         view.needsDisplay = true
     }
@@ -29,6 +33,17 @@ struct VolumeView: NSViewRepresentable {
 
 final class VolumeMTKView: MTKView {
     var session: VolumeSession?
+    var onCopy: (CGImage, CGSize, CGFloat) -> Void = { _, _, _ in }
+
+    /// Edit > Copy (⌘C): the volume as shown.
+    @objc func copy(_ sender: Any?) {
+        let scale = window?.backingScaleFactor ?? 2
+        guard let session, bounds.width >= 1, bounds.height >= 1,
+              let image = session.renderer.renderImage(width: Int(bounds.width * scale), height: Int(bounds.height * scale)) else {
+            return NSSound.beep()
+        }
+        onCopy(image, bounds.size, scale)
+    }
     private var last: CGPoint?
     private var idle: Task<Void, Never>?
 
@@ -244,33 +259,44 @@ final class VolumeSession {
 struct VolumePane: View {
     let session: VolumeSession
     let study: Study
+    var level: OverlayLevel = .full
 
     var body: some View {
-        VolumeView(session: session)
-            .overlay(alignment: .topLeading) {
+        VolumeView(session: session, onCopy: { image, size, scale in
+            ImageCopy.copy(image, size: size, scale: scale) { data(hints: false) }
+        })
+        .overlay { data(hints: true).allowsHitTesting(false) }
+    }
+
+    /// The text over the volume, as Tab leaves it. The mouse hints stay off copies.
+    private func data(hints: Bool) -> some View {
+        ZStack {
+            if level != .hidden {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(study.displayName)
+                    if level == .full { Text(study.displayName) }
                     Text(session.title)
                     Text(session.camera.preset.title)
                 }
                 .padding(Space.sm)
-            }
-            .overlay(alignment: .bottomTrailing) {
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(String(localized: "WL \(Int(session.camera.window.center.rounded())) WW \(Int(session.camera.window.width.rounded()))"))
                     Text(String(localized: "Zoom \(Int((session.camera.zoom * 100).rounded()))%"))
                 }
                 .padding(Space.sm)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                if hints {
+                    Text(session.tool == .navigate
+                         ? "Drag: window/level · Shift-drag: rotate · Right-drag: zoom · Wheel button: pan"
+                         : "Drag: rotate · Shift-drag: window/level · Right-drag: zoom · Wheel button: pan")
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(Space.sm)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                }
             }
-            .overlay(alignment: .bottomLeading) {
-                Text(session.tool == .navigate
-                     ? "Drag: window/level · Shift-drag: rotate · Right-drag: zoom · Wheel button: pan"
-                     : "Drag: rotate · Shift-drag: window/level · Right-drag: zoom · Wheel button: pan")
-                    .foregroundStyle(.white.opacity(0.6))
-                    .padding(Space.sm)
-            }
-            .font(.system(size: 12).monospacedDigit())
-            .foregroundStyle(.white)
-            .shadow(color: .black, radius: 1, x: 0, y: 1)
+        }
+        .font(.system(size: 12).monospacedDigit())
+        .foregroundStyle(.white)
+        .shadow(color: .black, radius: 1, x: 0, y: 1)
     }
 }

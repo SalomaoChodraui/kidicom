@@ -52,6 +52,9 @@ final class ViewerModel {
             fillEmptyViewports()
         }
     }
+    /// The text over the images: all of it, without names, or none (Tab).
+    var overlay: OverlayLevel = .full
+
     /// The last layout with more than one viewport, for `toggleSplit()`.
     private(set) var lastSplit: ViewerLayout = .sideBySide
 
@@ -596,7 +599,7 @@ struct ViewportGrid: View {
     var body: some View {
         let layout = viewer.layout
         if let session = viewer.volume3D {
-            VolumePane(session: session, study: study)
+            VolumePane(session: session, study: study, level: viewer.overlay)
                 .onKeyPress(.escape) { viewer.escape(); return .handled }
         } else if let maximized = viewer.maximized {
             cell(maximized)
@@ -625,6 +628,13 @@ struct ViewportGrid: View {
                             onClick: { point in viewer.click(at: point, in: viewport) },
                             onDoubleClick: { viewer.doubleClick(viewport) },
                             onTool: { viewer.tool = $0 },
+                            onCopy: { image, size, scale in
+                                ImageCopy.copy(image, size: size, scale: scale) {
+                                    CrosshairOverlay(viewer: viewer, viewport: viewport)
+                                    MeasurementOverlay(viewport: viewport)
+                                    ViewportOverlay(viewport: viewport, study: study, level: viewer.overlay)
+                                }
+                            },
                             mpr: MPRMouse(
                                 hit: { point, scale in viewer.mprHit(at: point, in: viewport, scale: scale) },
                                 begin: { point, scale in viewer.mprBegin(at: point, in: viewport, scale: scale) },
@@ -633,7 +643,7 @@ struct ViewportGrid: View {
                             ))
             .overlay { CrosshairOverlay(viewer: viewer, viewport: viewport) }
             .overlay { MeasurementOverlay(viewport: viewport) }
-            .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
+            .overlay { ViewportOverlay(viewport: viewport, study: study, level: viewer.overlay).allowsHitTesting(false) }
             .overlay {
                 Rectangle()
                     .strokeBorder(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 2)

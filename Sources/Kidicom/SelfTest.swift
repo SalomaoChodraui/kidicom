@@ -3,6 +3,7 @@ import SwiftData
 import KidicomKit
 import Foundation
 import simd
+import SwiftUI
 
 /// Self-test for agents: runs the app's real functions on a test store,
 /// prints PASS or FAIL per check, and quits with exit code 0 or 1.
@@ -83,6 +84,30 @@ enum SelfTest {
                     window.contentView = view
                     view.viewport = viewport
                     check("the viewport clips the image to its bounds", view.layer?.masksToBounds == true)
+                    // Tab: all text, then no names, then none. ⌘C copies the image as shown.
+                    let tabs = [OverlayLevel.full.next, OverlayLevel.full.next.next, OverlayLevel.full.next.next.next]
+                    check("Tab hides the names, then all data, then shows everything", tabs == [.noNames, .hidden, .full])
+                    let clipboard = NSPasteboard(name: .init("com.salomao.kidicom.selftest"))
+                    ImageCopy.pasteboard = clipboard
+                    view.update(image: viewport.image)
+                    view.onCopy = { image, size, scale in
+                        ImageCopy.copy(image, size: size, scale: scale) {
+                            ViewportOverlay(viewport: viewport, study: ct, level: .noNames)
+                        }
+                    }
+                    view.copy(nil)
+                    let copied = NSImage(pasteboard: clipboard)
+                    let copiedLit: Int = {
+                        guard let cg = copied?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                              let data = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return 0 }
+                        var lit = 0
+                        for i in stride(from: 0, to: CFDataGetLength(data), by: 4 * 97) where bytes[i] > 40 { lit += 1 }
+                        return lit
+                    }()
+                    check("⌘C puts the image on the clipboard at the viewport's size", copied?.size == NSSize(width: 400, height: 400) && copiedLit > 50,
+                          "\(copied?.size ?? .zero), \(copiedLit) lit")
+                    clipboard.releaseGlobally()
+                    ImageCopy.pasteboard = .general
                     let number = window.windowNumber
                     func send(_ type: NSEvent.EventType, _ x: CGFloat, _ y: CGFloat, _ flags: NSEvent.ModifierFlags = []) -> NSEvent {
                         NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: flags, timestamp: 0,
@@ -557,6 +582,14 @@ enum SelfTest {
             view.mouseDragged(with: send(.leftMouseDragged, 130, 100, .shift))
             check("with the Window/Level tool Shift-drag in 3D rotates", session.camera.rotation != toolRotation)
             view.toolWindows = false
+            // ⌘C in 3D copies the rendering.
+            let clipboard3D = NSPasteboard(name: .init("com.salomao.kidicom.selftest3d"))
+            ImageCopy.pasteboard = clipboard3D
+            view.onCopy = { image, size, scale in ImageCopy.copy(image, size: size, scale: scale) { Color.clear } }
+            view.copy(nil)
+            check("⌘C in 3D puts the rendering on the clipboard", NSImage(pasteboard: clipboard3D)?.size == NSSize(width: 200, height: 200))
+            clipboard3D.releaseGlobally()
+            ImageCopy.pasteboard = .general
             session.apply(.softTissue)
             session.renderer.camera = session.camera
             check("the soft tissue preset shows more of the body than bone", lit(session.renderer.renderImage(width: 96, height: 96)) > lit(front))
