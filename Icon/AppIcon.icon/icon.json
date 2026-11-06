@@ -1,0 +1,15 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.86800,0.95100,0.99500,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        { "glass" : false, "image-name" : "kidicom.png", "name" : "kidicom" }
+      ],
+      "shadow" : { "kind" : "none", "opacity" : 0 },
+      "translucency" : { "enabled" : false, "value" : 0 }
+    }
+  ],
+  "supported-platforms" : { "squares" : [ "macOS" ] }
+}
