@@ -192,7 +192,7 @@ struct ViewerView: View {
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.volume3D != nil }, set: { _ in viewer.toggle3D() })) {
-                    Label("3D", systemImage: "cube")
+                    Label("3D", systemImage: "view.3d")
                 }
                 .help(viewer.volume3D == nil ? "Show the active series as a 3D volume" : "Leave 3D (Esc)")
                 .disabled(viewer.volume3D == nil && viewer.mprCandidate == nil && viewer.mpr == nil || viewer.buildProgress != nil)
