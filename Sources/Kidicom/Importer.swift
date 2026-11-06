@@ -159,12 +159,14 @@ final class Importer {
                 : String(localized: "The Library is not available. Connect its disk and try again."))
             return summary
         }
+        // A purge of studies deleted earlier may still be moving folders to the Trash.
+        await model.purging?.value
         let context = model.container.mainContext
-        var known = Set(((try? context.fetch(FetchDescriptor<ImageFile>())) ?? []).map(\.sopUID))
+        // Only the images, studies, and series of each batch are looked up, so
+        // an import costs the same in an empty Library and in a full one.
+        var added = Set<String>()
         var studies: [String: Study] = [:]
         var seriesByUID: [String: Series] = [:]
-        for study in (try? context.fetch(FetchDescriptor<Study>())) ?? [] { studies[study.studyUID] = study }
-        for series in (try? context.fetch(FetchDescriptor<Series>())) ?? [] { seriesByUID[series.seriesUID] = series }
         var touched = Set<String>()
         var newStudies = Set<String>()
 
@@ -176,58 +178,77 @@ final class Importer {
         while index < total {
             if Task.isCancelled { break }
             let batch = Array(scan.files[index ..< min(index + batchSize, total)])
-            let results = await Self.read(batch, copyTo: copy ? library : nil, skipping: known)
-            for result in results {
-                switch result {
-                case .failed: summary.failed += 1
-                case .duplicate: summary.duplicates += 1
-                case .read(let record, let storedPath):
-                    guard !known.contains(record.sopUID) else { summary.duplicates += 1; continue }
-                    known.insert(record.sopUID)
-                    let study = studies[record.studyUID] ?? {
-                        let study = Study(studyUID: record.studyUID)
-                        context.insert(study)
-                        studies[record.studyUID] = study
-                        newStudies.insert(record.studyUID)
-                        return study
-                    }()
-                    study.trashedAt = nil   // importing again brings a deleted study back
-                    fill(study, from: record)
-                    let series = seriesByUID[record.seriesUID] ?? {
-                        let series = Series(seriesUID: record.seriesUID)
-                        series.number = record.seriesNumber
-                        series.seriesDescription = record.seriesDescription
-                        series.modality = record.modality
-                        series.frameOfReferenceUID = record.frameOfReferenceUID
-                        context.insert(series)
-                        series.study = study
-                        seriesByUID[record.seriesUID] = series
-                        return series
-                    }()
-                    let image = ImageFile(sopUID: record.sopUID)
-                    image.path = storedPath
-                    image.isCopied = copy
-                    image.instanceNumber = record.instanceNumber
-                    image.imagePosition = record.imagePosition
-                    image.imageOrientation = record.imageOrientation
-                    image.frames = record.frames
-                    image.rows = record.rows
-                    image.columns = record.columns
-                    image.transferSyntaxUID = record.transferSyntaxUID
-                    context.insert(image)
-                    image.series = series
-                    if !copy { study.isCopied = false }
-                    touched.insert(record.studyUID)
-                    summary.images += 1
+            let headers = await Self.readHeaders(batch)
+            if Task.isCancelled { break }
+
+            // Duplicates: already in the database, or earlier in this import.
+            let existing = Self.existingImages(headers.compactMap { $0?.sopUID }, in: context)
+            var fresh: [InstanceRecord] = []
+            for header in headers {
+                guard let record = header else { summary.failed += 1; continue }
+                if existing.contains(record.sopUID) || !added.insert(record.sopUID).inserted {
+                    summary.duplicates += 1
+                } else {
+                    fresh.append(record)
                 }
             }
+            loadStudies(of: fresh, into: &studies, series: &seriesByUID, in: context)
+
+            // Images copied before a cancel are still added.
+            let stored = await Self.store(fresh, copyTo: copy ? library : nil)
+            for (record, result) in zip(fresh, stored) {
+                let storedPath: String
+                switch result {
+                case .notStarted: continue
+                case .failed: summary.failed += 1; continue
+                case .stored(let path): storedPath = path
+                }
+                let study = studies[record.studyUID] ?? {
+                    let study = Study(studyUID: record.studyUID)
+                    context.insert(study)
+                    studies[record.studyUID] = study
+                    newStudies.insert(record.studyUID)
+                    return study
+                }()
+                study.trashedAt = nil   // importing again brings a deleted study back
+                fill(study, from: record)
+                let series = seriesByUID[record.seriesUID] ?? {
+                    let series = Series(seriesUID: record.seriesUID)
+                    series.number = record.seriesNumber
+                    series.seriesDescription = record.seriesDescription
+                    series.modality = record.modality
+                    series.frameOfReferenceUID = record.frameOfReferenceUID
+                    context.insert(series)
+                    series.study = study
+                    seriesByUID[record.seriesUID] = series
+                    Self.addModality(record.modality, to: study)
+                    return series
+                }()
+                let image = ImageFile(sopUID: record.sopUID)
+                image.path = storedPath
+                image.isCopied = copy
+                image.instanceNumber = record.instanceNumber
+                image.imagePosition = record.imagePosition
+                image.imageOrientation = record.imageOrientation
+                image.frames = record.frames
+                image.rows = record.rows
+                image.columns = record.columns
+                image.transferSyntaxUID = record.transferSyntaxUID
+                context.insert(image)
+                image.series = series
+                study.imageCount += 1
+                if !copy { study.isCopied = false }
+                touched.insert(record.studyUID)
+                summary.images += 1
+            }
             index += batch.count
-            for uid in touched { if let study = studies[uid] { updateTotals(study) } }
             try? context.save()
-            phase = .importing(done: index, total: total)
+            // After Cancel the footer is already gone; keep it gone.
+            if !Task.isCancelled { phase = .importing(done: index, total: total) }
         }
         summary.studies = newStudies.count
         Self.cleanUp(scan)
+        model.availability.forget(touched.compactMap { studies[$0]?.uid })
         // Show what came in: the first new study, in Recently Imported.
         if let first = touched.compactMap({ studies[$0] }).sorted(by: { $0.displayName < $1.displayName }).first {
             model.sidebar = .recent
@@ -249,18 +270,50 @@ final class Importer {
         study.importedAt = .now
     }
 
-    private func updateTotals(_ study: Study) {
-        let modalities = study.series.map(\.modality).filter { !$0.isEmpty }
-        // Keep the order they first appear in, without repeats.
-        var seen = Set<String>()
-        study.modalities = modalities.filter { seen.insert($0).inserted }.joined(separator: ", ")
-        study.imageCount = study.series.reduce(0) { $0 + $1.images.count }
+    /// Modalities in Study keep the order they first appear in, without repeats.
+    private static func addModality(_ modality: String, to study: Study) {
+        guard !modality.isEmpty else { return }
+        var list = study.modalities.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !list.contains(modality) else { return }
+        list.append(modality)
+        study.modalities = list.joined(separator: ", ")
+    }
+
+    /// Fetches the studies and series of a batch that this import has not loaded yet.
+    private func loadStudies(of records: [InstanceRecord], into studies: inout [String: Study], series: inout [String: Series], in context: ModelContext) {
+        let studyUIDs = Array(Set(records.map(\.studyUID)).filter { studies[$0] == nil })
+        if !studyUIDs.isEmpty {
+            let found = (try? context.fetch(FetchDescriptor<Study>(predicate: #Predicate { studyUIDs.contains($0.studyUID) }))) ?? []
+            for study in found { studies[study.studyUID] = study }
+        }
+        let seriesUIDs = Array(Set(records.map(\.seriesUID)).filter { series[$0] == nil })
+        if !seriesUIDs.isEmpty {
+            let found = (try? context.fetch(FetchDescriptor<Series>(predicate: #Predicate { seriesUIDs.contains($0.seriesUID) }))) ?? []
+            for item in found { series[item.seriesUID] = item }
+        }
+    }
+
+    /// The SOP Instance UIDs from `uids` that are already in the database.
+    private static func existingImages(_ uids: [String], in context: ModelContext) -> Set<String> {
+        guard !uids.isEmpty else { return [] }
+        var descriptor = FetchDescriptor<ImageFile>(predicate: #Predicate { uids.contains($0.sopUID) })
+        descriptor.propertiesToFetch = [\.sopUID]
+        return Set(((try? context.fetch(descriptor)) ?? []).map(\.sopUID))
     }
 
     private func countAlreadyImported(_ scan: ImportScan) -> Int {
-        // Cheap check by file path for Keep in Place imports of the same folder.
-        let paths = Set(((try? model.container.mainContext.fetch(FetchDescriptor<ImageFile>())) ?? []).filter { !$0.isCopied }.map(\.path))
-        return scan.files.filter { paths.contains($0.path) }.count
+        // Cheap check by file path for Keep in Place imports of the same folder,
+        // asked of the database in chunks instead of loading every image.
+        let context = model.container.mainContext
+        let paths = scan.files.map(\.path)
+        var found = Set<String>()
+        for start in stride(from: 0, to: paths.count, by: 500) {
+            let chunk = Array(paths[start ..< min(start + 500, paths.count)])
+            var descriptor = FetchDescriptor<ImageFile>(predicate: #Predicate { !$0.isCopied && chunk.contains($0.path) })
+            descriptor.propertiesToFetch = [\.path]
+            for image in (try? context.fetch(descriptor)) ?? [] { found.insert(image.path) }
+        }
+        return paths.filter { found.contains($0) }.count
     }
 
     private func urlsName(_ urls: [URL]) -> String {
@@ -269,10 +322,11 @@ final class Importer {
 
     // MARK: Off the main thread
 
-    enum ReadResult: Sendable {
-        case read(InstanceRecord, storedPath: String)
-        case duplicate
+    enum StoreResult: Sendable {
+        case stored(String)
         case failed
+        /// Cancelled before this file was copied.
+        case notStarted
     }
 
     @concurrent
@@ -280,31 +334,51 @@ final class Importer {
         try ImportScanner.scan(urls, temporaryRoot: temporary, isCancelled: { Task.isCancelled })
     }
 
-    /// Reads headers in parallel and copies files into the Library.
+    /// Runs `work` on each item, a few at a time, in order. After a cancel no
+    /// new item starts; those get `skipped`.
     @concurrent
-    nonisolated static func read(_ files: [URL], copyTo library: URL?, skipping known: Set<String>) async -> [ReadResult] {
-        await withTaskGroup(of: (Int, ReadResult).self) { group in
-            for (index, url) in files.enumerated() {
-                group.addTask {
-                    guard let record = try? InstanceRecord(contentsOf: url) else { return (index, .failed) }
-                    if known.contains(record.sopUID) { return (index, .duplicate) }
-                    guard let library else { return (index, .read(record, storedPath: url.path)) }
-                    let relative = LibraryPath.relativePath(for: record)
-                    let destination = library.appending(path: relative)
-                    do {
-                        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-                        if !FileManager.default.fileExists(atPath: destination.path) {
-                            try FileManager.default.copyItem(at: url, to: destination)
-                        }
-                        return (index, .read(record, storedPath: relative))
-                    } catch {
-                        return (index, .failed)
-                    }
-                }
+    nonisolated private static func each<T: Sendable, R: Sendable>(_ items: [T], skipped: R, _ work: @escaping @Sendable (T) -> R) async -> [R] {
+        let parallelism = max(2, ProcessInfo.processInfo.activeProcessorCount)
+        return await withTaskGroup(of: (Int, R).self) { group in
+            var results = [R](repeating: skipped, count: items.count)
+            var next = 0
+            func addNext() {
+                guard next < items.count, !Task.isCancelled else { return }
+                let index = next, item = items[index]
+                next += 1
+                group.addTask { Task.isCancelled ? (index, skipped) : (index, work(item)) }
             }
-            var results = [ReadResult](repeating: .failed, count: files.count)
-            for await (index, result) in group { results[index] = result }
+            for _ in 0 ..< parallelism { addNext() }
+            for await (index, result) in group {
+                results[index] = result
+                addNext()
+            }
             return results
+        }
+    }
+
+    /// Reads headers in parallel; nil for files that are not readable images.
+    @concurrent
+    nonisolated static func readHeaders(_ files: [URL]) async -> [InstanceRecord?] {
+        await each(files, skipped: nil) { try? InstanceRecord(contentsOf: $0) }
+    }
+
+    /// Copies files into the Library, or keeps their paths for Keep in Place.
+    @concurrent
+    nonisolated static func store(_ records: [InstanceRecord], copyTo library: URL?) async -> [StoreResult] {
+        guard let library else { return records.map { .stored($0.url.path) } }
+        return await each(records, skipped: .notStarted) { record in
+            let relative = LibraryPath.relativePath(for: record)
+            let destination = library.appending(path: relative)
+            do {
+                try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                if !FileManager.default.fileExists(atPath: destination.path) {
+                    try FileManager.default.copyItem(at: record.url, to: destination)
+                }
+                return .stored(relative)
+            } catch {
+                return .failed
+            }
         }
     }
 

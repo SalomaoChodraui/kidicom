@@ -399,8 +399,11 @@ enum SelfTest {
             check("Keep in Place imports without copying", rewritten && kept.images == 1)
             let keptStudy = studies().first { !$0.isCopied }
             check("a Keep in Place study is online while its files exist", keptStudy?.isOffline == false)
+            check("the list shows it online", keptStudy.map { !model.availability.isOffline($0) } ?? false)
             try? FileManager.default.removeItem(at: placeFolder)
             check("a Keep in Place study goes offline when its folder is removed", keptStudy?.isOffline == true)
+            await model.availability.refresh().value
+            check("the list shows it offline after the disk is checked again", keptStudy.map { model.availability.isOffline($0) } ?? false)
 
             // Zip imports are always copied.
             let zip = folder.appending(path: "exame.zip")
@@ -435,11 +438,16 @@ enum SelfTest {
             check("the old copies are gone", !FileManager.default.fileExists(atPath: oldFiles.path))
             try? FileManager.default.moveItem(at: external, to: folder.appending(path: "unplugged"))
             check("copied studies go offline while the disk is missing", !Library.isAvailable && studies().filter(\.isCopied).allSatisfy(\.isOffline))
+            for study in studies() { _ = model.availability.isOffline(study) }
+            await model.availability.refresh().value
+            check("the list shows them offline", studies().filter(\.isCopied).allSatisfy { model.availability.isOffline($0) })
             let blocked = await model.importer.run(ImportScan(), copy: true)
             check("imports that copy are refused while the disk is missing", blocked.images == 0 && { if case .failed = model.importer.phase { true } else { false } }())
             model.importer.dismissMessage()
             try? FileManager.default.moveItem(at: folder.appending(path: "unplugged"), to: external)
             check("they come back when the disk returns", Library.isAvailable && studies().filter(\.isCopied).allSatisfy { !$0.isOffline })
+            await model.availability.refresh().value
+            check("the list shows them online again", studies().filter(\.isCopied).allSatisfy { !model.availability.isOffline($0) })
             var backOK = true
             do { try await Library.move(to: Library.destination(for: nil)) { _, _ in } } catch { backOK = false }
             check("Use Default brings the Library back", backOK && Library.customRoot == nil && images().filter(\.isCopied).allSatisfy { FileManager.default.fileExists(atPath: $0.fileURL.path) })
@@ -453,7 +461,7 @@ enum SelfTest {
                 check("Undo brings the study back", SidebarItem.all.includes(ct))
                 model.trash([ct], undoManager: undo)
                 let libraryFolder = ct.series.first?.images.first?.fileURL.deletingLastPathComponent()
-                model.purgeTrash()
+                await model.purgeTrash().value
                 check("the next launch removes it and its images", images().count == 27 && studies().allSatisfy { $0.studyUID != "1.2.826.0.1.3680043.10.1.1" })
                 check("copied files of a deleted study go to the Trash", libraryFolder.map { !FileManager.default.fileExists(atPath: $0.path) } ?? false)
             }

@@ -313,21 +313,42 @@ final class AppModel {
         undoManager?.setActionName(studies.count == 1 ? String(localized: "Delete Study") : String(localized: "Delete Studies"))
     }
 
+    /// Which studies are offline, checked off the main thread.
+    var availability: Availability { .shared }
+
+    /// The running `purgeTrash`, which imports wait for.
+    @ObservationIgnored private(set) var purging: Task<Void, Never>?
+
     /// Removes studies deleted in an earlier session: copied files go to the
-    /// Trash; files kept in place are never touched.
-    func purgeTrash() {
+    /// Trash, off the main thread; files kept in place are never touched.
+    @discardableResult
+    func purgeTrash() -> Task<Void, Never> {
+        if let purging { return purging }
         let context = container.mainContext
         let trashed = (try? context.fetch(FetchDescriptor<Study>(predicate: #Predicate { $0.trashedAt != nil }))) ?? []
         let libraryAvailable = Library.isAvailable
+        let root = Library.root.path
+        var doomed: [Study] = []
+        var folders: [URL] = []
         for study in trashed {
             // Keep studies with copied files until their Library disk is back.
             if !libraryAvailable, study.series.contains(where: { $0.images.contains(where: \.isCopied) }) { continue }
-            let folders = Set(study.series.flatMap(\.images).filter(\.isCopied).map { $0.fileURL.deletingLastPathComponent().deletingLastPathComponent() })
-            for folder in folders where folder.path.hasPrefix(Library.root.path) {
-                try? FileManager.default.trashItem(at: folder, resultingItemURL: nil)
-            }
-            context.delete(study)
+            let studyFolders = Set(study.series.flatMap(\.images).filter(\.isCopied).map { $0.fileURL.deletingLastPathComponent().deletingLastPathComponent() })
+            folders += studyFolders.filter { $0.path.hasPrefix(root) }
+            doomed.append(study)
         }
-        if !trashed.isEmpty { try? context.save() }
+        let task = Task {
+            await Self.moveToTrash(folders)
+            for study in doomed { context.delete(study) }
+            if !doomed.isEmpty { try? context.save() }
+            purging = nil
+        }
+        purging = task
+        return task
+    }
+
+    @concurrent
+    nonisolated private static func moveToTrash(_ folders: [URL]) async {
+        for folder in folders { try? FileManager.default.trashItem(at: folder, resultingItemURL: nil) }
     }
 }

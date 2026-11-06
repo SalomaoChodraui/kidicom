@@ -27,10 +27,7 @@ public enum ImportScanner {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
             if isDirectory.boolValue {
-                for file in walk(url) {
-                    if isCancelled() { break }
-                    classify(file, into: &scan, archives: &archives)
-                }
+                walk(url, isCancelled: isCancelled) { classify($0, into: &scan, archives: &archives) }
             } else {
                 classify(url, into: &scan, archives: &archives)
             }
@@ -38,11 +35,17 @@ public enum ImportScanner {
         while let archive = archives.popLast() {
             if isCancelled() { break }
             let folder = temporaryRoot.appending(path: "zip-\(UUID().uuidString)", directoryHint: .isDirectory)
-            try expand(archive, into: folder)
+            // Listed before expanding, so a cancelled or failed zip is cleaned up too.
             scan.temporaryFolders.append(folder)
-            for file in walk(folder) {
-                classify(file, into: &scan, archives: &archives)
+            do {
+                try expand(archive, into: folder, isCancelled: isCancelled)
+            } catch ImportError.cancelled {
+                break
+            } catch {
+                for folder in scan.temporaryFolders { try? FileManager.default.removeItem(at: folder) }
+                throw error
             }
+            walk(folder, isCancelled: isCancelled) { classify($0, into: &scan, archives: &archives) }
         }
         scan.files.sort { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
         return scan
@@ -59,16 +62,16 @@ public enum ImportScanner {
         }
     }
 
-    /// Regular files under a folder, skipping hidden files and `__MACOSX`.
-    static func walk(_ folder: URL) -> [URL] {
-        var files: [URL] = []
+    /// Regular files under a folder, skipping hidden files and `__MACOSX`,
+    /// handed over one at a time so a cancel stops the walk at once.
+    static func walk(_ folder: URL, isCancelled: () -> Bool = { false }, _ visit: (URL) -> Void) {
         let keys: [URLResourceKey] = [.isRegularFileKey]
-        guard let walker = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) else { return [] }
+        guard let walker = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) else { return }
         while let url = walker.nextObject() as? URL {
+            if isCancelled() { return }
             if url.lastPathComponent == "__MACOSX" { walker.skipDescendants(); continue }
-            if (try? url.resourceValues(forKeys: Set(keys)).isRegularFile) == true { files.append(url) }
+            if (try? url.resourceValues(forKeys: Set(keys)).isRegularFile) == true { visit(url) }
         }
-        return files
     }
 
     static func isSystemJunk(_ name: String) -> Bool {
@@ -88,7 +91,8 @@ public enum ImportScanner {
         return DicomParser.isVR(bytes[4], bytes[5]) || bytes[7] == 0
     }
 
-    static func expand(_ archive: URL, into folder: URL) throws {
+    /// Expands a zip with ditto. A cancel stops ditto and throws `cancelled`.
+    static func expand(_ archive: URL, into folder: URL, isCancelled: () -> Bool = { false }) throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let process = Process()
         // ditto handles UTF-8 names and the zips made by Finder and Windows.
@@ -96,8 +100,17 @@ public enum ImportScanner {
         process.arguments = ["-x", "-k", archive.path, folder.path]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
         try process.run()
-        process.waitUntilExit()
+        // Wait in short steps so a cancel reaches ditto within a moment.
+        repeat {
+            if isCancelled() {
+                process.terminate()
+                exited.wait()
+                throw ImportError.cancelled
+            }
+        } while exited.wait(timeout: .now() + .milliseconds(50)) == .timedOut
         guard process.terminationStatus == 0 else {
             throw ImportError.archiveFailed(archive.lastPathComponent)
         }
@@ -106,6 +119,7 @@ public enum ImportScanner {
 
 public enum ImportError: Error, Equatable, Sendable {
     case archiveFailed(String)
+    case cancelled
 }
 
 /// Where a copied image goes inside the Library: Files/<study>/<series>/<image>.dcm

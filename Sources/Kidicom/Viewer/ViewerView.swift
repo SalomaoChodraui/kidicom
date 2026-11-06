@@ -13,7 +13,7 @@ struct ViewerView: View {
     /// Other studies of the same patient, newest first.
     private func priors(of study: Study) -> [Study] {
         guard !study.patientID.isEmpty else { return [] }
-        return allStudies.filter { $0.patientID == study.patientID && $0.uid != study.uid && !$0.isOffline }
+        return allStudies.filter { $0.patientID == study.patientID && $0.uid != study.uid && !Availability.shared.isOffline($0) }
     }
 
     init(studyUID: UUID) {

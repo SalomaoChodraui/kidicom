@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import KidicomKit
 
@@ -56,6 +57,44 @@ struct ImportTests {
         #expect(scan.containsArchives)
         let temp = root.appending(path: "tmp").resolvingSymlinksInPath().path
         #expect(scan.files.allSatisfy { $0.resolvingSymlinksInPath().path.hasPrefix(temp) })
+    }
+
+    @Test("A cancel stops a folder walk between files")
+    func cancelWalk() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try SampleStudies.write(to: root.appending(path: "CD"))
+        let calls = Mutex(0)
+        // Cancelled after the first few files of the walk.
+        let scan = try ImportScanner.scan([root.appending(path: "CD")], temporaryRoot: root.appending(path: "tmp")) {
+            calls.withLock { $0 += 1; return $0 > 5 }
+        }
+        #expect(scan.files.count < 50)
+    }
+
+    @Test("A cancel stops ditto and leaves the expanded folder to clean up")
+    func cancelZip() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appending(path: "src")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        // Random bytes do not compress, so ditto takes a while to expand them.
+        for index in 0 ..< 3 {
+            var bytes = [UInt8](repeating: 0, count: 40_000_000)
+            bytes.withUnsafeMutableBytes { arc4random_buf($0.baseAddress, $0.count) }
+            try Data(bytes).write(to: source.appending(path: "f\(index).bin"))
+        }
+        let zip = root.appending(path: "big.zip")
+        try ditto(["-c", "-k", source.path, zip.path])
+        // Calls: before the dropped item, before the zip, then once ditto runs.
+        let calls = Mutex(0)
+        let scan = try ImportScanner.scan([zip], temporaryRoot: root.appending(path: "tmp")) {
+            calls.withLock { $0 += 1; return $0 >= 3 }
+        }
+        #expect(scan.files.isEmpty)
+        #expect(scan.temporaryFolders.count == 1)
+        let folder = try #require(scan.temporaryFolders.first)
+        let expanded = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        let bytes = expanded.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+        #expect(bytes < 120_000_000, "ditto was stopped before it expanded everything")
     }
 
     @Test("Bare datasets without preamble are recognized")
