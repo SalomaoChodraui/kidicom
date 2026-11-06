@@ -333,8 +333,12 @@ enum SelfTest {
                 let viewport = viewer.active
                 let started = Date.now
                 while viewport?.image == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
-                let before = viewport?.image.flatMap { $0.dataProvider?.data as Data? }
+                let shown = viewport?.image
+                let before = shown.flatMap { $0.dataProvider?.data as Data? }
                 viewport?.adjustWindow(dx: -60, dy: 20)
+                // The new picture draws at the end of this pass of the event loop.
+                let dragged = Date.now
+                while viewport?.image === shown && Date.now.timeIntervalSince(dragged) < 1 { try? await Task.sleep(for: .milliseconds(5)) }
                 let after = viewport?.image.flatMap { $0.dataProvider?.data as Data? }
                 check("dragging changes the window on color ultrasound", viewport?.window != nil && before != nil && before != after)
                 // S-012: cine at the file's frame time (40 ms = 25 fps), looping.
@@ -351,6 +355,8 @@ enum SelfTest {
                 viewport?.apply(.lung)
                 check("CT presets leave color images alone", viewport?.effectiveWindow != VOIWindow(center: -600, width: 1500))
             }
+
+            await largeFrameChecks()
 
             // Sidebar: modality pages and albums.
             if let ct {
@@ -453,6 +459,47 @@ enum SelfTest {
             print(failures == 0 ? "SELFTEST PASS \(count) checks" : "SELFTEST FAIL \(failures) of \(count) checks")
             finish(code: failures == 0 ? 0 : 1)
         }
+    }
+
+    /// Window/level on a 2048² frame: no redraw for nothing, one draw per
+    /// pass of the event loop, drawn off the main thread, never blank.
+    static func largeFrameChecks() async {
+        let side = 2048
+        let values = (0 ..< side * side).map { Float($0 % 4096) - 1024 }
+        let slice = DecodedSlice(frame: .grayscale(values), width: side, height: side, inverted: false,
+                                 defaultWindow: VOIWindow(center: 40, width: 400), pixelSpacing: [1, 1])
+        func bytes(_ image: CGImage?) -> Data? { image?.dataProvider?.data as Data? }
+        func settle() async {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        let viewport = Viewport()
+        viewport.show(SingleFrameSource(slice))
+        let opened = Date.now
+        while viewport.image == nil && Date.now.timeIntervalSince(opened) < 2 { try? await Task.sleep(for: .milliseconds(5)) }
+        await settle()
+        let first = viewport.image, draws = viewport.drawCount
+        check("a 2048² frame draws on the render queue", Renderer.drawsInBackground(slice.frame, width: side, height: side) && first != nil)
+        viewport.go(to: 0)
+        viewport.setWindowQuietly(nil)
+        await settle()
+        check("the same frame and window again draw nothing", viewport.image === first && viewport.drawCount == draws, "\(viewport.drawCount - draws) draws")
+        for _ in 0 ..< 5 { viewport.adjustWindow(dx: 10, dy: 0) }
+        check("the picture stays up while a large frame draws", viewport.image === first)
+        await settle()
+        let expected = Renderer.image(slice.frame, width: side, height: side, window: viewport.effectiveWindow!, inverted: false)
+        check("five window steps in one pass draw once, with the last window",
+              viewport.drawCount == draws + 1 && bytes(viewport.image) == bytes(expected), "\(viewport.drawCount - draws) draws")
+        // A drag over several passes: a picture on screen at every step.
+        var blank = false
+        for _ in 0 ..< 20 {
+            viewport.adjustWindow(dx: 0, dy: 4)
+            if viewport.image == nil { blank = true }
+            await Task.yield()
+            if viewport.image == nil { blank = true }
+        }
+        await settle()
+        let last = Renderer.image(slice.frame, width: side, height: side, window: viewport.effectiveWindow!, inverted: false)
+        check("dragging the window on a large frame never goes blank and ends on the last window", !blank && bytes(viewport.image) == bytes(last))
     }
 
     static func mprChecks(_ ct: Study) async {

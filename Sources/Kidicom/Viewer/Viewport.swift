@@ -63,7 +63,11 @@ final class Viewport: Identifiable {
     /// Free rotation in radians (Rotate tool), on top of the quarter turns.
     var freeAngle: Double = 0
     private(set) var image: CGImage?
-    private(set) var slice: DecodedSlice?
+    private(set) var slice: DecodedSlice? {
+        didSet { if !Self.samePicture(oldValue, slice) { sliceVersion &+= 1 } }
+    }
+    /// Bumped when `slice` holds other pixels; the same frame again keeps it.
+    @ObservationIgnored private var sliceVersion = 0
 
     // Measurements (S-013, S-014); see Measurements.swift.
     var tool: MeasureTool = .navigate
@@ -315,8 +319,52 @@ final class Viewport: Identifiable {
         }
     }
 
+    /// What a picture is drawn from: the frame's pixels and the window.
+    private struct PictureKey: Equatable {
+        var slice: Int
+        var window: VOIWindow
+    }
+
+    /// Pictures put on screen so far, for the self-test.
+    @ObservationIgnored private(set) var drawCount = 0
+    @ObservationIgnored private var gate = RenderGate<PictureKey, (DecodedSlice, VOIWindow)>()
+
+    /// Asks for the picture of the current frame and window. Nothing
+    /// happens when it is on screen already, and all requests of one pass
+    /// of the event loop (a drag step, the three synced MPR planes) draw
+    /// once, at the end of it. The old picture stays up until the new one
+    /// is ready.
     private func render() {
-        guard let slice, let window = effectiveWindow else { image = nil; return }
-        image = Renderer.image(slice.frame, width: slice.width, height: slice.height, window: window, inverted: slice.inverted)
+        guard let slice, let window = effectiveWindow else {
+            gate.clear()
+            image = nil
+            return
+        }
+        if gate.request(PictureKey(slice: sliceVersion, window: window), (slice, window)) {
+            Task { await drawRequested() }
+        }
+    }
+
+    /// Draws the newest request, then any that came in meanwhile. Large
+    /// frames draw on the render queue, so the main thread stays free.
+    private func drawRequested() async {
+        while let job = gate.next() {
+            let (slice, window) = job.input
+            let picture = if Renderer.drawsInBackground(slice.frame, width: slice.width, height: slice.height) {
+                await Renderer.imageInBackground(slice.frame, width: slice.width, height: slice.height, window: window, inverted: slice.inverted)
+            } else {
+                Renderer.image(slice.frame, width: slice.width, height: slice.height, window: window, inverted: slice.inverted)
+            }
+            if gate.finish(job) {
+                image = picture
+                drawCount += 1
+            }
+        }
+    }
+
+    private static func samePicture(_ a: DecodedSlice?, _ b: DecodedSlice?) -> Bool {
+        guard let a, let b else { return a == nil && b == nil }
+        return a.width == b.width && a.height == b.height && a.inverted == b.inverted && a.defaultWindow == b.defaultWindow
+            && a.frame.sharesStorage(with: b.frame)
     }
 }

@@ -13,7 +13,7 @@ enum RenderBench {
         let slice = DecodedSlice(frame: .grayscale(values), width: side, height: side, inverted: false,
                                  defaultWindow: VOIWindow(center: 40, width: 400), pixelSpacing: [1, 1])
         let viewports = (0 ..< 3).map { _ in Viewport() }
-        for viewport in viewports { viewport.show(OneFrame(slice)) }
+        for viewport in viewports { viewport.show(SingleFrameSource(slice)) }
         viewports[0].onWindowChange = { window in
             for other in viewports.dropFirst() { other.setWindowQuietly(window) }
         }
@@ -38,20 +38,20 @@ enum RenderBench {
         func ms(_ ns: UInt64) -> String { String(format: "%.3f", Double(ns) / Double(events) / 1e6) }
         print("BENCH 3x2048² window event: handler \(ms(blocked)) ms, main CPU \(ms(cpu)) ms, until all three show \(ms(latency)) ms")
     }
+}
 
-    /// A source with one frame, always in cache.
-    private final class OneFrame: FrameSource {
-        let id = UUID().uuidString
-        let title = "Bench"
-        let modality = "CT"
-        let count = 1
-        let slice: DecodedSlice
-        init(_ slice: DecodedSlice) { self.slice = slice }
-        func cached(_ index: Int) -> DecodedSlice? { slice }
-        func load(_ index: Int) async -> DecodedSlice? { slice }
-        func prefetch(around index: Int) {}
-        func location(_ index: Int) -> Double? { nil }
-        func orientation(_ index: Int) -> [Double] { [] }
-        func fileURL(_ index: Int) -> URL? { nil }
-    }
+/// A source with one frame, always in cache (benchmark and self-test).
+final class SingleFrameSource: FrameSource {
+    let id = UUID().uuidString
+    let title = "Test"
+    let modality = "CT"
+    let count = 1
+    let slice: DecodedSlice
+    init(_ slice: DecodedSlice) { self.slice = slice }
+    func cached(_ index: Int) -> DecodedSlice? { slice }
+    func load(_ index: Int) async -> DecodedSlice? { slice }
+    func prefetch(around index: Int) {}
+    func location(_ index: Int) -> Double? { nil }
+    func orientation(_ index: Int) -> [Double] { [] }
+    func fileURL(_ index: Int) -> URL? { nil }
 }
