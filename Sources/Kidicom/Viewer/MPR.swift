@@ -1,15 +1,16 @@
 import CoreGraphics
 import Foundation
 import KidicomKit
+import Synchronization
 import SwiftUI
 import simd
 
 /// One plane of an oblique MPR as something a viewport can scroll: the
 /// index walks along the plane's normal, through the volume.
 final class ReformatSource: FrameSource {
-    /// Strong, so a picture still loading never outlives its volume. MPR
-    /// breaks the cycle with `sources` when it closes.
-    let session: MPRSession
+    /// Strong, so a picture still loading never outlives its volume. The
+    /// space holds no source back, so nothing cycles.
+    let space: MPRSpace
     /// 0 acquired plane, 1 and 2 the reformats, as `VolumePlane` orders them.
     let planeIndex: Int
     let id: String
@@ -19,17 +20,21 @@ final class ReformatSource: FrameSource {
     private(set) var slab: Double = 0
     private(set) var mode: SlabMode = .single
     private var cache: [Int: DecodedSlice] = [:]
+    /// Cached indexes, least recently used first.
+    private var recent: [Int] = []
+    /// About 32 MB of pictures, 8 to 24 of them: scrolling back finds the last ones.
+    private static let cacheBytes = 32_000_000
 
-    init(session: MPRSession, planeIndex: Int, seriesID: String, modality: String, window: VOIWindow) {
-        self.session = session
+    init(space: MPRSpace, planeIndex: Int, seriesID: String, modality: String, window: VOIWindow) {
+        self.space = space
         self.planeIndex = planeIndex
         id = "\(seriesID)#\(planeIndex)"
         self.modality = modality
         defaultWindow = window
     }
 
-    var volume: Volume { session.volume }
-    var plane: ObliquePlane { session.frame.planes[planeIndex] }
+    var volume: Volume { space.volume }
+    var plane: ObliquePlane { space.planes[planeIndex] }
 
     /// Axial, Coronal, Sagittal by the plane's real direction; Oblique once tilted off them.
     var title: String {
@@ -55,7 +60,7 @@ final class ReformatSource: FrameSource {
     /// The index whose plane passes through the frame's center.
     var centerIndex: Int {
         let r = range
-        return min(max(0, Int(((simd_dot(session.frame.center, plane.normal) - r.start) / r.step).rounded())), r.count - 1)
+        return min(max(0, Int(((simd_dot(space.center, plane.normal) - r.start) / r.step).rounded())), r.count - 1)
     }
 
     func setSlab(_ mm: Double, mode: SlabMode) {
@@ -72,21 +77,37 @@ final class ReformatSource: FrameSource {
     /// The plane turned: drop pictures of the old one.
     func invalidate() {
         cache = [:]
+        recent = []
         generation += 1
     }
 
-    func cached(_ index: Int) -> DecodedSlice? { cache[index] }
+    func cached(_ index: Int) -> DecodedSlice? {
+        guard let hit = cache[index] else { return nil }
+        touch(index)
+        return hit
+    }
+
+    private func touch(_ index: Int) {
+        if let at = recent.lastIndex(of: index) { recent.remove(at: at) }
+        recent.append(index)
+    }
+
+    private func remember(_ slice: DecodedSlice, at index: Int) {
+        cache[index] = slice
+        touch(index)
+        let limit = min(24, max(8, Self.cacheBytes / max(1, slice.width * slice.height * MemoryLayout<Float>.size)))
+        while recent.count > limit { cache[recent.removeFirst()] = nil }
+    }
 
     func load(_ index: Int) async -> DecodedSlice? {
-        if let hit = cache[index] { return hit }
+        if let hit = cached(index) { return hit }
         let started = generation
-        let image = await Self.render(volume, plane, position(index), slab, mode, session.outside)
+        let image = await Self.render(volume, plane, position(index), slab, mode, space.outside)
         let slice = DecodedSlice(frame: .grayscale(image.values), width: image.width, height: image.height, inverted: false,
                                  defaultWindow: defaultWindow, pixelSpacing: image.pixelSpacing,
                                  sliceThickness: mode.isProjection ? slab : nil)
         guard started == generation else { return slice }   // the plane moved meanwhile: show it, don't keep it
-        if cache.count > 8 { cache.removeAll() }
-        cache[index] = slice
+        remember(slice, at: index)
         return slice
     }
 
@@ -120,23 +141,67 @@ final class ReformatSource: FrameSource {
     }
 }
 
-/// An MPR session: the volume, the three planes through one point, and
-/// what the viewer showed before, to restore on exit.
+/// The volume and the three planes through one point, shared by the
+/// reformats of an MPR or a single plane. The center and the planes'
+/// directions are observed apart: a scroll moves only the center, so views
+/// that read only the directions (plane names, edge letters) stay put.
 @Observable
-final class MPRSession {
+final class MPRSpace {
     let volume: Volume
-    var frame: MPRFrame
-    @ObservationIgnored let outside: Float
-    @ObservationIgnored var sources: [ReformatSource] = []
-    @ObservationIgnored let seriesID: String
-    @ObservationIgnored let previousLayout: ViewerLayout
-    @ObservationIgnored let previousSources: [(any FrameSource)?]
-    @ObservationIgnored let previousIndexes: [Int]
+    let outside: Float
+    @ObservationIgnored private var frame: MPRFrame
 
-    init(volume: Volume, seriesID: String, previousLayout: ViewerLayout, previousSources: [(any FrameSource)?], previousIndexes: [Int]) {
+    init(volume: Volume) {
         self.volume = volume
         frame = MPRFrame(volume: volume)
         outside = volume.floorValue
+    }
+
+    /// Where the three planes cross, in volume mm.
+    var center: SIMD3<Double> {
+        get {
+            access(keyPath: \.center)
+            return frame.center
+        }
+        set {
+            withMutation(keyPath: \.center) { frame.center = newValue }
+        }
+    }
+
+    var planes: [ObliquePlane] {
+        access(keyPath: \.planes)
+        return frame.planes
+    }
+
+    var isTilted: Bool {
+        access(keyPath: \.planes)
+        return frame.isTilted
+    }
+
+    func rotate(around fixed: Int, by angle: Double) {
+        withMutation(keyPath: \.planes) { frame.rotate(around: fixed, by: angle) }
+    }
+
+    func resetRotation() {
+        withMutation(keyPath: \.planes) { frame.resetRotation() }
+    }
+}
+
+/// An MPR session: its space, the three reformats, and what the viewer
+/// showed before, to restore on exit. The sources point at the space, never
+/// back at the session.
+final class MPRSession {
+    let space: MPRSpace
+    var sources: [ReformatSource] = []
+    let seriesID: String
+    let previousLayout: ViewerLayout
+    let previousSources: [(any FrameSource)?]
+    let previousIndexes: [Int]
+
+    var volume: Volume { space.volume }
+
+    init(volume: Volume, seriesID: String, previousLayout: ViewerLayout, previousSources: [(any FrameSource)?], previousIndexes: [Int]) {
+        space = MPRSpace(volume: volume)
         self.seriesID = seriesID
         self.previousLayout = previousLayout
         self.previousSources = previousSources
@@ -145,34 +210,59 @@ final class MPRSession {
 }
 
 extension SeriesStack {
-    /// Decodes every frame and stacks them into a volume.
+    /// Stacks every frame into a volume. The geometry is checked and ordered
+    /// first, from the slice positions; then one decode per core fills the
+    /// volume, each frame dropped once copied. Frames the viewer already
+    /// decoded are reused.
     func buildVolume(progress: @escaping @MainActor (Double) -> Void) async throws -> Volume {
         let refs = slices
-        let total = refs.count
-        var done = 0
-        let built: [VolumeSlice] = await withTaskGroup(of: VolumeSlice?.self) { group in
-            for ref in refs {
-                group.addTask {
-                    guard let decoded = await SeriesStack.decode(ref), case .grayscale(let values) = decoded.frame else { return nil }
-                    return VolumeSlice(values: values, width: decoded.width, height: decoded.height, position: ref.position,
-                                       orientation: ref.orientation, pixelSpacing: decoded.pixelSpacing)
-                }
+        let geometry = refs.map { SliceGeometry(position: $0.position, orientation: $0.orientation) }
+        var ready: [Int: SlicePixels] = [:]
+        for index in refs.indices {
+            if let hit = cached(index), case .grayscale(let values) = hit.frame {
+                ready[index] = SlicePixels(values: values, width: hit.width, height: hit.height, pixelSpacing: hit.pixelSpacing)
             }
-            var out: [VolumeSlice] = []
-            for await slice in group {
-                if let slice { out.append(slice) }
-                done += 1
-                if done % 16 == 0 { progress(Double(done) / Double(total)) }
-            }
-            return out
         }
-        return try await Self.stack(built)
+        let cancelled = CancelFlag()
+        return try await withTaskCancellationHandler {
+            try await Self.assemble(geometry, refs, ready, cancelled, progress)
+        } onCancel: {
+            cancelled.cancel()
+        }
     }
 
-    @concurrent
-    nonisolated static func stack(_ slices: [VolumeSlice]) async throws -> Volume {
-        try Volume.build(slices)
+    /// Runs the blocking build on a GCD queue, off Swift's cooperative threads.
+    nonisolated private static func assemble(_ geometry: [SliceGeometry], _ refs: [SliceRef], _ ready: [Int: SlicePixels],
+                                             _ cancelled: CancelFlag, _ progress: @escaping @MainActor (Double) -> Void) async throws -> Volume {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(with: Result {
+                    try Volume.build(geometry: geometry, isCancelled: { cancelled.isCancelled }, progress: { done, total in
+                        Task { @MainActor in progress(Double(done) / Double(total)) }
+                    }, decode: { index in
+                        ready[index] ?? pixels(refs[index])
+                    })
+                })
+            }
+        }
     }
+
+    /// Only what a volume needs from a frame: grayscale values, size, and spacing.
+    nonisolated private static func pixels(_ ref: SliceRef) -> SlicePixels? {
+        guard let file = try? DicomParser.parse(contentsOf: ref.url),
+              let descriptor = try? file.pixelDescriptor,
+              case .grayscale(let values)? = try? file.frame(ref.frame) else { return nil }
+        var spacing = file.dataset.numbers(.pixelSpacing)
+        if spacing.count < 2 { spacing = file.dataset.numbers(.imagerPixelSpacing) }
+        return SlicePixels(values: values, width: descriptor.columns, height: descriptor.rows, pixelSpacing: spacing)
+    }
+}
+
+/// Set from a task's cancellation handler, read by the build's threads.
+nonisolated final class CancelFlag: Sendable {
+    private let flag = Atomic<Bool>(false)
+    var isCancelled: Bool { flag.load(ordering: .relaxed) }
+    func cancel() { flag.store(true, ordering: .relaxed) }
 }
 
 /// Reference lines of the other two MPR planes over a viewport: they cross
@@ -185,8 +275,8 @@ struct CrosshairOverlay: View {
         GeometryReader { proxy in
             if let session = viewer.mpr, let mine = viewport.source as? ReformatSource,
                let geometry = viewport.geometry(in: proxy.size) {
-                let _ = session.frame   // redraw when the planes move
-                let center = mine.canvasPoint(session.frame.center, at: viewport.index)
+                // Reads the center and the planes, so it redraws when either moves.
+                let center = mine.canvasPoint(session.space.center, at: viewport.index)
                 let reach = Double(max(mine.plane.width, mine.plane.height)) * 2
                 ForEach(session.sources.filter { $0 !== mine }, id: \.planeIndex) { other in
                     let d = ViewerModel.lineDirection(of: other, in: mine)
