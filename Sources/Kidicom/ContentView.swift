@@ -65,7 +65,9 @@ struct ContentView: View {
 struct StudyTable: View {
     @Environment(AppModel.self) private var model
     @Environment(\.modelContext) private var context
-    @Query private var studies: [Study]
+    /// Deleted studies are left out by the database; the page filter and the
+    /// search run on what is left.
+    @Query(filter: #Predicate<Study> { $0.trashedAt == nil }) private var studies: [Study]
     @Query(sort: \Album.name) private var albums: [Album]
     @Environment(\.undoManager) private var undoManager
     @AppStorage("confirmDelete") private var confirmDelete = true
@@ -123,7 +125,7 @@ struct StudyTable: View {
             }
         }
         .contextMenu(forSelectionType: PersistentIdentifier.self) { selection in
-            let chosen = studies.filter { selection.contains($0.persistentModelID) }
+            let chosen = rows.filter { selection.contains($0.persistentModelID) }
             Menu("Add to Album") {
                 ForEach(albums) { album in
                     Button(album.name) { model.add(chosen, to: album) }
@@ -140,7 +142,7 @@ struct StudyTable: View {
                 askToDelete(chosen)
             }
         } primaryAction: { selection in
-            if let study = studies.first(where: { selection.contains($0.persistentModelID) }) { model.open(study.uid) }
+            if let study = rows.first(where: { selection.contains($0.persistentModelID) }) { model.open(study.uid) }
         }
         .onDeleteCommand {
             askToDelete(studies.filter { $0.uid == model.selection })
@@ -216,7 +218,7 @@ struct FilesLabel: View {
     let study: Study
 
     var body: some View {
-        if study.isOffline {
+        if Availability.shared.isOffline(study) {
             Label("Offline", systemImage: "externaldrive.badge.xmark")
                 .foregroundStyle(.secondary)
                 .help("The files of this study were moved or removed.")

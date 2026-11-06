@@ -168,6 +168,7 @@ struct LibraryLocationRow: View {
             }
             moving = nil
             revision += 1
+            Availability.shared.refresh()
         }
     }
 }
