@@ -851,6 +851,16 @@
         }
       }
     },
+    "Hide Series": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar Séries"
+          }
+        }
+      }
+    },
     "Hide the series of this study": {
       "localizations": {
         "pt-BR": {
@@ -1751,12 +1761,32 @@
         }
       }
     },
+    "Show Series": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar Séries"
+          }
+        }
+      }
+    },
     "Show in Finder": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Mostrar no Finder"
+          }
+        }
+      }
+    },
+    "Show or hide the series to give more room to the images (⇧⌘S)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra ou oculta as séries para ampliar a área das imagens (⇧⌘S)"
           }
         }
       }

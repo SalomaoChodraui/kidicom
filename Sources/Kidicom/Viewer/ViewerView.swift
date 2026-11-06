@@ -73,9 +73,11 @@ struct ViewerView: View {
 
     private func content(_ study: Study) -> some View {
         HStack(spacing: 0) {
-            SeriesStrip(viewer: viewer, current: study, others: priors(of: study))
-                .frame(width: SeriesStrip.width)
-            Divider()
+            if viewer.showsSeries {
+                SeriesStrip(viewer: viewer, current: study, others: priors(of: study))
+                    .frame(width: SeriesStrip.width)
+                Divider()
+            }
             ViewportGrid(viewer: viewer, study: study)
                 .overlay {
                     if let progress = viewer.buildProgress {
@@ -105,6 +107,12 @@ struct ViewerView: View {
                 .inspectorColumnWidth(min: 400, ideal: 600, max: 1000)
         }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button(viewer.showsSeries ? "Hide Series" : "Show Series", systemImage: "sidebar.left") {
+                    viewer.showsSeries.toggle()
+                }
+                .help("Show or hide the series to give more room to the images (⇧⌘S)")
+            }
             ToolbarItem {
                 Menu {
                     Picker("Layout", selection: Bindable(viewer).layout) {

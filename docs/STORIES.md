@@ -87,6 +87,7 @@ UX:
 - Surface: new window (self-contained task people keep open beside the worklist)
 - States: offline study shows "Study Offline" with the reason; thumbnails show a spinner until decoded
 - Words: thumbnail captions "<series> · <n> images"; overlay corners: patient, ID, date | study, series | Im n/N, Pos, Thk | WL WW, Zoom
+- Reading: toolbar Show/Hide Series or View > Show/Hide Series (⇧⌘S) folds the strip away without changing the active image or layout; viewer-ct-reading captures this state.
 - Access: Return opens from the worklist; the thumbnail tooltip says "Show <series> (<n> images)"
 Status: done
 

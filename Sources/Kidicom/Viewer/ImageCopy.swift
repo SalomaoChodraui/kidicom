@@ -32,6 +32,9 @@ struct ViewerCommands: View {
     @FocusedValue(\.viewer) private var viewer
 
     var body: some View {
+        Button(viewer?.showsSeries == false ? "Show Series" : "Hide Series") { viewer?.showsSeries.toggle() }
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+            .disabled(viewer == nil)
         Button(viewer?.overlay.nextTitle ?? "Hide Patient Name") { viewer?.overlay = viewer?.overlay.next ?? .full }
             .keyboardShortcut(.tab, modifiers: [])
             .disabled(viewer == nil)

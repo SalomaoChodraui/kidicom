@@ -88,6 +88,7 @@ final class ViewerModel {
     /// Prior studies opened to compare, shown below the series strip.
     var priors: [PriorStudy] = []
     /// The open study's series folded away in the strip.
+    var showsSeries = true
     var currentCollapsed = false
     /// Prior studies whose series show in the strip.
     var expandedPriors: Set<UUID> = []
@@ -166,6 +167,7 @@ final class ViewerModel {
     var active: Viewport? { viewports.indices.contains(activeIndex) ? viewports[activeIndex] : nil }
 
     /// Snapshot mode sets the layout of the next viewer that opens.
+    static var nextHidesSeries = false
     static var nextLayout: ViewerLayout?
     /// Snapshot mode: rotate right and flip the first viewport of the next viewer.
     static var nextTransformed = false
@@ -186,6 +188,7 @@ final class ViewerModel {
 
     func load(_ study: Study) {
         guard stacks.isEmpty else { return }
+        if Self.nextHidesSeries { showsSeries = false; Self.nextHidesSeries = false }
         if let next = Self.nextLayout { layout = next; Self.nextLayout = nil }
         if Self.nextShowsTags { showsTags = true; Self.nextShowsTags = false }
         stacks = study.series.sorted { ($0.number, $0.seriesDescription) < ($1.number, $1.seriesDescription) }

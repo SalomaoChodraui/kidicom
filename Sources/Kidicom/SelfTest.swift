@@ -68,6 +68,10 @@ enum SelfTest {
                 let opened = Date.now
                 viewer.load(ct)
                 let viewport = viewer.active
+                check("the series strip is visible when a study opens", viewer.showsSeries)
+                viewer.showsSeries = false
+                check("hiding series preserves the active viewport and layout", viewer.active === viewport && viewer.layout == .single && viewer.stacks.count == ct.series.count)
+                viewer.showsSeries = true
                 while viewport?.image == nil && Date.now.timeIntervalSince(opened) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
                 check("the first image shows in under 300 ms", viewport?.image != nil && Date.now.timeIntervalSince(opened) < 0.3, "\(Date.now.timeIntervalSince(opened)) s")
                 check("the viewer starts in the middle of the series", viewport?.index == 12 && viewport?.count == 24)

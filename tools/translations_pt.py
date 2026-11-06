@@ -1,6 +1,9 @@
 # Portuguese (Brazil) for Resources/Localization/Localizable.xcstrings.
 # tools/localize.sh merges these into the catalog. Keys are the English source.
 PT = {
+"Hide Series": "Ocultar Séries",
+"Show Series": "Mostrar Séries",
+"Show or hide the series to give more room to the images (⇧⌘S)": "Mostra ou oculta as séries para ampliar a área das imagens (⇧⌘S)",
 "%@  %@  %@": "%1$@  %2$@  %3$@",
 "%@ already picks %@.": "%1$@ já escolhe %2$@.",
 "%@ is already used by the viewer.": "%@ já é usada pelo visualizador.",
