@@ -10,12 +10,18 @@ protocol FrameSource: AnyObject {
     func cached(_ index: Int) -> DecodedSlice?
     func load(_ index: Int) async -> DecodedSlice?
     func prefetch(around index: Int)
+    /// Prefetch that knows which way the person scrolls: +1 forward, -1 back, 0 still.
+    func prefetch(around index: Int, direction: Int)
     /// Position along the plane normal, in mm.
     func location(_ index: Int) -> Double?
     /// Row and column direction cosines of the frame.
     func orientation(_ index: Int) -> [Double]
     /// The file behind the frame, for the tag inspector; nil for reformats.
     func fileURL(_ index: Int) -> URL?
+}
+
+extension FrameSource {
+    func prefetch(around index: Int, direction: Int) { prefetch(around: index) }
 }
 
 extension SeriesStack: FrameSource {

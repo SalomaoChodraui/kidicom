@@ -198,7 +198,6 @@ final class ViewerModel {
             Self.nextFreeAngle = 0
         }
         fillEmptyViewports()
-        for stack in stacks { Task { await stack.makeThumbnail() } }
         if Self.next3D {
             Self.next3D = false
             Task { await enter3D() }

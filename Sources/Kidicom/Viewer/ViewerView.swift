@@ -74,7 +74,7 @@ struct ViewerView: View {
     private func content(_ study: Study) -> some View {
         HStack(spacing: 0) {
             SeriesStrip(viewer: viewer, current: study, others: priors(of: study))
-                .frame(width: 184)
+                .frame(width: SeriesStrip.width)
             Divider()
             ViewportGrid(viewer: viewer, study: study)
                 .overlay {
@@ -237,6 +237,7 @@ struct ViewerView: View {
 /// Thumbnails of the study's series. Click shows one; drag it to a viewport.
 struct SeriesStrip: View {
     let viewer: ViewerModel
+    static let width: CGFloat = 184
     let current: Study
     /// The patient's other studies, newest first: the strip's timeline.
     var others: [Study] = []
@@ -352,6 +353,7 @@ struct StudyFolderHeader: View {
 struct SeriesThumbnail: View {
     let stack: SeriesStack
     let isShown: Bool
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xs) {
@@ -366,7 +368,7 @@ struct SeriesThumbnail: View {
                     ProgressView().controlSize(.small)
                 }
             }
-            .frame(height: 96)
+            .frame(height: Self.height)
             .clipShape(RoundedRectangle(cornerRadius: Space.xs))
             .overlay {
                 RoundedRectangle(cornerRadius: Space.xs)
@@ -380,7 +382,13 @@ struct SeriesThumbnail: View {
                 .foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
+        // Drawn when the cell first shows, at the cell's size in pixels.
+        .task {
+            await stack.makeThumbnail(maxPixels: CGSize(width: SeriesStrip.width * displayScale, height: Self.height * displayScale))
+        }
     }
+
+    static let height: CGFloat = 96
 }
 
 /// Text in the four corners, like a radiology workstation.
