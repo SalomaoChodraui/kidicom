@@ -103,6 +103,8 @@ final class ReformatSource: FrameSource {
         if let hit = cached(index) { return hit }
         let started = generation
         let image = await Self.render(volume, plane, position(index), slab, mode, space.outside)
+        // Cancelled midway (the viewport moved to another series, or the slab changed): the picture is incomplete.
+        if Task.isCancelled { return nil }
         let slice = DecodedSlice(frame: .grayscale(image.values), width: image.width, height: image.height, inverted: false,
                                  defaultWindow: defaultWindow, pixelSpacing: image.pixelSpacing,
                                  sliceThickness: mode.isProjection ? slab : nil)
@@ -137,8 +139,20 @@ final class ReformatSource: FrameSource {
 
     @concurrent
     nonisolated static func render(_ volume: Volume, _ plane: ObliquePlane, _ t: Double, _ slab: Double, _ mode: SlabMode, _ outside: Float) async -> ResliceImage {
-        volume.reslice(plane, at: t, slab: slab, mode: mode, outside: outside)
+        let stop = StopFlag()
+        return await withTaskCancellationHandler {
+            volume.reslice(plane, at: t, slab: slab, mode: mode, outside: outside, isCancelled: { stop.isSet })
+        } onCancel: {
+            stop.set()
+        }
     }
+}
+
+/// Set from a task's cancellation handler, read by the reslice's worker threads.
+nonisolated private final class StopFlag: Sendable {
+    private let value = Atomic(false)
+    var isSet: Bool { value.load(ordering: .relaxed) }
+    func set() { value.store(true, ordering: .relaxed) }
 }
 
 /// The volume and the three planes through one point, shared by the
