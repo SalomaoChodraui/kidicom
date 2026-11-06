@@ -1,15 +1,29 @@
 {
-  "fill" : {
-    "solid" : "srgb:0.86800,0.95100,0.99500,1.00000"
+  "fill": {
+    "automatic-gradient": "srgb:0.07000,0.07000,0.08000,1.00000"
   },
-  "groups" : [
+  "groups": [
     {
-      "layers" : [
-        { "glass" : false, "image-name" : "kidicom.png", "name" : "kidicom" }
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "front.svg",
+          "name": "K"
+        }
       ],
-      "shadow" : { "kind" : "none", "opacity" : 0 },
-      "translucency" : { "enabled" : false, "value" : 0 }
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      }
     }
   ],
-  "supported-platforms" : { "squares" : [ "macOS" ] }
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
 }

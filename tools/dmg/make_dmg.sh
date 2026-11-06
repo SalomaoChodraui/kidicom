@@ -43,6 +43,7 @@ tell application "Finder"
     set current view of container window to icon view
     set toolbar visible of container window to false
     set statusbar visible of container window to false
+    set pathbar visible of container window to false
     set bounds of container window to {200, 120, 840, 562}
     set opts to the icon view options of container window
     set arrangement of opts to not arranged
@@ -51,6 +52,12 @@ tell application "Finder"
     set background picture of opts to file ".background:background.tiff"
     set position of item "$appName" of container window to {170, 186}
     set position of item "Aplicativos" of container window to {470, 186}
+    -- Out of sight for people who show hidden files in the Finder.
+    repeat with dotName in {".background", ".fseventsd", ".DS_Store", ".VolumeIcon.icns"}
+      try
+        set position of item dotName of container window to {800, 186}
+      end try
+    end repeat
     close
     open
     update without registering applications
