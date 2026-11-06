@@ -141,11 +141,11 @@ public extension Volume {
     }
 
     /// Samples a plane at `t` along its normal, trilinear, with an optional
-    /// MIP slab in mm.
+    /// slab in mm combined by `mode` (MIP, MinIP, or mean).
     func reslice(_ plane: ObliquePlane, at t: Double, slab: Double = 0, mode: SlabMode = .single, outside: Float) -> ResliceImage {
         let n = plane.normal
         let step = obliqueStep(n)
-        let half = mode == .mip ? max(0, Int((slab / step / 2).rounded(.down))) : 0
+        let half = mode.isProjection ? max(0, Int((slab / step / 2).rounded(.down))) : 0
         let origin = canvasOrigin(plane, at: t)
         let pixel = obliquePixel
         let w = plane.width, h = plane.height
@@ -153,35 +153,54 @@ public extension Volume {
         let inv = 1 / steps
         let o = origin * inv, ax = plane.across * pixel * inv, dy = plane.down * pixel * inv, nz = n * step * inv
         let nx = width, ny = height, nzCount = depth, plane2D = width * height
-        var out = [Float](repeating: outside, count: w * h)
+        // Slab steps run outermost and rows split across cores: each step reads
+        // the volume in memory order, which keeps a thick axial slab fast.
+        let initial: Float = mode == .minip ? .greatestFiniteMagnitude : mode == .mean ? 0 : -.greatestFiniteMagnitude
+        var values = [Float](repeating: initial, count: w * h)
+        var counts = [UInt16](repeating: 0, count: w * h)
+        let bands = max(1, min(h, ProcessInfo.processInfo.activeProcessorCount * 4))
         voxels.withUnsafeBufferPointer { v in
-            out.withUnsafeMutableBufferPointer { result in
-                for y in 0 ..< h {
-                    let row = o + Double(y) * dy
-                    for x in 0 ..< w {
-                        let base = row + Double(x) * ax
-                        var best = -Float.greatestFiniteMagnitude
-                        var hit = false
+            values.withUnsafeMutableBufferPointer { acc in
+                counts.withUnsafeMutableBufferPointer { hits in
+                    // Each band writes its own rows only.
+                    nonisolated(unsafe) let v = v, acc = acc, hits = hits
+                    DispatchQueue.concurrentPerform(iterations: bands) { band in
+                        let firstRow = band * h / bands, endRow = (band + 1) * h / bands
+                        @inline(__always) func at(_ i: Int, _ j: Int, _ k: Int) -> Float { Float(v[k * plane2D + j * nx + i]) }
                         for s in -half ... half {
-                            let p = base + Double(s) * nz
-                            guard p.x >= 0, p.y >= 0, p.z >= 0,
-                                  p.x <= Double(nx - 1), p.y <= Double(ny - 1), p.z <= Double(nzCount - 1) else { continue }
-                            let x0 = Int(p.x), y0 = Int(p.y), z0 = Int(p.z)
-                            let x1 = min(x0 + 1, nx - 1), y1 = min(y0 + 1, ny - 1), z1 = min(z0 + 1, nzCount - 1)
-                            let fx = Float(p.x - Double(x0)), fy = Float(p.y - Double(y0)), fz = Float(p.z - Double(z0))
-                            @inline(__always) func at(_ i: Int, _ j: Int, _ k: Int) -> Float { Float(v[k * plane2D + j * nx + i]) }
-                            let c00 = at(x0, y0, z0) + (at(x1, y0, z0) - at(x0, y0, z0)) * fx
-                            let c10 = at(x0, y1, z0) + (at(x1, y1, z0) - at(x0, y1, z0)) * fx
-                            let c01 = at(x0, y0, z1) + (at(x1, y0, z1) - at(x0, y0, z1)) * fx
-                            let c11 = at(x0, y1, z1) + (at(x1, y1, z1) - at(x0, y1, z1)) * fx
-                            let c0 = c00 + (c10 - c00) * fy, c1 = c01 + (c11 - c01) * fy
-                            best = max(best, c0 + (c1 - c0) * fz)
-                            hit = true
+                            let shifted = o + Double(s) * nz
+                            for y in firstRow ..< endRow {
+                                let row = shifted + Double(y) * dy
+                                for x in 0 ..< w {
+                                    let p = row + Double(x) * ax
+                                    guard p.x >= 0, p.y >= 0, p.z >= 0,
+                                          p.x <= Double(nx - 1), p.y <= Double(ny - 1), p.z <= Double(nzCount - 1) else { continue }
+                                    let x0 = Int(p.x), y0 = Int(p.y), z0 = Int(p.z)
+                                    let x1 = min(x0 + 1, nx - 1), y1 = min(y0 + 1, ny - 1), z1 = min(z0 + 1, nzCount - 1)
+                                    let fx = Float(p.x - Double(x0)), fy = Float(p.y - Double(y0)), fz = Float(p.z - Double(z0))
+                                    let c00 = at(x0, y0, z0) + (at(x1, y0, z0) - at(x0, y0, z0)) * fx
+                                    let c10 = at(x0, y1, z0) + (at(x1, y1, z0) - at(x0, y1, z0)) * fx
+                                    let c01 = at(x0, y0, z1) + (at(x1, y0, z1) - at(x0, y0, z1)) * fx
+                                    let c11 = at(x0, y1, z1) + (at(x1, y1, z1) - at(x0, y1, z1)) * fx
+                                    let c0 = c00 + (c10 - c00) * fy, c1 = c01 + (c11 - c01) * fy
+                                    let sample = c0 + (c1 - c0) * fz
+                                    let i = y * w + x
+                                    switch mode {
+                                    case .single, .mip: acc[i] = max(acc[i], sample)
+                                    case .minip: acc[i] = min(acc[i], sample)
+                                    case .mean: acc[i] += sample
+                                    }
+                                    hits[i] &+= 1
+                                }
+                            }
                         }
-                        if hit { result[y * w + x] = best }
                     }
                 }
             }
+        }
+        var out = [Float](repeating: outside, count: w * h)
+        for i in out.indices where counts[i] > 0 {
+            out[i] = mode == .mean ? values[i] / Float(counts[i]) : values[i]
         }
         let row = patientDirection(plane.across), column = patientDirection(plane.down)
         let patientNormal = patientDirection(n)

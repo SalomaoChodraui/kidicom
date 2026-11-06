@@ -3,14 +3,18 @@ import MetalKit
 import SwiftUI
 import simd
 
-/// The 3D view: left-drag rotates, right-drag zooms, wheel-button drag
-/// pans, Shift-left-drag sets the window, double-click resets.
+/// The 3D view: left-drag follows the viewer's tool (Window/Level sets the
+/// window, any other tool rotates); Shift or ⌘ swaps the two. Right-drag
+/// zooms, wheel-button drag pans, double-click resets.
 struct VolumeView: NSViewRepresentable {
     let session: VolumeSession
+    /// ⌘C: the rendering, its size in points, and pixels per point.
+    var onCopy: (CGImage, CGSize, CGFloat) -> Void = { _, _, _ in }
 
     func makeNSView(context: Context) -> VolumeMTKView {
         let view = VolumeMTKView(frame: .zero, device: session.renderer.device)
         view.session = session
+        view.onCopy = onCopy
         view.delegate = session.renderer
         view.colorPixelFormat = .bgra8Unorm
         view.enableSetNeedsDisplay = true
@@ -21,20 +25,46 @@ struct VolumeView: NSViewRepresentable {
 
     func updateNSView(_ view: VolumeMTKView, context: Context) {
         session.renderer.camera = session.camera
+        view.onCopy = onCopy
+        view.toolWindows = session.tool == .navigate
         view.needsDisplay = true
     }
 }
 
 final class VolumeMTKView: MTKView {
     var session: VolumeSession?
+    var onCopy: (CGImage, CGSize, CGFloat) -> Void = { _, _, _ in }
+
+    /// Edit > Copy (⌘C): the volume as shown.
+    @objc func copy(_ sender: Any?) {
+        let scale = window?.backingScaleFactor ?? 2
+        guard let session, bounds.width >= 1, bounds.height >= 1,
+              let image = session.renderer.renderImage(width: Int(bounds.width * scale), height: Int(bounds.height * scale)) else {
+            return NSSound.beep()
+        }
+        onCopy(image, bounds.size, scale)
+    }
     private var last: CGPoint?
     private var idle: Task<Void, Never>?
 
     override var acceptsFirstResponder: Bool { true }
 
-    /// Rotate, or the window icon while Shift or ⌘ is held.
-    private var windowMode = false {
-        didSet { if windowMode != oldValue { window?.invalidateCursorRects(for: self); currentCursor.set() } }
+    /// True when the viewer's tool is Window/Level.
+    var toolWindows = false {
+        didSet { if toolWindows != oldValue { updateMode() } }
+    }
+    private var modifierHeld = false {
+        didSet { if modifierHeld != oldValue { updateMode() } }
+    }
+    /// Left-drag sets the window: the tool, swapped while Shift or ⌘ is held.
+    private var windowMode: Bool { toolWindows != modifierHeld }
+
+    private func updateMode() {
+        window?.invalidateCursorRects(for: self)
+        if window?.isKeyWindow == true, let point = window?.mouseLocationOutsideOfEventStream,
+           bounds.contains(convert(point, from: nil)) {
+            currentCursor.set()
+        }
     }
     private var currentCursor: NSCursor { windowMode ? ToolCursor.cursor(for: .navigate) : ToolCursor.rotate }
 
@@ -43,7 +73,7 @@ final class VolumeMTKView: MTKView {
     }
 
     override func flagsChanged(with event: NSEvent) {
-        windowMode = !event.modifierFlags.intersection([.shift, .command]).isEmpty
+        modifierHeld = !event.modifierFlags.intersection([.shift, .command]).isEmpty
         super.flagsChanged(with: event)
     }
 
@@ -59,6 +89,18 @@ final class VolumeMTKView: MTKView {
             return true
         }
         return super.performKeyEquivalent(with: event)
+    }
+
+    /// The tool keys work here as in 2D: the Window/Level key makes
+    /// left-drag set the window, the Scroll and Rotate keys make it turn the volume.
+    override func keyDown(with event: NSEvent) {
+        let key = (event.charactersIgnoringModifiers ?? "").lowercased()
+        if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+           let tool = ToolKeys.shared.tool(for: key), tool == .navigate || tool == .scroll || tool == .rotate {
+            session?.onTool(tool)
+        } else {
+            super.keyDown(with: event)
+        }
     }
 
     private func begin(_ event: NSEvent) {
@@ -94,7 +136,8 @@ final class VolumeMTKView: MTKView {
         guard let session else { return }
         let d = delta(event)
         interacting()
-        if event.modifierFlags.contains(.shift) || event.modifierFlags.contains(.command) {
+        let swapped = !event.modifierFlags.intersection([.shift, .command]).isEmpty
+        if toolWindows != swapped {
             session.adjustWindow(dx: d.width, dy: -d.height)
         } else {
             session.rotate(dx: Float(d.width), dy: Float(d.height))
@@ -140,6 +183,11 @@ final class VolumeSession {
     let title: String
     @ObservationIgnored let renderer: VolumeRenderer
     var camera: VolumeCamera
+    /// The viewer's left-button tool: Window/Level sets the window, any
+    /// other rotates.
+    var tool: MeasureTool = .scroll
+    /// Picks a tool from a key pressed in the 3D view.
+    @ObservationIgnored var onTool: (MeasureTool) -> Void = { _ in }
     /// The 2D window when 3D opened, for the Current Window preset.
     let currentWindow: VOIWindow
     /// A window from the volume's own values, for MR and other non-CT series.
@@ -211,31 +259,44 @@ final class VolumeSession {
 struct VolumePane: View {
     let session: VolumeSession
     let study: Study
+    var level: OverlayLevel = .full
 
     var body: some View {
-        VolumeView(session: session)
-            .overlay(alignment: .topLeading) {
+        VolumeView(session: session, onCopy: { image, size, scale in
+            ImageCopy.copy(image, size: size, scale: scale) { data(hints: false) }
+        })
+        .overlay { data(hints: true).allowsHitTesting(false) }
+    }
+
+    /// The text over the volume, as Tab leaves it. The mouse hints stay off copies.
+    private func data(hints: Bool) -> some View {
+        ZStack {
+            if level != .hidden {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(study.displayName)
+                    if level == .full { Text(study.displayName) }
                     Text(session.title)
                     Text(session.camera.preset.title)
                 }
                 .padding(Space.sm)
-            }
-            .overlay(alignment: .bottomTrailing) {
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(String(localized: "WL \(Int(session.camera.window.center.rounded())) WW \(Int(session.camera.window.width.rounded()))"))
                     Text(String(localized: "Zoom \(Int((session.camera.zoom * 100).rounded()))%"))
                 }
                 .padding(Space.sm)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                if hints {
+                    Text(session.tool == .navigate
+                         ? "Drag: window/level · Shift-drag: rotate · Right-drag: zoom · Wheel button: pan"
+                         : "Drag: rotate · Shift-drag: window/level · Right-drag: zoom · Wheel button: pan")
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(Space.sm)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                }
             }
-            .overlay(alignment: .bottomLeading) {
-                Text("Drag: rotate · Shift-drag or ⌘-drag: window/level · Right-drag: zoom · Wheel button: pan")
-                    .foregroundStyle(.white.opacity(0.6))
-                    .padding(Space.sm)
-            }
-            .font(.system(size: 12).monospacedDigit())
-            .foregroundStyle(.white)
-            .shadow(color: .black, radius: 1, x: 0, y: 1)
+        }
+        .font(.system(size: 12).monospacedDigit())
+        .foregroundStyle(.white)
+        .shadow(color: .black, radius: 1, x: 0, y: 1)
     }
 }

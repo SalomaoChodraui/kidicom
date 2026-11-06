@@ -411,6 +411,16 @@
         }
       }
     },
+    "Back to one viewport; the arrow picks up to four viewports": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voltar a um quadro; a seta escolhe até quatro quadros"
+          }
+        }
+      }
+    },
     "Bone": {
       "localizations": {
         "pt-BR": {
@@ -471,12 +481,52 @@
         }
       }
     },
+    "Change…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alterar…"
+          }
+        }
+      }
+    },
     "Choose DICOM files, folders, or zips to import.": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Escolha arquivos DICOM, pastas ou zips para importar."
+          }
+        }
+      }
+    },
+    "Choose a folder outside iCloud Drive.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha uma pasta fora do iCloud Drive."
+          }
+        }
+      }
+    },
+    "Choose a folder outside the current Library.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha uma pasta fora da Biblioteca atual."
+          }
+        }
+      }
+    },
+    "Choose where to keep the Library. A folder named “Kidicom Library” is created inside it.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha onde guardar a Biblioteca. Uma pasta “Kidicom Library” é criada dentro dela."
           }
         }
       }
@@ -497,6 +547,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Comparar"
+          }
+        }
+      }
+    },
+    "Copied files can live on another disk. The database stays on this Mac.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os arquivos copiados podem ficar em outro disco. O banco de dados fica neste Mac."
           }
         }
       }
@@ -671,12 +731,22 @@
         }
       }
     },
-    "Drag: rotate · Shift-drag or ⌘-drag: window/level · Right-drag: zoom · Wheel button: pan": {
+    "Drag: rotate · Shift-drag: window/level · Right-drag: zoom · Wheel button: pan": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arrastar: girar · Shift ou ⌘ + arrastar: janela · Botão direito: zoom · Rodinha: mover"
+            "value": "Arrastar: girar · Shift + arrastar: janela · Botão direito: zoom · Rodinha: mover"
+          }
+        }
+      }
+    },
+    "Drag: window/level · Shift-drag: rotate · Right-drag: zoom · Wheel button: pan": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrastar: janela · Shift + arrastar: girar · Botão direito: zoom · Rodinha: mover"
           }
         }
       }
@@ -761,12 +831,42 @@
         }
       }
     },
+    "Hide Image Data": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar Dados da Imagem"
+          }
+        }
+      }
+    },
+    "Hide Patient Name": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar Nome do Paciente"
+          }
+        }
+      }
+    },
     "Hide the series of this study": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
             "value": "Ocultar as séries deste exame"
+          }
+        }
+      }
+    },
+    "How the slab combines its planes: MIP keeps the brightest (vessels, bone), MinIP the darkest (airways, lung), Mean the average": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como a espessura combina os planos: MIP mantém o mais claro (vasos, osso), MinIP o mais escuro (vias aéreas, pulmão), Média a média"
           }
         }
       }
@@ -1025,12 +1125,12 @@
         }
       }
     },
-    "MIP %lld mm": {
+    "MIP": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "MIP %lld mm"
+            "value": "MIP"
           }
         }
       }
@@ -1075,12 +1175,22 @@
         }
       }
     },
-    "Maximum Intensity Projection (MIP)": {
+    "Mean": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Projeção de Intensidade Máxima (MIP)"
+            "value": "Média"
+          }
+        }
+      }
+    },
+    "MinIP": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MinIP"
           }
         }
       }
@@ -1101,6 +1211,32 @@
           "stringUnit": {
             "state": "translated",
             "value": "Modalidade"
+          }
+        }
+      }
+    },
+    "Move Library Here": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mover Biblioteca para Cá"
+          }
+        }
+      }
+    },
+    "Moving %lld of %lld Files…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Moving %1$lld of %2$lld Files…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Movendo %1$lld de %2$lld arquivos…"
           }
         }
       }
@@ -1195,6 +1331,16 @@
         }
       }
     },
+    "OK": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
     "Oblique": {
       "localizations": {
         "pt-BR": {
@@ -1215,12 +1361,12 @@
         }
       }
     },
-    "Open a prior study of this patient beside the current one, and set what scrolls together": {
+    "Open the latest prior study of this patient beside the current one; the arrow lists the others and what scrolls together": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abrir um exame anterior deste paciente ao lado do atual e escolher o que rola junto"
+            "value": "Abrir o exame anterior mais recente deste paciente ao lado do atual; a seta lista os outros e o que rola junto"
           }
         }
       }
@@ -1281,6 +1427,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pausar o cine (Espaço)"
+          }
+        }
+      }
+    },
+    "Plane": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plano"
+          }
+        }
+      }
+    },
+    "Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plano, girar ou espelhar o quadro ativo (⌃1 a ⌃3, ⌃R, ⌃L, H, V); ⌘R restaura a vista"
           }
         }
       }
@@ -1351,6 +1517,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tag Privada"
+          }
+        }
+      }
+    },
+    "Projection": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projeção"
           }
         }
       }
@@ -1455,12 +1631,12 @@
         }
       }
     },
-    "Rotate Freely": {
+    "Rotate 3D": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Girar Livremente"
+            "value": "Girar 3D"
           }
         }
       }
@@ -1485,12 +1661,12 @@
         }
       }
     },
-    "Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view": {
+    "Rotate and Flip": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Girar ou espelhar o quadro ativo (⌃R, ⌃L, H, V); ⌘R restaura a imagem"
+            "value": "Girar e Espelhar"
           }
         }
       }
@@ -1565,6 +1741,16 @@
         }
       }
     },
+    "Show Image Data": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar Dados da Imagem"
+          }
+        }
+      }
+    },
     "Show in Finder": {
       "localizations": {
         "pt-BR": {
@@ -1595,6 +1781,16 @@
         }
       }
     },
+    "Show the active series as axial (⌃1), coronal (⌃2), or sagittal (⌃3)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar a série ativa em axial (⌃1), coronal (⌃2) ou sagital (⌃3)"
+          }
+        }
+      }
+    },
     "Show the series of this study. Right-click a thumbnail to open it beside the current images.": {
       "localizations": {
         "pt-BR": {
@@ -1615,12 +1811,12 @@
         }
       }
     },
-    "Slab and MIP": {
+    "Slab thickness; moving it while Thin turns on MIP": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Espessura e MIP"
+            "value": "Espessura do corte; mover no modo Fino liga o MIP"
           }
         }
       }
@@ -1635,12 +1831,12 @@
         }
       }
     },
-    "Split the image area into up to four viewports": {
+    "Split the image area; the arrow picks up to four viewports": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dividir a área de imagem em até quatro quadros"
+            "value": "Dividir a área de imagem; a seta escolhe até quatro quadros"
           }
         }
       }
@@ -1745,6 +1941,46 @@
         }
       }
     },
+    "The Library disk is not connected. Copied studies are offline.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O disco da Biblioteca não está conectado. Os exames copiados estão offline."
+          }
+        }
+      }
+    },
+    "The Library is being moved. Import again when it finishes.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Biblioteca está sendo movida. Importe de novo quando terminar."
+          }
+        }
+      }
+    },
+    "The Library is not available. Connect its disk and try again.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Biblioteca não está disponível. Conecte o disco e tente de novo."
+          }
+        }
+      }
+    },
+    "The current Library is not available. Connect its disk and try again.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Biblioteca atual não está disponível. Conecte o disco e tente de novo."
+          }
+        }
+      }
+    },
     "The files of this study were moved or removed.": {
       "localizations": {
         "pt-BR": {
@@ -1765,22 +2001,12 @@
         }
       }
     },
-    "Thickness": {
+    "Thin": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Espessura"
-          }
-        }
-      }
-    },
-    "Thickness and MIP for the active plane": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Espessura e MIP do plano ativo"
+            "value": "Fino"
           }
         }
       }
@@ -1791,6 +2017,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Esta série não pode ser reformatada. Ela precisa de pelo menos três imagens paralelas com posição."
+          }
+        }
+      }
+    },
+    "This series can't be shown in that plane.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta série não pode ser mostrada nesse plano."
           }
         }
       }
@@ -1845,6 +2081,26 @@
         }
       }
     },
+    "Unable to Move the Library": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não Foi Possível Mover a Biblioteca"
+          }
+        }
+      }
+    },
+    "Unable to copy %@. The Library was not moved.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível copiar %@. A Biblioteca não foi movida."
+          }
+        }
+      }
+    },
     "Unable to open %@. The zip may be damaged.": {
       "localizations": {
         "pt-BR": {
@@ -1891,6 +2147,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Álbum sem Nome"
+          }
+        }
+      }
+    },
+    "Use Default": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar Padrão"
           }
         }
       }

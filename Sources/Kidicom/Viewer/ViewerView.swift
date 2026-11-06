@@ -21,6 +21,38 @@ struct ViewerView: View {
         _studies = Query(filter: #Predicate<Study> { $0.uid == studyUID })
     }
 
+    /// Plane, rotate, flip, and reset for the active viewport; it also carries their shortcuts.
+    private var orientationMenu: some View {
+        Menu {
+            Section("Plane") {
+                Button("Axial") { Task { await viewer.show(plane: .axial) } }
+                    .keyboardShortcut("1", modifiers: .control)
+                Button("Coronal") { Task { await viewer.show(plane: .coronal) } }
+                    .keyboardShortcut("2", modifiers: .control)
+                Button("Sagittal") { Task { await viewer.show(plane: .sagittal) } }
+                    .keyboardShortcut("3", modifiers: .control)
+            }
+            .disabled(!viewer.canChangePlane)
+            Section("Rotate and Flip") {
+                Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
+                    .keyboardShortcut("r", modifiers: .control)
+                Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
+                    .keyboardShortcut("l", modifiers: .control)
+                Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
+                    .keyboardShortcut("h", modifiers: [])
+                Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
+                    .keyboardShortcut("v", modifiers: [])
+            }
+            Divider()
+            Button("Reset View") { viewer.active?.reset() }
+                .keyboardShortcut("r", modifiers: .command)
+        } label: {
+            Label("Orientation", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
+        }
+        .menuIndicator(.hidden)
+        .help("Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view")
+    }
+
     var body: some View {
         Group {
             if let study = studies.first {
@@ -74,6 +106,24 @@ struct ViewerView: View {
         }
         .toolbar {
             ToolbarItem {
+                Menu {
+                    Picker("Layout", selection: Bindable(viewer).layout) {
+                        ForEach(ViewerLayout.allCases) { layout in
+                            Label(layout.title, systemImage: layout.symbol).tag(layout)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } label: {
+                    Label("Layout", systemImage: viewer.layout == .single ? "rectangle.split.2x1" : viewer.layout.symbol)
+                } primaryAction: {
+                    viewer.toggleSplit()
+                }
+                .help(viewer.layout == .single
+                      ? "Split the image area; the arrow picks up to four viewports"
+                      : "Back to one viewport; the arrow picks up to four viewports")
+            }
+            ToolbarItem {
                 let others = priors(of: study)
                 Menu {
                     if others.isEmpty {
@@ -94,13 +144,16 @@ struct ViewerView: View {
                     // No badge: a toolbar menu shows only its icon; the priors are listed inside and in the strip.
                     Image(systemName: "clock.arrow.circlepath")
                     .accessibilityLabel(Text("Compare"))
+                } primaryAction: {
+                    if let latest = others.first { viewer.openPrior(latest) }
                 }
-                .help("Open a prior study of this patient beside the current one, and set what scrolls together")
+                .help("Open the latest prior study of this patient beside the current one; the arrow lists the others and what scrolls together")
             }
             ToolbarItem {
                 Picker("Tool", selection: Bindable(viewer).tool) {
                     ForEach(MeasureTool.allCases) { tool in
-                        Label { Text(tool.title) } icon: { Image(systemName: tool.symbol) }.tag(tool)
+                        let in3D = viewer.volume3D != nil
+                        Label { Text(tool.title(in3D: in3D)) } icon: { tool.icon(in3D: in3D) }.tag(tool)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -115,26 +168,15 @@ struct ViewerView: View {
                 .help(playing ? "Pause the cine (Space)" : "Play the images as a cine (Space)")
                 .disabled((viewer.active?.count ?? 0) < 2)
             }
+            // The planes and the orientation menu share one capsule. Plane and
+            // slab mean nothing in 3D: their room goes to the 3D presets.
             ToolbarItem {
-                Menu {
-                    Button("Rotate Right") { viewer.active?.rotate(clockwise: true) }
-                        .keyboardShortcut("r", modifiers: .control)
-                    Button("Rotate Left") { viewer.active?.rotate(clockwise: false) }
-                        .keyboardShortcut("l", modifiers: .control)
-                    Button("Rotate Freely") { viewer.tool = .rotate }
-                        .keyboardShortcut("r", modifiers: [])
-                    Divider()
-                    Button("Flip Horizontal") { viewer.active?.flip(horizontal: true) }
-                        .keyboardShortcut("h", modifiers: [])
-                    Button("Flip Vertical") { viewer.active?.flip(horizontal: false) }
-                        .keyboardShortcut("v", modifiers: [])
-                    Divider()
-                    Button("Reset View") { viewer.active?.reset() }
-                        .keyboardShortcut("r", modifiers: .command)
-                } label: {
-                    Label("Orientation", systemImage: "rotate.right")
+                HStack(spacing: Space.xs) {
+                    if viewer.volume3D == nil {
+                        PlanePicker(viewer: viewer)
+                    }
+                    orientationMenu
                 }
-                .help("Rotate or flip the active viewport (⌃R, ⌃L, H, V); ⌘R resets the view")
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.mpr != nil }, set: { _ in viewer.toggleMPR() })) {
@@ -143,12 +185,14 @@ struct ViewerView: View {
                 .help(viewer.mpr == nil ? "Reformat the active series in three planes (MPR)" : "Leave MPR")
                 .disabled(viewer.mpr == nil && viewer.mprCandidate == nil || viewer.buildProgress != nil)
             }
-            ToolbarItem {
-                SlabButton(viewer: viewer)
+            if viewer.volume3D == nil {
+                ToolbarItem {
+                    SlabControl(viewer: viewer)
+                }
             }
             ToolbarItem {
                 Toggle(isOn: Binding(get: { viewer.volume3D != nil }, set: { _ in viewer.toggle3D() })) {
-                    Label("3D", systemImage: "cube")
+                    Label("3D", systemImage: "view.3d")
                 }
                 .help(viewer.volume3D == nil ? "Show the active series as a 3D volume" : "Leave 3D (Esc)")
                 .disabled(viewer.volume3D == nil && viewer.mprCandidate == nil && viewer.mpr == nil || viewer.buildProgress != nil)
@@ -172,19 +216,12 @@ struct ViewerView: View {
                     .keyboardShortcut("i")
                     .help("Show the DICOM tags of the image (⌘I)")
             }
-            ToolbarItem(placement: .principal) {
-                Picker("Layout", selection: Bindable(viewer).layout) {
-                    ForEach(ViewerLayout.allCases) { layout in
-                        Label(layout.title, systemImage: layout.symbol).tag(layout)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelStyle(.iconOnly)
-                .help("Split the image area into up to four viewports")
-            }
         }
+        .focusedSceneValue(\.viewer, viewer)
         .navigationTitle(study.displayName)
         .navigationSubtitle(study.studyDescription)
+        // The patient and study show on the image; the toolbar needs the room.
+        .toolbar(removing: .title)
         .background(CloseKeyCatcher { viewer.closeActiveViewport() })
         .task(id: study.uid) {
             viewer.load(study)
@@ -350,8 +387,13 @@ struct SeriesThumbnail: View {
 struct ViewportOverlay: View {
     let viewport: Viewport
     let study: Study
+    var level: OverlayLevel = .full
 
     var body: some View {
+        if level != .hidden { content }
+    }
+
+    private var content: some View {
         ZStack {
             corners
             if let edges = viewport.edges {
@@ -377,7 +419,7 @@ struct ViewportOverlay: View {
     private var corners: some View {
         VStack {
             HStack(alignment: .top) {
-                corner([study.displayName, study.patientID, shownDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
+                corner([level == .full ? study.displayName : nil, level == .full ? study.patientID : nil, shownDate.map { $0.formatted(date: .numeric, time: .omitted) }], alignment: .leading)
                 Spacer()
                 corner([study.studyDescription, viewport.source?.title], alignment: .trailing)
             }
@@ -393,7 +435,7 @@ struct ViewportOverlay: View {
 
     /// The date of the study this viewport shows, which may be a prior.
     private var shownDate: Date? {
-        if let stack = viewport.stack, stack.studyUID != nil { return stack.studyDate }
+        if let stack = viewport.baseStack, stack.studyUID != nil { return stack.studyDate }
         return study.studyDate
     }
 
@@ -401,7 +443,7 @@ struct ViewportOverlay: View {
         guard viewport.count > 0 else { return [] }
         var lines = [String(localized: "Im \(viewport.index + 1)/\(viewport.count)")]
         if let source = viewport.source as? ReformatSource {
-            if source.isMIP { lines.append(String(localized: "MIP \(Int(source.slab)) mm")) }
+            if source.mode.isProjection { lines.append("\(String(localized: source.mode.title)) \(Int(source.slab)) mm") }
             for warning in source.volume.warnings {
                 switch warning {
                 case .gaps(let n): lines.append(String(localized: "\(n) gaps between slices"))
@@ -471,23 +513,6 @@ struct RightClickCatcher: NSViewRepresentable {
 }
 
 /// Opens the slab and MIP controls for the active reformatted plane.
-struct SlabButton: View {
-    let viewer: ViewerModel
-    @State private var isPresented = false
-
-    var body: some View {
-        let source = viewer.active?.source as? ReformatSource
-        Button("Slab and MIP", systemImage: "square.3.layers.3d") { isPresented.toggle() }
-            .help("Thickness and MIP for the active plane")
-            .disabled(source == nil)
-            .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-                if let source, let viewport = viewer.active {
-                    SlabControls(source: source, viewport: viewport)
-                }
-            }
-    }
-}
-
 /// Catches ⌘W in the viewer window before the window closes: the viewer
 /// closes one viewport (or leaves MPR or 3D) and only lets the window close
 /// when one viewport is left.

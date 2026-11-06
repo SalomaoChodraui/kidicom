@@ -173,7 +173,7 @@ Acceptance:
 - [unit] Usa Pixel Spacing; em US, Sequence of Ultrasound Regions; sem calibração, mostra "px".
 - [self] Delete apaga a medida selecionada; as medidas continuam na tela ao rolar a série e somem ao trocar a série ou fechar o exame.
 UX:
-- Flow: toolbar Distance tool -> press and drag from one point to the other -> label shows mm (px without calibration) -> drag a handle to adjust -> click a measurement to select, Delete removes -> Esc returns to Window/Level
+- Flow: toolbar Distance tool -> click the first point, the end follows the pointer, click the second point (press and drag also works) -> label shows mm (px without calibration) -> drag a handle to adjust -> click a measurement to select, Delete removes -> Esc returns to Window/Level
 - Surface: tool in the toolbar, drawing on the image
 - Words: tools "Window/Level", "Distance", "Angle"; labels "118,2 mm", "4,35 mm", "120 px"
 - Access: selected measurement in cyan, others yellow; handles stay editable with any tool

@@ -30,6 +30,7 @@ struct KidicomApp: App {
         .commands {
             SidebarCommands()
             ToolbarCommands()
+            CommandGroup(after: .toolbar) { ViewerCommands() }
             CommandGroup(replacing: .newItem) {
                 Button("Import…") { model.importFiles() }
                     .disabled(model.importer.isBusy)

@@ -7,13 +7,15 @@ import simd
 /// One plane of an oblique MPR as something a viewport can scroll: the
 /// index walks along the plane's normal, through the volume.
 final class ReformatSource: FrameSource {
-    unowned let session: MPRSession
+    /// Strong, so a picture still loading never outlives its volume. MPR
+    /// breaks the cycle with `sources` when it closes.
+    let session: MPRSession
     /// 0 acquired plane, 1 and 2 the reformats, as `VolumePlane` orders them.
     let planeIndex: Int
     let id: String
     let modality: String
     let defaultWindow: VOIWindow
-    /// Slab thickness in mm and how to combine it (S-022).
+    /// Slab thickness in mm and how to combine it (S-022): MIP, MinIP, or mean.
     private(set) var slab: Double = 0
     private(set) var mode: SlabMode = .single
     private var cache: [Int: DecodedSlice] = [:]
@@ -46,7 +48,6 @@ final class ReformatSource: FrameSource {
 
     private var range: (start: Double, step: Double, count: Int) { volume.obliqueRange(plane.normal) }
     var count: Int { range.count }
-    var isMIP: Bool { mode == .mip }
 
     /// Position along the normal for an index, in volume mm.
     func position(_ index: Int) -> Double { range.start + Double(index) * range.step }
@@ -57,9 +58,10 @@ final class ReformatSource: FrameSource {
         return min(max(0, Int(((simd_dot(session.frame.center, plane.normal) - r.start) / r.step).rounded())), r.count - 1)
     }
 
-    func setSlab(_ mm: Double, mip: Bool) {
+    func setSlab(_ mm: Double, mode: SlabMode) {
+        guard mm != slab || mode != self.mode else { return }
         slab = mm
-        mode = mip ? .mip : .single
+        self.mode = mode
         invalidate()
     }
 
@@ -81,7 +83,7 @@ final class ReformatSource: FrameSource {
         let image = await Self.render(volume, plane, position(index), slab, mode, session.outside)
         let slice = DecodedSlice(frame: .grayscale(image.values), width: image.width, height: image.height, inverted: false,
                                  defaultWindow: defaultWindow, pixelSpacing: image.pixelSpacing,
-                                 sliceThickness: mode == .mip ? slab : nil)
+                                 sliceThickness: mode.isProjection ? slab : nil)
         guard started == generation else { return slice }   // the plane moved meanwhile: show it, don't keep it
         if cache.count > 8 { cache.removeAll() }
         cache[index] = slice
@@ -211,39 +213,5 @@ struct CrosshairOverlay: View {
         case 1: .green
         default: .cyan
         }
-    }
-}
-
-/// Slab thickness and MIP for the active reformatted viewport.
-struct SlabControls: View {
-    let source: ReformatSource
-    let viewport: Viewport
-    @State private var mip = false
-    @State private var thickness = 10.0
-
-    var body: some View {
-        Form {
-            Toggle("Maximum Intensity Projection (MIP)", isOn: $mip)
-            LabeledContent("Thickness") {
-                HStack {
-                    Slider(value: $thickness, in: 1 ... 50, step: 1)
-                        .frame(width: 180)
-                    Text("\(Int(thickness)) mm").monospacedDigit().frame(width: 48, alignment: .trailing)
-                }
-            }
-            .disabled(!mip)
-        }
-        .padding(Space.lg)
-        .onAppear {
-            mip = source.isMIP
-            if source.slab > 0 { thickness = source.slab }
-        }
-        .onChange(of: mip) { apply() }
-        .onChange(of: thickness) { apply() }
-    }
-
-    private func apply() {
-        source.setSlab(thickness, mip: mip)
-        viewport.reload()
     }
 }

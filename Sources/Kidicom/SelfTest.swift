@@ -3,6 +3,7 @@ import SwiftData
 import KidicomKit
 import Foundation
 import simd
+import SwiftUI
 
 /// Self-test for agents: runs the app's real functions on a test store,
 /// prints PASS or FAIL per check, and quits with exit code 0 or 1.
@@ -83,6 +84,30 @@ enum SelfTest {
                     window.contentView = view
                     view.viewport = viewport
                     check("the viewport clips the image to its bounds", view.layer?.masksToBounds == true)
+                    // Tab: all text, then no names, then none. ⌘C copies the image as shown.
+                    let tabs = [OverlayLevel.full.next, OverlayLevel.full.next.next, OverlayLevel.full.next.next.next]
+                    check("Tab hides the names, then all data, then shows everything", tabs == [.noNames, .hidden, .full])
+                    let clipboard = NSPasteboard(name: .init("com.salomao.kidicom.selftest"))
+                    ImageCopy.pasteboard = clipboard
+                    view.update(image: viewport.image)
+                    view.onCopy = { image, size, scale in
+                        ImageCopy.copy(image, size: size, scale: scale) {
+                            ViewportOverlay(viewport: viewport, study: ct, level: .noNames)
+                        }
+                    }
+                    view.copy(nil)
+                    let copied = NSImage(pasteboard: clipboard)
+                    let copiedLit: Int = {
+                        guard let cg = copied?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                              let data = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return 0 }
+                        var lit = 0
+                        for i in stride(from: 0, to: CFDataGetLength(data), by: 4 * 97) where bytes[i] > 40 { lit += 1 }
+                        return lit
+                    }()
+                    check("⌘C puts the image on the clipboard at the viewport's size", copied?.size == NSSize(width: 400, height: 400) && copiedLit > 50,
+                          "\(copied?.size ?? .zero), \(copiedLit) lit")
+                    clipboard.releaseGlobally()
+                    ImageCopy.pasteboard = .general
                     let number = window.windowNumber
                     func send(_ type: NSEvent.EventType, _ x: CGFloat, _ y: CGFloat, _ flags: NSEvent.ModifierFlags = []) -> NSEvent {
                         NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: flags, timestamp: 0,
@@ -127,9 +152,24 @@ enum SelfTest {
                         let degrees = angle.flatMap { $0.points.count == 3 ? Measure.angle($0.points[0], vertex: $0.points[1], $0.points[2], calibration: viewport.calibration(for: $0)) : nil }
                         check("an angle drawn as an L reads 90 degrees", viewport.measurements.count == 2 && abs((degrees ?? 0) - 90) < 0.5, "\(degrees ?? -1)")
                         check("the new angle is selected", viewport.selected == angle?.id)
+                        // A ruler drawn click to click: the end follows the pointer, the second click sets it.
+                        viewport.tool = .distance
+                        p = at(10, 50); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        check("one click leaves a ruler following the pointer", viewport.placingRuler && viewport.measurements.count == 2)
+                        p = at(20, 50); view.mouseMoved(with: send(.mouseMoved, p.0, p.1))
+                        let following = viewport.draft.map { abs($0.points[1].x - 20) < 0.5 } ?? false
+                        check("the ruler's end follows the pointer", following)
+                        p = at(30, 50); view.mouseDown(with: send(.leftMouseDown, p.0, p.1))
+                        view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
+                        let clicked = viewport.measurements.last
+                        let clickedMM = clicked.map { Measure.distance($0.points[0], $0.points[1], calibration: viewport.calibration(for: $0)) }
+                        check("a second click ends the ruler at 100 mm", viewport.draft == nil && viewport.measurements.count == 3
+                              && clicked?.kind == .distance && abs((clickedMM ?? 0) - 100) < 0.5, "\(clickedMM ?? -1)")
+                        viewport.tool = .angle
                         view.keyDown(with: NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: number,
                                                             context: nil, characters: "\u{7F}", charactersIgnoringModifiers: "\u{7F}", isARepeat: false, keyCode: 51)!)
-                        check("Delete removes the selected measurement", viewport.measurements.count == 1)
+                        check("Delete removes the selected measurement", viewport.measurements.count == 2)
                         // Area: a 20 x 20 px outline on 5 mm pixels is 100 x 100 mm = 100 cm².
                         viewport.tool = .area
                         let corners: [(CGFloat, CGFloat)] = [(20, 10), (40, 10), (40, 30), (20, 30), (20, 11)]
@@ -151,7 +191,7 @@ enum SelfTest {
                         p = at(35, 20); view.mouseDragged(with: send(.leftMouseDragged, p.0, p.1))
                         view.mouseUp(with: send(.leftMouseUp, p.0, p.1))
                         let after = viewport.measurements.last?.points.first
-                        check("dragging inside the outline moves it whole", viewport.measurements.count == 2 && abs((after?.x ?? 0) - (before?.x ?? 0) - 5) < 0.5)
+                        check("dragging inside the outline moves it whole", viewport.measurements.count == 3 && abs((after?.x ?? 0) - (before?.x ?? 0) - 5) < 0.5)
                         viewport.measurements.removeLast()
                         let here = viewport.index
                         viewport.go(to: here == 0 ? 1 : here - 1)
@@ -367,6 +407,30 @@ enum SelfTest {
                   "\(model.importer.phase) \(model.importer.pendingCount)")
             model.importer.cancel()
 
+            // Library location: move copied files to another folder and back.
+            let copiedCount = images().filter(\.isCopied).count
+            let external = folder.appending(path: "disk", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: external, withIntermediateDirectories: true)
+            let moved = Library.destination(for: external)
+            check("a picked folder gets a Kidicom Library inside it", moved.lastPathComponent == "Kidicom Library" && moved.deletingLastPathComponent().path == external.path)
+            check("folders in iCloud Drive are refused", Library.isInICloud(URL(fileURLWithPath: NSHomeDirectory() + "/Library/Mobile Documents/com~apple~CloudDocs/x")))
+            let oldFiles = Library.root.appending(path: "Files")
+            var movedOK = true
+            do { try await Library.move(to: moved) { _, _ in } } catch { movedOK = false }
+            check("the Library moves to the picked folder", movedOK && Library.root.path == moved.path)
+            check("every copied image opens from the new folder", copiedCount > 0 && images().filter(\.isCopied).allSatisfy { FileManager.default.fileExists(atPath: $0.fileURL.path) })
+            check("the old copies are gone", !FileManager.default.fileExists(atPath: oldFiles.path))
+            try? FileManager.default.moveItem(at: external, to: folder.appending(path: "unplugged"))
+            check("copied studies go offline while the disk is missing", !Library.isAvailable && studies().filter(\.isCopied).allSatisfy(\.isOffline))
+            let blocked = await model.importer.run(ImportScan(), copy: true)
+            check("imports that copy are refused while the disk is missing", blocked.images == 0 && { if case .failed = model.importer.phase { true } else { false } }())
+            model.importer.dismissMessage()
+            try? FileManager.default.moveItem(at: folder.appending(path: "unplugged"), to: external)
+            check("they come back when the disk returns", Library.isAvailable && studies().filter(\.isCopied).allSatisfy { !$0.isOffline })
+            var backOK = true
+            do { try await Library.move(to: Library.destination(for: nil)) { _, _ in } } catch { backOK = false }
+            check("Use Default brings the Library back", backOK && Library.customRoot == nil && images().filter(\.isCopied).allSatisfy { FileManager.default.fileExists(atPath: $0.fileURL.path) })
+
             // S-042: delete hides at once, Undo brings it back, the next launch purges.
             if let ct {
                 let undo = UndoManager()
@@ -390,6 +454,27 @@ enum SelfTest {
         // S-020 to S-022: MPR from the 24-slice CT.
         let viewer = ViewerModel()
         viewer.load(ct)
+        // Plane picker: the axial CT shown coronal and sagittal in one viewport, then back.
+        check("an axial CT starts axial and can change plane", viewer.activePlane == .axial && viewer.canChangePlane)
+        await viewer.show(plane: .coronal)
+        check("Coronal reformats the active viewport", viewer.activePlane == .coronal && viewer.active?.reformatBase != nil && viewer.layout == .single)
+        check("the coronal plane walks front to back through the volume", (viewer.active?.count ?? 0) > 1)
+        await viewer.show(plane: .sagittal)
+        check("Sagittal reformats the active viewport", viewer.activePlane == .sagittal)
+        await viewer.show(plane: .axial)
+        check("Axial brings back the series itself", viewer.activePlane == .axial && viewer.active?.stack != nil && viewer.active?.reformatBase == nil)
+        // Slab from the toolbar: a series of files becomes a reformat of its own plane, on the same slice.
+        let sliceBefore = viewer.active?.location
+        await viewer.setSlab(mode: .mip, mm: 10)
+        check("MIP turns the axial series into a 10 mm axial slab", viewer.activePlane == .axial && viewer.activeSlab.mode == .mip && viewer.activeSlab.mm == 10)
+        check("the slab stays on the slice that was shown", abs((viewer.active?.location ?? .infinity) - (sliceBefore ?? 0)) < 3, "\(String(describing: sliceBefore)) -> \(String(describing: viewer.active?.location))")
+        await viewer.setSlab(mode: .minip, mm: 20)
+        check("MinIP and thickness change the slab", viewer.activeSlab.mode == .minip && viewer.activeSlab.mm == 20)
+        await viewer.show(plane: .coronal)
+        check("changing plane keeps the slab", viewer.activePlane == .coronal && viewer.activeSlab.mode == .minip && viewer.activeSlab.mm == 20)
+        await viewer.setSlab(mode: .single, mm: 20)
+        await viewer.show(plane: .axial)
+        check("Thin and Axial bring back the series itself", viewer.active?.stack != nil && viewer.activeSlab.mode == .single)
         await viewer.enterMPR()
         let planes = viewer.mpr?.sources.map(\.title) ?? []
         check("MPR builds a 64x64x24 volume", viewer.mpr?.volume.width == 64 && viewer.mpr?.volume.depth == 24, "\(String(describing: viewer.mprMessage))")
@@ -446,12 +531,12 @@ enum SelfTest {
         check("window/level follows across the three planes", coronal.window == axial.window && sagittal.window == axial.window && axial.window != nil)
         if let source = coronal.source as? ReformatSource {
             let plain = brightest(coronal.slice)
-            source.setSlab(40, mip: true)
+            source.setSlab(40, mode: .mip)
             coronal.reload()
             let started = Date.now
             while coronal.slice == nil && Date.now.timeIntervalSince(started) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
             let mip = brightest(coronal.slice)
-            check("a 40 mm MIP is at least as bright as the single plane", mip >= plain && source.isMIP)
+            check("a 40 mm MIP is at least as bright as the single plane", mip >= plain && source.mode == .mip)
         }
         // S-023: 3D of the same volume, rendered offscreen.
         if let volume = viewer.mpr?.volume, let session = VolumeSession(volume: volume, title: "CT", window: VOIWindow(center: 40, width: 400), modality: "CT") {
@@ -486,12 +571,40 @@ enum SelfTest {
             view.mouseDown(with: send(.leftMouseDown, 100, 100))
             view.mouseDragged(with: send(.leftMouseDragged, 130, 100))
             check("a plain drag in 3D rotates", session.camera.rotation != rotationBefore)
+            // With the Window/Level tool, a plain drag sets the window and Shift-drag rotates.
+            view.toolWindows = true
+            let toolBefore = session.camera.window
+            let toolRotation = session.camera.rotation
+            view.mouseDown(with: send(.leftMouseDown, 100, 100))
+            view.mouseDragged(with: send(.leftMouseDragged, 100, 140))
+            check("with the Window/Level tool a plain drag in 3D sets the window", session.camera.window != toolBefore && session.camera.rotation == toolRotation)
+            view.mouseDown(with: send(.leftMouseDown, 100, 100, .shift))
+            view.mouseDragged(with: send(.leftMouseDragged, 130, 100, .shift))
+            check("with the Window/Level tool Shift-drag in 3D rotates", session.camera.rotation != toolRotation)
+            view.toolWindows = false
+            // ⌘C in 3D copies the rendering.
+            let clipboard3D = NSPasteboard(name: .init("com.salomao.kidicom.selftest3d"))
+            ImageCopy.pasteboard = clipboard3D
+            view.onCopy = { image, size, scale in ImageCopy.copy(image, size: size, scale: scale) { Color.clear } }
+            view.copy(nil)
+            check("⌘C in 3D puts the rendering on the clipboard", NSImage(pasteboard: clipboard3D)?.size == NSSize(width: 200, height: 200))
+            clipboard3D.releaseGlobally()
+            ImageCopy.pasteboard = .general
             session.apply(.softTissue)
             session.renderer.camera = session.camera
             check("the soft tissue preset shows more of the body than bone", lit(session.renderer.renderImage(width: 96, height: 96)) > lit(front))
         } else {
             check("3D renders the CT with the bone preset", false, "no Metal renderer")
         }
+        // The 3D view opens on Rotate, follows the toolbar tool, and gives the 2D tool back.
+        viewer.tool = .distance
+        await viewer.enter3D()
+        check("3D opens with Scroll, which turns the volume", viewer.volume3D?.tool == .scroll && viewer.tool == .scroll)
+        viewer.tool = .navigate
+        check("picking Window/Level reaches the 3D view", viewer.volume3D?.tool == .navigate)
+        viewer.escape()
+        check("leaving 3D brings back the 2D tool", viewer.volume3D == nil && viewer.tool == .distance)
+        viewer.tool = .navigate
         viewer.exitMPR()
         check("leaving MPR restores the previous layout and series", viewer.mpr == nil && viewer.layout == .single && viewer.viewports[0].stack != nil)
 

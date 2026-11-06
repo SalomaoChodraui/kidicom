@@ -47,10 +47,22 @@ final class ViewerModel {
     var activeIndex = 0
     var layout: ViewerLayout = .single {
         didSet {
+            if layout != .single { lastSplit = layout }
             maximized = nil
             fillEmptyViewports()
         }
     }
+    /// The text over the images: all of it, without names, or none (Tab).
+    var overlay: OverlayLevel = .full
+
+    /// The last layout with more than one viewport, for `toggleSplit()`.
+    private(set) var lastSplit: ViewerLayout = .sideBySide
+
+    /// The layout button's own action: one viewport, or back to the last split.
+    func toggleSplit() {
+        layout = layout == .single ? lastSplit : .single
+    }
+
     /// The MPR session, while it is on.
     private(set) var mpr: MPRSession?
     /// Progress while a volume builds, 0...1.
@@ -58,7 +70,13 @@ final class ViewerModel {
     /// Why the last MPR or 3D request failed, shown inline.
     var mprMessage: String?
     /// The 3D view, while it is on.
-    private(set) var volume3D: VolumeSession?
+    private(set) var volume3D: VolumeSession? {
+        didSet {
+            guard volume3D == nil, let previous = toolBefore3D else { return }
+            toolBefore3D = nil
+            tool = previous
+        }
+    }
     /// Volumes already built, by series id, shared by MPR and 3D.
     @ObservationIgnored private var volumes: [String: Volume] = [:]
 
@@ -131,8 +149,13 @@ final class ViewerModel {
     var showsTags = false
     /// The left-button tool, shared by every viewport.
     var tool: MeasureTool = .navigate {
-        didSet { for viewport in viewports { viewport.tool = tool } }
+        didSet {
+            for viewport in viewports { viewport.tool = tool }
+            volume3D?.tool = tool
+        }
     }
+    /// The 2D tool to bring back when 3D closes; 3D opens on Scroll, which turns the volume there.
+    @ObservationIgnored private var toolBefore3D: MeasureTool?
 
     var visible: ArraySlice<Viewport> { viewports.prefix(layout.count) }
     var active: Viewport? { viewports.indices.contains(activeIndex) ? viewports[activeIndex] : nil }
@@ -193,7 +216,7 @@ final class ViewerModel {
                     replanes(except: session.sources[0])
                 }
                 if mip, let source = viewports[1].source as? ReformatSource {
-                    source.setSlab(20, mip: true)
+                    source.setSlab(20, mode: .mip)
                     viewports[1].reload()
                 }
             }
@@ -258,7 +281,7 @@ final class ViewerModel {
 
     /// The series MPR would use: the active viewport's series of files.
     var mprCandidate: SeriesStack? {
-        guard let stack = active?.stack, stack.count >= 3, !stack.isCine else { return nil }
+        guard let stack = active?.baseStack, stack.count >= 3, !stack.isCine else { return nil }
         return stack
     }
 
@@ -302,6 +325,93 @@ final class ViewerModel {
         activeIndex = 0
     }
 
+    // MARK: Plane (axial, coronal, sagittal in one viewport)
+
+    /// The plane the active viewport shows; .oblique when tilted or unknown.
+    var activePlane: PatientPlane? {
+        guard let viewport = active, let source = viewport.source else { return nil }
+        return PatientPlane(orientation: source.orientation(viewport.index))
+    }
+
+    /// Axial, Coronal, and Sagittal need a series that can make a volume,
+    /// outside MPR and 3D.
+    var canChangePlane: Bool {
+        mpr == nil && volume3D == nil && buildProgress == nil && mprCandidate != nil
+    }
+
+    /// Shows the active viewport's series in another plane: the series
+    /// itself for its own plane, else a reformat through the volume's middle.
+    /// Keeps the person's window and slab. `reformat` makes even the series'
+    /// own plane a reformat (a slab needs one), on the slice shown now.
+    func show(plane: PatientPlane, reformat: Bool = false) async {
+        guard plane != .oblique, canChangePlane, let viewport = active, let stack = mprCandidate else { return }
+        let window = viewport.window
+        let carried = (viewport.source as? ReformatSource).map { (mode: $0.mode, mm: $0.slab) }
+        let native = PatientPlane(orientation: stack.orientation(stack.count / 2)) == plane
+        let keepsSlab = carried?.mode.isProjection == true
+        if native && !reformat && !keepsSlab {
+            if viewport.stack == nil { viewport.show(stack) }
+            viewport.setWindowQuietly(window)
+            return
+        }
+        mprMessage = nil
+        guard let volume = await volume(for: stack) else { return }
+        let fallback = viewport.effectiveWindow ?? VOIWindow(center: 40, width: 400)
+        let session = MPRSession(volume: volume, seriesID: stack.id, previousLayout: layout, previousSources: [], previousIndexes: [])
+        let candidates = (0 ..< 3).map {
+            ReformatSource(session: session, planeIndex: $0, seriesID: stack.id, modality: stack.modality, window: fallback)
+        }
+        guard let source = candidates.first(where: { PatientPlane(orientation: $0.orientation(0)) == plane }) else {
+            mprMessage = String(localized: "This series can't be shown in that plane.")
+            return
+        }
+        // The source keeps its session; `sources` stays empty, so nothing cycles.
+        if let carried { source.setSlab(carried.mm, mode: carried.mode) }
+        var index = source.centerIndex
+        if native, let here = viewport.location {
+            index = (0 ..< source.count).min { abs((source.location($0) ?? 0) - here) < abs((source.location($1) ?? 0) - here) } ?? index
+        }
+        viewport.show(source, at: index)
+        viewport.reformatBase = stack
+        viewport.setWindowQuietly(window)
+        slabRevision += 1
+    }
+
+    // MARK: Slab (MIP, MinIP, mean)
+
+    /// Bumped when a slab changes, so the toolbar redraws.
+    private(set) var slabRevision = 0
+    /// The last thickness picked, for the next slab.
+    var slabThickness: Double = 10
+
+    /// The active viewport's slab mode and thickness.
+    var activeSlab: (mode: SlabMode, mm: Double) {
+        _ = slabRevision
+        guard let source = active?.source as? ReformatSource, source.mode.isProjection else { return (.single, slabThickness) }
+        return (source.mode, source.slab)
+    }
+
+    /// A slab needs a plane from a volume: a reformat, or a series that can make one.
+    var canSlab: Bool {
+        volume3D == nil && buildProgress == nil && (active?.source is ReformatSource || canChangePlane)
+    }
+
+    /// Sets the active viewport's slab. A series of files becomes a reformat
+    /// of its own plane, on the same slice.
+    func setSlab(mode: SlabMode, mm: Double) async {
+        slabThickness = mm
+        guard volume3D == nil, let viewport = active else { return }
+        if !(viewport.source is ReformatSource) {
+            guard mode.isProjection, let plane = activePlane, plane != .oblique else { return }
+            await show(plane: plane, reformat: true)
+        }
+        guard let source = viewport.source as? ReformatSource else { return }
+        // The slider may have moved on while the volume was building: use its latest value.
+        source.setSlab(slabThickness, mode: mode)
+        viewport.refresh(to: viewport.index)   // keeps the old picture up while the new slab renders
+        slabRevision += 1
+    }
+
     /// Builds or reuses the volume of a series, reporting why it can't be built.
     private func volume(for stack: SeriesStack) async -> Volume? {
         if let cached = volumes[stack.id] { return cached }
@@ -336,12 +446,16 @@ final class ViewerModel {
             mprMessage = String(localized: "3D needs a Mac with Metal.")
             return
         }
+        toolBefore3D = tool
+        session.onTool = { [weak self] in self?.tool = $0 }
         volume3D = session
+        tool = .scroll
     }
 
     func exitMPR() {
         guard let session = mpr else { return }
         mpr = nil
+        defer { session.sources = [] }
         connectSync()
         for (i, viewport) in viewports.enumerated() {
             viewport.onWindowChange = nil
@@ -485,7 +599,7 @@ struct ViewportGrid: View {
     var body: some View {
         let layout = viewer.layout
         if let session = viewer.volume3D {
-            VolumePane(session: session, study: study)
+            VolumePane(session: session, study: study, level: viewer.overlay)
                 .onKeyPress(.escape) { viewer.escape(); return .handled }
         } else if let maximized = viewer.maximized {
             cell(maximized)
@@ -514,6 +628,13 @@ struct ViewportGrid: View {
                             onClick: { point in viewer.click(at: point, in: viewport) },
                             onDoubleClick: { viewer.doubleClick(viewport) },
                             onTool: { viewer.tool = $0 },
+                            onCopy: { image, size, scale in
+                                ImageCopy.copy(image, size: size, scale: scale) {
+                                    CrosshairOverlay(viewer: viewer, viewport: viewport)
+                                    MeasurementOverlay(viewport: viewport)
+                                    ViewportOverlay(viewport: viewport, study: study, level: viewer.overlay)
+                                }
+                            },
                             mpr: MPRMouse(
                                 hit: { point, scale in viewer.mprHit(at: point, in: viewport, scale: scale) },
                                 begin: { point, scale in viewer.mprBegin(at: point, in: viewport, scale: scale) },
@@ -522,7 +643,7 @@ struct ViewportGrid: View {
                             ))
             .overlay { CrosshairOverlay(viewer: viewer, viewport: viewport) }
             .overlay { MeasurementOverlay(viewport: viewport) }
-            .overlay { ViewportOverlay(viewport: viewport, study: study).allowsHitTesting(false) }
+            .overlay { ViewportOverlay(viewport: viewport, study: study, level: viewer.overlay).allowsHitTesting(false) }
             .overlay {
                 Rectangle()
                     .strokeBorder(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 2)

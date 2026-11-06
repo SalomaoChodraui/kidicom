@@ -22,7 +22,8 @@ Dependencies point one way: app to Kit to C.
 ## Storage
 
 - Database: `~/Library/Application Support/Kidicom/Kidicom.store` (SwiftData).
-- Library: `~/Library/Application Support/Kidicom/Library/Files/<study>/<series>/<image>.dcm`.
+- Library: `~/Library/Application Support/Kidicom/Library/Files/<study>/<series>/<image>.dcm` by default. Settings > General > Change… moves `Files` to `<picked folder>/Kidicom Library/` (UserDefaults `library.path`); iCloud Drive is refused. Copied images store paths relative to the Library root, so a move only copies files and saves the new root.
+- A picked Library on a missing disk makes copied studies Offline; imports that copy are refused and deleted studies wait to be purged until it returns.
 - Keep in Place images store an absolute path; a missing file makes the study Offline.
 - `APP_STORE=/tmp/...` moves both next to a test store.
 

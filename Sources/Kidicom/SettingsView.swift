@@ -79,19 +79,95 @@ struct GeneralSettings: View {
         }
         Section("Studies") {
             Toggle("Ask before deleting a study", isOn: $confirmDelete)
-            LabeledContent("Library") {
+            LibraryLocationRow()
+        }
+    }
+}
+
+/// Where copied files live, with Change… to move them (to an external
+/// disk, say) and Use Default to bring them back to Application Support.
+struct LibraryLocationRow: View {
+    @Environment(AppModel.self) private var model
+    @State private var choosing = false
+    @State private var moving: (done: Int, total: Int)?
+    @State private var error: String?
+    /// Bumped after a move so the path and buttons refresh.
+    @State private var revision = 0
+
+    var body: some View {
+        let _ = revision
+        let root = Library.root
+        LabeledContent("Library") {
+            HStack(spacing: Space.sm) {
+                Text(root.path(percentEncoded: false))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
+                    .help(root.path(percentEncoded: false))
+                Button("Show in Finder") {
+                    try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                    NSWorkspace.shared.activateFileViewerSelecting([root])
+                }
+                .disabled(!Library.isAvailable)
+            }
+        }
+        .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
+            if case .success(let folder) = result { move(to: folder) }
+        }
+        .fileDialogMessage("Choose where to keep the Library. A folder named “Kidicom Library” is created inside it.")
+        .fileDialogConfirmationLabel("Move Library Here")
+        .alert("Unable to Move the Library", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK", role: .cancel) { error = nil }
+        } message: {
+            Text(error ?? "")
+        }
+        if let moving {
+            LabeledContent {
+                ProgressView(value: Double(moving.done), total: Double(max(moving.total, 1)))
+                    .frame(width: 160)
+            } label: {
+                Text("Moving \(moving.done) of \(moving.total) Files…")
+            }
+        } else {
+            LabeledContent {
                 HStack(spacing: Space.sm) {
-                    Text(Library.root.path(percentEncoded: false))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .foregroundStyle(.secondary)
-                        .help(Library.root.path(percentEncoded: false))
-                    Button("Show in Finder") {
-                        try? FileManager.default.createDirectory(at: Library.root, withIntermediateDirectories: true)
-                        NSWorkspace.shared.activateFileViewerSelecting([Library.root])
+                    if Library.customRoot != nil {
+                        Button("Use Default") { move(to: nil) }
                     }
+                    Button("Change…") { choosing = true }
+                }
+                .disabled(model.importer.isBusy)
+            } label: {
+                if Library.isAvailable {
+                    Text("Copied files can live on another disk. The database stays on this Mac.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("The Library disk is not connected. Copied studies are offline.", systemImage: "externaldrive.badge.xmark")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    private func move(to folder: URL?) {
+        if let folder, Library.isInICloud(folder) {
+            error = Library.MoveError.iCloud.errorDescription
+            return
+        }
+        let destination = Library.destination(for: folder)
+        moving = (0, 0)
+        Task {
+            do {
+                try await Library.move(to: destination) { done, total in
+                    Task { @MainActor in moving = (done, total) }
+                }
+            } catch {
+                self.error = error.localizedDescription
+            }
+            moving = nil
+            revision += 1
         }
     }
 }
@@ -139,7 +215,7 @@ struct ToolKeyRow: View {
                 }
             }
         } label: {
-            Label { Text(tool.title) } icon: { Image(systemName: tool.symbol) }
+            Label { Text(tool.title) } icon: { tool.icon() }
         }
         .onAppear { text = ToolKeys.shared.key(for: tool).uppercased() }
         .onChange(of: ToolKeys.shared.key(for: tool)) { _, key in text = key.uppercased() }

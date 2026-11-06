@@ -8,13 +8,13 @@ SwiftData database and no server.
 - `Sources/Kidicom/` the app. `App.swift` has the window, menus, and the database location.
 - `Sources/KidicomKit/` rules and data logic with no SwiftUI. Tests in `Tests/KidicomKitTests/`.
 - `Package.swift` a Swift package. There is no Xcode project.
-- `build.sh` builds, signs, and installs `~/Applications/Kidicom.app`.
+- `build.sh` builds, signs, and installs `~/Applications/Kidicom.app`, the only copy: it quits the running app, deletes other copies (`/Applications/Kidicom.app`), and reopens the new build if the app was running.
 - `Icon/AppIcon.icon` the app icon, an Icon Composer file (JSON plus SVG layers). `build.sh` compiles it with `tools/make_icon.sh`; `tools/icon_review.sh` renders every look into one PNG.
 - `docs/` the brief, the screen index, and the user stories, when they exist.
 
 ## Build and check
 
-- Build and install: `./build.sh`. Add `--open` to restart the app with the new build. The build shows warnings; fix them.
+- Build and install: `./build.sh`. It restarts a running app with the new build; `--open` opens it even when it was closed. The build shows warnings; fix them.
 - Unit tests: `swift test --scratch-path ~/Library/Developer/Kidicom/test-build`.
 - Self-test (the app's real functions on a /tmp store): `tools/selftest.sh`. Exit 0 when every check passes. Add a check for every story with logic in `SelfTest.swift`.
 - After every UI change, take snapshots with sample data and look at them: `tools/snap.sh`.
