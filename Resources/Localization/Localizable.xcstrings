@@ -1461,12 +1461,12 @@
         }
       }
     },
-    "Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view": {
+    "Plane, rotate, or flip the active viewport (A, C, S, ⌃R, ⌃L, H, V); ⌘R resets the view": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Plano, girar ou espelhar o quadro ativo (⌃1 a ⌃3, ⌃R, ⌃L, H, V); ⌘R restaura a vista"
+            "value": "Plano, girar ou espelhar o quadro ativo (A, C, S, ⌃R, ⌃L, H, V); ⌘R restaura a vista"
           }
         }
       }
@@ -1821,12 +1821,12 @@
         }
       }
     },
-    "Show the active series as axial (⌃1), coronal (⌃2), or sagittal (⌃3)": {
+    "Show the active series as axial (A), coronal (C), or sagittal (S)": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostrar a série ativa em axial (⌃1), coronal (⌃2) ou sagital (⌃3)"
+            "value": "Mostrar a série ativa em axial (A), coronal (C) ou sagital (S)"
           }
         }
       }

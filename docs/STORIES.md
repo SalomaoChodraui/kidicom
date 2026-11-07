@@ -112,9 +112,9 @@ Depends: S-006
 Acceptance:
 - [snap] O overlay mostra WL/WW atualizados.
 - [self] Presets por tecla: 1 Partes moles, 2 Pulmão, 3 Osso, 4 Cérebro, 0 Padrão do arquivo.
-- [manual] Duplo clique numa imagem sozinha põe a janela em tela cheia com a faixa de séries oculta, que aparece ao levar o ponteiro à borda esquerda. Outro duplo clique volta. ⌘R reseta janela, zoom e pan.
+- [manual] Duplo clique numa imagem sozinha põe a janela em tela cheia com a faixa de séries oculta, que aparece ao levar o ponteiro à borda esquerda. A barra de ferramentas e a barra de menus aparecem ao levar o ponteiro ao topo. Outro duplo clique volta. ⌘R reseta janela, zoom e pan.
 UX:
-- Flow: left-drag sets window/level; right-drag zooms around the click (up in, down out), also pinch or Option-scroll; middle-drag or ⌘-drag pans; keys 1 to 4 apply presets, 0 the file window (also in View > Window Presets); ⌘R resets
+- Flow: left-drag sets window/level; right-drag zooms around the click (up in, down out), also pinch or Option-scroll; a two-finger twist on the trackpad turns the image; middle-drag or ⌘-drag pans; keys 1 to 4 apply presets, 0 the file window (also in View > Window Presets); ⌘R resets
 - Surface: inline in the viewport
 - Words: overlay "WL 40 WW 400" and "Zoom 100%"
 Status: done

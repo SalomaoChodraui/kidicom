@@ -133,7 +133,7 @@ final class ViewportNSView: NSView {
         layer?.masksToBounds = true
         imageLayer.magnificationFilter = .linear
         imageLayer.minificationFilter = .trilinear
-        imageLayer.actions = ["contents": NSNull(), "frame": NSNull(), "bounds": NSNull(), "position": NSNull()]
+        imageLayer.actions = ["contents": NSNull(), "frame": NSNull(), "bounds": NSNull(), "position": NSNull(), "transform": NSNull()]
         layer?.addSublayer(imageLayer)
     }
 
@@ -351,6 +351,16 @@ final class ViewportNSView: NSView {
 
     override func magnify(with event: NSEvent) {
         zoom(by: 1 + event.magnification, around: convert(event.locationInWindow, from: nil))
+        layoutImage()
+    }
+
+    /// Two-finger twist on the trackpad turns the image with the fingers.
+    /// The layer moves in the same event, ahead of SwiftUI's update.
+    override func rotate(with event: NSEvent) {
+        guard let viewport, event.rotation != 0 else { return }
+        // rotation is counterclockwise in degrees; freeAngle turns clockwise on this flipped view.
+        viewport.freeAngle -= Double(event.rotation) * .pi / 180
+        layoutImage()
     }
 
     /// Zooms keeping the image point under `anchor` in place.

@@ -237,6 +237,8 @@ enum SelfTest {
                     check("L picks the ruler", picked == .distance)
                     view.keyDown(with: key("w"))
                     check("W picks window/level", picked == .navigate)
+                    check("A, C, and S pick the plane, so the angle defaults to G", ToolKeys.defaults[.angle] == "g"
+                          && ["a", "c", "s"].allSatisfy { ToolKeys.shared.problem(with: $0, for: .angle) != nil })
                     check("a key already used by the viewer is refused", ToolKeys.shared.problem(with: "h", for: .angle) != nil && ToolKeys.shared.problem(with: "l", for: .angle) != nil && ToolKeys.shared.tool(for: "r") == .rotate)
                     // Rotate tool: dragging around the center turns the image by any angle.
                     viewport.reset()

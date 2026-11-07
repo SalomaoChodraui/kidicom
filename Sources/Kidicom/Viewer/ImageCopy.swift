@@ -44,6 +44,7 @@ struct ViewerCommands: View {
             .disabled(viewer == nil || viewer?.volume3D != nil)
         Divider()
         layoutMenu
+        planeMenu
         toolMenu
         windowMenu
         Button("Reset View") {
@@ -99,14 +100,30 @@ struct ViewerCommands: View {
         .disabled(viewer == nil || viewer?.volume3D != nil || viewer?.active?.slice?.isColor != false)
     }
 
-    /// A plain digit reaches the menu before a text field: typed while
-    /// editing (the tag search), it goes into the field instead.
     private func applyFromMenu(_ preset: WindowPreset) {
-        if NSApp.currentEvent?.type == .keyDown, let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.isEditable {
-            editor.insertText(String(preset.rawValue), replacementRange: editor.selectedRange())
-            return
-        }
+        guard !Self.typedInField(String(preset.rawValue)) else { return }
         viewer?.active?.apply(preset)
+    }
+
+    /// A plain key reaches the menu before a text field: typed while
+    /// editing (the tag search), it goes into the field instead.
+    static func typedInField(_ key: String) -> Bool {
+        guard NSApp.currentEvent?.type == .keyDown, let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.isEditable else { return false }
+        editor.insertText(key, replacementRange: editor.selectedRange())
+        return true
+    }
+
+    private var planeMenu: some View {
+        Menu("Plane") {
+            ForEach([(PatientPlane.axial, "a"), (.coronal, "c"), (.sagittal, "s")], id: \.0) { plane, key in
+                Button(PlaneIcon.title(plane)) {
+                    guard !Self.typedInField(key) else { return }
+                    Task { await viewer?.show(plane: plane) }
+                }
+                .keyboardShortcut(KeyEquivalent(Character(key)), modifiers: [])
+            }
+        }
+        .disabled(viewer?.canChangePlane != true)
     }
 
 }
