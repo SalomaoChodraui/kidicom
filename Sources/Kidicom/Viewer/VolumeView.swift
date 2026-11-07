@@ -212,6 +212,13 @@ final class VolumeMTKView: MTKView {
         interacting()
         session?.zoom(by: 1 + Float(event.magnification))
     }
+
+    /// Two-finger twist on the trackpad rolls the volume around the screen's axis.
+    override func rotate(with event: NSEvent) {
+        guard event.rotation != 0 else { return }
+        interacting()
+        session?.roll(by: Float(event.rotation) * .pi / 180)
+    }
 }
 
 /// A 3D view of one volume: camera, look, and the renderer.
@@ -289,6 +296,11 @@ final class VolumeSession {
         let yaw = simd_quatf(angle: -dx * 0.01, axis: [0, 1, 0])
         let pitch = simd_quatf(angle: dy * 0.01, axis: [1, 0, 0])
         camera.rotation = simd_normalize(yaw * pitch * camera.rotation)
+    }
+
+    /// Counterclockwise on screen, in radians: view x turns toward view y (up).
+    func roll(by angle: Float) {
+        camera.rotation = simd_normalize(simd_quatf(angle: angle, axis: [0, 0, 1]) * camera.rotation)
     }
 
     func zoom(by factor: Float) {
