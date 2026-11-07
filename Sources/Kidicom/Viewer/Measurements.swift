@@ -50,16 +50,18 @@ enum MeasureTool: String, CaseIterable, Identifiable {
 @Observable
 final class ToolKeys {
     static let shared = ToolKeys()
-    static let defaults: [MeasureTool: String] = [.navigate: "w", .scroll: "b", .rotate: "r", .distance: "l", .angle: "a", .area: "o"]
+    static let defaults: [MeasureTool: String] = [.navigate: "w", .scroll: "b", .rotate: "r", .distance: "l", .angle: "g", .area: "o"]
     /// Keys the viewer already uses for other things.
-    static let reserved: Set<String> = ["h", "v", "0", "1", "2", "3", "4", " "]
+    static let reserved: Set<String> = ["a", "c", "s", "h", "v", "0", "1", "2", "3", "4", " "]
 
     private(set) var keys: [MeasureTool: String]
 
     init() {
         var keys = Self.defaults
         for tool in MeasureTool.allCases {
-            if let saved = UserDefaults.standard.string(forKey: "toolKey.\(tool.rawValue)"), saved.count == 1 { keys[tool] = saved }
+            // A key saved before it became reserved (A, C, S pick the plane) falls back to the default.
+            if let saved = UserDefaults.standard.string(forKey: "toolKey.\(tool.rawValue)"), saved.count == 1,
+               !Self.reserved.contains(saved) { keys[tool] = saved }
         }
         self.keys = keys
     }

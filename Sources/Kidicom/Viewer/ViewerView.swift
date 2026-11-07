@@ -26,11 +26,8 @@ struct ViewerView: View {
         Menu {
             Section("Plane") {
                 Button("Axial") { Task { await viewer.show(plane: .axial) } }
-                    .keyboardShortcut("1", modifiers: .control)
                 Button("Coronal") { Task { await viewer.show(plane: .coronal) } }
-                    .keyboardShortcut("2", modifiers: .control)
                 Button("Sagittal") { Task { await viewer.show(plane: .sagittal) } }
-                    .keyboardShortcut("3", modifiers: .control)
             }
             .disabled(!viewer.canChangePlane)
             Section("Rotate and Flip") {
@@ -52,7 +49,7 @@ struct ViewerView: View {
             Label("Orientation", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
         }
         .menuIndicator(.hidden)
-        .help("Plane, rotate, or flip the active viewport (⌃1 to ⌃3, ⌃R, ⌃L, H, V); ⌘R resets the view")
+        .help("Plane, rotate, or flip the active viewport (A, C, S, ⌃R, ⌃L, H, V); ⌘R resets the view")
     }
 
     var body: some View {

@@ -135,6 +135,6 @@ struct PlanePicker: View {
         .pickerStyle(.segmented)
         .labelStyle(.iconOnly)
         .disabled(!viewer.canChangePlane)
-        .help("Show the active series as axial (⌃1), coronal (⌃2), or sagittal (⌃3)")
+        .help("Show the active series as axial (A), coronal (C), or sagittal (S)")
     }
 }
