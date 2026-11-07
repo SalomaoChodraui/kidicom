@@ -236,6 +236,8 @@ struct ViewerView: View {
             }
         }
         .focusedSceneValue(\.viewer, viewer)
+        // In full screen the toolbar and the menu bar slide in when the pointer reaches the top.
+        .windowToolbarFullScreenVisibility(.onHover)
         .navigationTitle(study.displayName)
         .navigationSubtitle(study.studyDescription)
         // The patient and study show on the image; the toolbar needs the room.
