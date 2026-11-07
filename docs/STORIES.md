@@ -112,9 +112,9 @@ Depends: S-006
 Acceptance:
 - [snap] O overlay mostra WL/WW atualizados.
 - [self] Presets por tecla: 1 Partes moles, 2 Pulmão, 3 Osso, 4 Cérebro, 0 Padrão do arquivo.
-- [manual] Duplo clique na imagem reseta janela, zoom e pan.
+- [manual] Duplo clique numa imagem sozinha põe a janela em tela cheia com a faixa de séries oculta, que aparece ao levar o ponteiro à borda esquerda. Outro duplo clique volta. ⌘R reseta janela, zoom e pan.
 UX:
-- Flow: left-drag sets window/level; right-drag zooms around the click (up in, down out), also pinch or Option-scroll; middle-drag or ⌘-drag pans; keys 1 to 4 apply presets, 0 the file window; double-click resets
+- Flow: left-drag sets window/level; right-drag zooms around the click (up in, down out), also pinch or Option-scroll; middle-drag or ⌘-drag pans; keys 1 to 4 apply presets, 0 the file window (also in View > Window Presets); ⌘R resets
 - Surface: inline in the viewport
 - Words: overlay "WL 40 WW 400" and "Zoom 100%"
 Status: done
@@ -131,7 +131,7 @@ Acceptance:
 UX:
 - Flow: toolbar layout control (1, 2 side by side, 2 stacked, 4) -> empty viewports get the next series not shown, skipping scouts -> click a viewport to make it active -> thumbnail click or drag fills the active or target viewport
 - Surface: segmented control in the viewer toolbar
-- Double-click a viewport in a split layout: it fills the whole image area; Esc or another double-click returns. In a single layout, double-click resets the view
+- Double-click a viewport in a split layout: it fills the whole image area; Esc or another double-click returns. In a single layout, double-click enters full screen with the series strip hidden; it slides in at the left edge, and another double-click leaves
 - ⌘W closes the active viewport while several show (MPR and 3D leave their mode first); with one left, ⌘W closes the study window
 - Right-click a thumbnail: the series opens beside the others to compare, 1 -> 2 side by side -> 3 side by side -> 2x2; with four open it replaces the active viewport
 - Words: "1 Viewport", "2 Side by Side", "3 Side by Side", "2 Stacked", "4 Viewports"; tooltip "Split the image area into up to four viewports"

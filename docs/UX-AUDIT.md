@@ -8,7 +8,7 @@ Arquétipo: biblioteca com sidebar e janelas de leitura por exame. Navegação: 
 
 Sensação pretendida: confiança na identificação do exame e rapidez para alternar os modos de leitura. Estados vazios existentes usam ContentUnavailableView; reconstrução mantém progresso inline; comandos indisponíveis continuam visíveis e desabilitados no menu.
 
-Mapa dos comandos novos: Visualizar > Mostrar/Ocultar Séries (⌘⇧S), Layout (⌃⇧1 a ⌃⇧5), Ferramenta (⌃⇧ e tecla configurada em Ajustes), Janela (⌥⌘0 a ⌥⌘4), MPR (⌘⇧M), 3D (⌘⇧D), Tags DICOM (⌘I), Reproduzir/Pausar (⌃⇧Espaço no menu, Espaço com foco na imagem). Os comandos agem sobre o viewer da janela ativa. As teclas simples das ferramentas e dos presets continuam disponíveis com foco na imagem; os atalhos modificados no menu permitem digitar na busca de tags.
+Mapa dos comandos novos: Visualizar > Mostrar/Ocultar Séries (⌘⇧S), Layout (⌃⇧1 a ⌃⇧5), Ferramenta (⌃⇧ e tecla configurada em Ajustes), Janela (0 a 4), MPR (⌘⇧M), 3D (⌘⇧D), Tags DICOM (⌘I), Reproduzir/Pausar (⌃⇧Espaço no menu, Espaço com foco na imagem). Os comandos agem sobre o viewer da janela ativa. Os presets usam o número simples também no menu, e um número digitado num campo de texto vai para o campo; os atalhos modificados no menu permitem digitar na busca de tags.
 
 ## Achados e tratamento
 

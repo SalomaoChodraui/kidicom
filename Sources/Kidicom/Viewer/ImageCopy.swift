@@ -33,7 +33,7 @@ struct ViewerCommands: View {
     @FocusedValue(\.viewer) private var viewer
 
     var body: some View {
-        Button(viewer?.showsSeries == false ? "Show Series" : "Hide Series") { viewer?.showsSeries.toggle() }
+        Button(viewer?.seriesInline == false ? "Show Series" : "Hide Series") { viewer?.toggleSeries() }
             .keyboardShortcut("s", modifiers: [.command, .shift])
             .disabled(viewer == nil)
         Button(viewer?.overlay.nextTitle ?? "Hide Patient Name") { viewer?.overlay = viewer?.overlay.next ?? .full }
@@ -92,11 +92,21 @@ struct ViewerCommands: View {
     private var windowMenu: some View {
         Menu("Window Presets") {
             ForEach(WindowPreset.allCases, id: \.self) { preset in
-                Button(WindowPresets.title(preset)) { viewer?.active?.apply(preset) }
-                    .keyboardShortcut(KeyEquivalent(Character(String(preset.rawValue))), modifiers: [.command, .option])
+                Button(WindowPresets.title(preset)) { applyFromMenu(preset) }
+                    .keyboardShortcut(KeyEquivalent(Character(String(preset.rawValue))), modifiers: [])
             }
         }
         .disabled(viewer == nil || viewer?.volume3D != nil || viewer?.active?.slice?.isColor != false)
+    }
+
+    /// A plain digit reaches the menu before a text field: typed while
+    /// editing (the tag search), it goes into the field instead.
+    private func applyFromMenu(_ preset: WindowPreset) {
+        if NSApp.currentEvent?.type == .keyDown, let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.isEditable {
+            editor.insertText(String(preset.rawValue), replacementRange: editor.selectedRange())
+            return
+        }
+        viewer?.active?.apply(preset)
     }
 
 }

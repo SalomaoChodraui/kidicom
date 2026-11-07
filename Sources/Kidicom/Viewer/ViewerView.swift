@@ -75,7 +75,7 @@ struct ViewerView: View {
 
     private func content(_ study: Study) -> some View {
         HStack(spacing: 0) {
-            if viewer.showsSeries {
+            if viewer.seriesInline {
                 SeriesStrip(viewer: viewer, current: study, others: priors(of: study))
                     .frame(width: SeriesStrip.width)
                     .overlay(alignment: .trailing) { Divider() }
@@ -106,6 +106,11 @@ struct ViewerView: View {
                     }
                 }
         }
+        .overlay(alignment: .leading) {
+            if viewer.seriesAutoHide {
+                SeriesReveal(viewer: viewer, current: study, others: priors(of: study))
+            }
+        }
         .gridArea("viewer", inset: 0)
         .inspector(isPresented: Bindable(viewer).showsTags) {
             TagInspector(viewport: viewer.active)
@@ -113,8 +118,8 @@ struct ViewerView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Button(viewer.showsSeries ? "Hide Series" : "Show Series", systemImage: "sidebar.left") {
-                    viewer.showsSeries.toggle()
+                Button(viewer.seriesInline ? "Hide Series" : "Show Series", systemImage: "sidebar.left") {
+                    viewer.toggleSeries()
                 }
                 .help("Show or hide the series to give more room to the images (⇧⌘S)")
             }
@@ -235,7 +240,8 @@ struct ViewerView: View {
         .navigationSubtitle(study.studyDescription)
         // The patient and study show on the image; the toolbar needs the room.
         .toolbar(removing: .title)
-        .background(CloseKeyCatcher(close: { viewer.closeActiveViewport() }, windowClosed: { viewer.close() }))
+        .background(CloseKeyCatcher(close: { viewer.closeActiveViewport() }, windowClosed: { viewer.close() },
+                                    attached: { viewer.window = $0 }, exitedFullScreen: { viewer.exitedFullScreen() }))
         .task(id: study.uid) {
             viewer.load(study)
             if ViewerModel.nextComparePrior, let prior = priors(of: study).first {
@@ -546,32 +552,44 @@ struct CloseKeyCatcher: NSViewRepresentable {
     let close: () -> Bool
     /// Called once when the window itself closes, to free what it holds.
     var windowClosed: () -> Void = {}
+    /// The window this view joined, or nil when it left.
+    var attached: (NSWindow?) -> Void = { _ in }
+    var exitedFullScreen: () -> Void = {}
 
     func makeNSView(context: Context) -> CatcherView {
         let view = CatcherView()
-        view.close = close
-        view.windowClosed = windowClosed
+        updateNSView(view, context: context)
         return view
     }
 
     func updateNSView(_ view: CatcherView, context: Context) {
         view.close = close
         view.windowClosed = windowClosed
+        view.attached = attached
+        view.exitedFullScreen = exitedFullScreen
     }
 
     final class CatcherView: NSView {
         var close: () -> Bool = { false }
         var windowClosed: () -> Void = {}
+        var attached: (NSWindow?) -> Void = { _ in }
+        var exitedFullScreen: () -> Void = {}
         private var monitor: Any?
         private var closeObserver: (any NSObjectProtocol)?
+        private var fullScreenObserver: (any NSObjectProtocol)?
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
             if let closeObserver { NotificationCenter.default.removeObserver(closeObserver); self.closeObserver = nil }
+            if let fullScreenObserver { NotificationCenter.default.removeObserver(fullScreenObserver); self.fullScreenObserver = nil }
+            attached(window)
             guard let window else { return }
             closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.windowClosed() }
+            }
+            fullScreenObserver = NotificationCenter.default.addObserver(forName: NSWindow.didExitFullScreenNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.exitedFullScreen() }
             }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self, let window = self.window, event.window === window,
@@ -584,5 +602,33 @@ struct CloseKeyCatcher: NSViewRepresentable {
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
         // The monitor goes away in viewDidMoveToWindow when the view leaves its window.
+    }
+}
+
+/// The series strip in full screen: hidden until the pointer reaches the
+/// window's left edge, then over the images until the pointer leaves it.
+struct SeriesReveal: View {
+    let viewer: ViewerModel
+    let current: Study
+    let others: [Study]
+    @State private var revealed = false
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Color.clear
+                .frame(width: Space.xs)
+                .contentShape(Rectangle())
+                .onHover { if $0 { revealed = true } }
+            if revealed {
+                SeriesStrip(viewer: viewer, current: current, others: others)
+                    .frame(width: SeriesStrip.width)
+                    .overlay(alignment: .trailing) { Divider() }
+                    .shadow(radius: Space.sm)
+                    .onHover { if !$0 { revealed = false } }
+                    .transition(.move(edge: .leading))
+            }
+        }
+        .frame(maxHeight: .infinity)
+        .animation(.default, value: revealed)
     }
 }

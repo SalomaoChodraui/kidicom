@@ -1,3 +1,4 @@
+import AppKit
 import KidicomKit
 import SwiftUI
 import simd
@@ -89,6 +90,13 @@ final class ViewerModel {
     var priors: [PriorStudy] = []
     /// The open study's series folded away in the strip.
     var showsSeries = true
+    /// Full screen from a double-click on a lone image: the strip hides and
+    /// slides in while the pointer is at the window's left edge.
+    var seriesAutoHide = false
+    /// The strip takes its column beside the images.
+    var seriesInline: Bool { showsSeries && !seriesAutoHide }
+    /// The viewer's window, for full screen. Set by the view.
+    @ObservationIgnored weak var window: NSWindow?
     var currentCollapsed = false
     /// Prior studies whose series show in the strip.
     var expandedPriors: Set<UUID> = []
@@ -111,7 +119,8 @@ final class ViewerModel {
     private(set) var maximized: Viewport?
 
     /// Double-click in a viewport: maximize it in a split layout, restore
-    /// it when maximized, reset it in a single layout.
+    /// it when maximized. A lone image goes full screen with the strip
+    /// hidden, and comes back on the next double-click.
     func doubleClick(_ viewport: Viewport) {
         activate(viewport)
         if maximized != nil {
@@ -119,9 +128,28 @@ final class ViewerModel {
         } else if layout.count > 1 {
             maximized = viewport
         } else {
-            viewport.reset()
+            seriesAutoHide.toggle()
+            setFullScreen(seriesAutoHide)
         }
     }
+
+    /// Hide Series or Show Series. In full screen, Show pins the strip back.
+    func toggleSeries() {
+        if seriesAutoHide {
+            seriesAutoHide = false
+            showsSeries = true
+        } else {
+            showsSeries.toggle()
+        }
+    }
+
+    private func setFullScreen(_ on: Bool) {
+        guard let window, window.styleMask.contains(.fullScreen) != on else { return }
+        window.toggleFullScreen(nil)
+    }
+
+    /// The window left full screen by any route: the strip comes back.
+    func exitedFullScreen() { seriesAutoHide = false }
 
     /// ⌘W in the viewer: leave 3D or MPR, else close the active viewport
     /// when several show. Returns false when only one shows, so the window

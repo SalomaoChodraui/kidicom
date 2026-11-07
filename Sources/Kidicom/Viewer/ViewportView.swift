@@ -60,7 +60,7 @@ final class ViewportNSView: NSView {
     var onEscape: () -> Void = {}
     /// A left click without a drag, in image pixels.
     var onClick: (CGPoint) -> Void = { _ in }
-    /// Double-click: maximize in a split layout, reset in a single one.
+    /// Double-click: maximize in a split layout, full screen in a single one.
     var onDoubleClick: () -> Void = {}
     /// A tool's key was pressed in the viewport.
     var onTool: (MeasureTool) -> Void = { _ in }

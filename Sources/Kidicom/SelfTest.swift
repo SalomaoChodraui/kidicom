@@ -72,6 +72,18 @@ enum SelfTest {
                 viewer.showsSeries = false
                 check("hiding series preserves the active viewport and layout", viewer.active === viewport && viewer.layout == .single && viewer.stacks.count == ct.series.count)
                 viewer.showsSeries = true
+                if let viewport {
+                    viewer.doubleClick(viewport)
+                    check("double-click on a lone image goes full screen and hides the series strip", viewer.seriesAutoHide && !viewer.seriesInline && viewer.layout == .single)
+                    viewer.doubleClick(viewport)
+                    check("a second double-click brings the series strip back", !viewer.seriesAutoHide && viewer.seriesInline)
+                    viewer.doubleClick(viewport)
+                    viewer.toggleSeries()
+                    check("Show Series in full screen pins the strip back", viewer.seriesInline)
+                    viewer.doubleClick(viewport)
+                    viewer.exitedFullScreen()
+                    check("leaving full screen by any route brings the strip back", viewer.seriesInline)
+                }
                 while viewport?.image == nil && Date.now.timeIntervalSince(opened) < 2 { try? await Task.sleep(for: .milliseconds(10)) }
                 check("the first image shows in under 300 ms", viewport?.image != nil && Date.now.timeIntervalSince(opened) < 0.3, "\(Date.now.timeIntervalSince(opened)) s")
                 check("the viewer starts in the middle of the series", viewport?.index == 12 && viewport?.count == 24)
