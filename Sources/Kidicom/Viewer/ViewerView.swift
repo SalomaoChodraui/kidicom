@@ -241,7 +241,8 @@ struct ViewerView: View {
         // The patient and study show on the image; the toolbar needs the room.
         .toolbar(removing: .title)
         .background(CloseKeyCatcher(close: { viewer.closeActiveViewport() }, windowClosed: { viewer.close() },
-                                    attached: { viewer.window = $0 }, exitedFullScreen: { viewer.exitedFullScreen() }))
+                                    attached: { viewer.window = $0 }, exitedFullScreen: { viewer.exitedFullScreen() },
+                                    tab: { viewer.overlay = viewer.overlay.next }))
         .task(id: study.uid) {
             viewer.load(study)
             if ViewerModel.nextComparePrior, let prior = priors(of: study).first {
@@ -555,6 +556,8 @@ struct CloseKeyCatcher: NSViewRepresentable {
     /// The window this view joined, or nil when it left.
     var attached: (NSWindow?) -> Void = { _ in }
     var exitedFullScreen: () -> Void = {}
+    /// Tab outside a text field: the next overlay level.
+    var tab: () -> Void = {}
 
     func makeNSView(context: Context) -> CatcherView {
         let view = CatcherView()
@@ -567,6 +570,7 @@ struct CloseKeyCatcher: NSViewRepresentable {
         view.windowClosed = windowClosed
         view.attached = attached
         view.exitedFullScreen = exitedFullScreen
+        view.tab = tab
     }
 
     final class CatcherView: NSView {
@@ -574,6 +578,7 @@ struct CloseKeyCatcher: NSViewRepresentable {
         var windowClosed: () -> Void = {}
         var attached: (NSWindow?) -> Void = { _ in }
         var exitedFullScreen: () -> Void = {}
+        var tab: () -> Void = {}
         private var monitor: Any?
         private var closeObserver: (any NSObjectProtocol)?
         private var fullScreenObserver: (any NSObjectProtocol)?
@@ -592,8 +597,14 @@ struct CloseKeyCatcher: NSViewRepresentable {
                 MainActor.assumeIsolated { self?.exitedFullScreen() }
             }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self, let window = self.window, event.window === window,
-                      event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                guard let self, let window = self.window, event.window === window else { return event }
+                // The key view loop takes Tab before the menu sees it, so the window handles it here.
+                if event.keyCode == 48, event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
+                   !(window.firstResponder is NSText) {
+                    self.tab()
+                    return nil
+                }
+                guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                       event.charactersIgnoringModifiers?.lowercased() == "w" else { return event }
                 return self.close() ? nil : event
             }
